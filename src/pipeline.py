@@ -65,7 +65,7 @@ def run_regularization(
         raise ValueError("Column mismatch: G cols must equal len(z_edges)-1")
 
     # 3. Regularisation operator
-    L = build_L(L_flag, z_edges)
+    L = build_L(L_flag, len(z_edges)-1)
 
     # 4. κ‑sweep
     kappa_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)

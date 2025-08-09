@@ -11,9 +11,8 @@ import numpy as np
 from src.io import load_eta, load_G, load_z, save_csv
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee
-from src.plotting import plot_lcurve, plot_sele, plot_eta
+from src.plotting import plot_lcurve, plot_sele, plot_interpolation_check, plot_eta
 from src.mesh import remesh_G
-from src.interpolation_validation import plot_interpolation_check
 
 def _edges_from_centres(centres: np.ndarray) -> np.ndarray:
     """Return *edges* given a strictly increasing list of *centres*."""
@@ -48,7 +47,7 @@ def run_regularization(
 
     # Create non uniform z and interpolate new G
     z_new, G_new = remesh_G(z, G)
-    plot_interpolation_check(z, z_new, G, G_new)
+    plot_interpolation_check(z, z_new, G, G_new, save=True)
     # use G_new and z_new from here onward
     G, z = G_new, z_new
 

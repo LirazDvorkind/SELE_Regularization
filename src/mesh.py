@@ -4,7 +4,8 @@ import numpy as np
 from scipy.interpolate import PchipInterpolator
 from scipy.integrate import trapezoid
 
-from src.interpolation_validation import plot_mesh_elements_position_and_size
+from plotting import plot_mesh_elements_position_and_size
+
 
 def remesh_G(z_old: np.ndarray, G_old: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -16,9 +17,9 @@ def remesh_G(z_old: np.ndarray, G_old: np.ndarray) -> tuple[np.ndarray, np.ndarr
 
     # ---------- The parameters to play with ------------
     # z_turn_relative_location = 0.0005  # Percentage between 0 and 1 of where we turn exponential
-    z_turn = 0.5e-4 # Actual z location of the turn in cm
-    lin_mesh_size = 1.5e-6  # Linear part mesh element size in cm
-    exp_base = 30  # The larger the base, the less the number of points in the exp part (n_exp) will be
+    z_turn = 0.25e-4 # Actual z location of the turn in cm
+    lin_mesh_size = 3e-6  # Linear part mesh element size in cm
+    exp_base = 10  # The larger the base, the less the number of points in the exp part (n_exp) will be
 
     n_lin = math.floor((z_turn - z_min) / lin_mesh_size)  # Number of points in linear part
     # z_turn = z_old[0] + (dz0 * len(z_old) * z_turn_relative_location)  # actual z location of the turn
@@ -29,13 +30,15 @@ def remesh_G(z_old: np.ndarray, G_old: np.ndarray) -> tuple[np.ndarray, np.ndarr
     # Number of points in exponential part
     n_exp = math.floor((np.log10(1 + (((exp_base - 1) * lin_mesh_size) / (z_max - z_turn)))) ** -1)
 
+
     factor = np.logspace(0.0, 1.0, n_exp, base=exp_base) - 1.0
     z_exp = z_turn + (z_max - z_turn) * (factor / (exp_base - 1))
 
     z_new = np.hstack([z_lin, z_exp[1:]])  # drop duplicate z_turn
+    print(f"Total points amount: {len(z_new)}")
 
     # Verify plot
-    plot_mesh_elements_position_and_size(z_new, z_turn)
+    plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
 
     density_old = G_old / dz0  # (λ, N_old)
 

@@ -7,7 +7,7 @@ def plot_interpolation_check(
     z_new: np.ndarray,
     G_old: np.ndarray,
     G_new: np.ndarray,
-    wav_idx: int = 0,
+    wav_idx: int = 100,
 ) -> None:
     # plot against left edges (no centre shift)
     plt.figure()
@@ -45,4 +45,4 @@ def plot_mesh_elements_position_and_size(z: np.ndarray, z_turn: float) -> None:
     fig.suptitle("Mesh elements size and position.")
     ax1.set_title("High level view")
     ax2.set_title("Linear zoomed-in view")
-    plt.show(block=True)
+    plt.show(block=False)

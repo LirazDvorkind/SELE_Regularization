@@ -67,16 +67,17 @@ def run_regularization(
     residuals, seminorms, S_list = sweep_kappa(G, B, L, kappa_vals)
 
     # 5. Knee detection
-    κ_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
-    print(f"κ_knee = {κ_knee:.3e}")
+    kappa_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
+    # kappa_knee /= 7
+    print(f"kappa_knee = {kappa_knee:.3e}")
 
     # 6. Confidence window
-    mask = (kappa_vals >= κ_knee / conf_fact) & (kappa_vals <= κ_knee * conf_fact)
+    mask = (kappa_vals >= kappa_knee / conf_fact) & (kappa_vals <= kappa_knee * conf_fact)
     S_stack = np.stack([S_list[i] for i, m in enumerate(mask) if m], axis=1)
     S_mean = S_stack.mean(axis=1)
     S_std = S_stack.std(axis=1)
 
-    # 7. Reconstruction @ κ_knee
+    # 7. Reconstruction @ kappa_knee
     S_knee = S_list[knee_idx]
     eta_fit = G @ S_knee / (photon_flux * e_charge)
 

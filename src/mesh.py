@@ -16,9 +16,9 @@ def remesh_G(z_old: np.ndarray, G_old: np.ndarray) -> tuple[np.ndarray, np.ndarr
 
     # ---------- The parameters to play with ------------
     # z_turn_relative_location = 0.0005  # Percentage between 0 and 1 of where we turn exponential
-    z_turn = 2e-4 # Actual z location of the turn in cm
-    lin_mesh_size = 3e-6  # Linear part mesh element size in cm
-    exp_base = 20  # The larger the base, the less the number of points in the exp part (n_exp) will be
+    z_turn = 0.5e-4 # Actual z location of the turn in cm
+    lin_mesh_size = 1.5e-6  # Linear part mesh element size in cm
+    exp_base = 30  # The larger the base, the less the number of points in the exp part (n_exp) will be
 
     n_lin = math.floor((z_turn - z_min) / lin_mesh_size)  # Number of points in linear part
     # z_turn = z_old[0] + (dz0 * len(z_old) * z_turn_relative_location)  # actual z location of the turn

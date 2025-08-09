@@ -12,6 +12,8 @@ from src.io import load_eta, load_G, load_z, save_csv
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee
 from src.plotting import plot_lcurve, plot_sele, plot_eta
+from src.mesh import remesh_G
+from src.interpolation_validation import plot_interpolation_check
 
 def _edges_from_centres(centres: np.ndarray) -> np.ndarray:
     """Return *edges* given a strictly increasing list of *centres*."""
@@ -40,20 +42,15 @@ def run_regularization(
 ):
     """Full regularisation pipeline supporting arbitrary 1‑D meshes."""
     # 1. Load data ---------------------------------------------------------
-    eta_ext = load_eta(eta_path)       # (n_λ,)
-    G = load_G(G_path)                 # (n_λ, N)
-    z_raw = load_z(z_path).ravel()
+    eta_ext = load_eta(eta_path)
+    G = load_G(G_path)
+    z = load_z(z_path).ravel()
 
-    # 1a. Interpret z_raw --------------------------------------------------
-    if z_raw.size == G.shape[1] + 1:
-        z_edges = z_raw                     # supplied as edges
-    elif z_raw.size == G.shape[1]:
-        z_edges = _edges_from_centres(z_raw)  # supplied as centres
-    else:
-        raise ValueError(
-            "z.csv must contain N centres or N+1 edges where N = G.shape[1]"
-        )
-    z_centres = 0.5 * (z_edges[:-1] + z_edges[1:])
+    # Create non uniform z and interpolate new G
+    z_new, G_new = remesh_G(z, G)
+    plot_interpolation_check(z, z_new, G, G_new)
+    # use G_new and z_new from here onward
+    G, z = G_new, z_new
 
     # 2. Unit normalisation (A and B must have same units)
     G = G * photon_flux * e_charge
@@ -61,11 +58,9 @@ def run_regularization(
 
     if G.shape[0] != eta_ext.size:
         raise ValueError("Row mismatch between G and η_ext")
-    if G.shape[1] != z_centres.size:
-        raise ValueError("Column mismatch: G cols must equal len(z_edges)-1")
 
     # 3. Regularisation operator
-    L = build_L(L_flag, len(z_edges)-1)
+    L = build_L(L_flag, len(z))
 
     # 4. κ‑sweep
     kappa_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
@@ -73,7 +68,7 @@ def run_regularization(
 
     # 5. Knee detection
     κ_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
-    print(f"κ_knee = {κ_knee:.3e}")
+    print(f"κ_knee = {κ_knee:.3e}")
 
     # 6. Confidence window
     mask = (kappa_vals >= κ_knee / conf_fact) & (kappa_vals <= κ_knee * conf_fact)
@@ -87,13 +82,13 @@ def run_regularization(
 
     # 8. Persist results
     Path("results").mkdir(exist_ok=True)
-    save_csv("results/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-    save_csv("results/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+    save_csv("results/S_mean.csv", np.column_stack([z, S_mean]), header="z_cm,S_mean")
+    save_csv("results/S_std.csv", np.column_stack([z, S_std]), header="z_cm,S_std")
     save_csv("results/eta_fit.csv", eta_fit, header="eta_fit")
 
     # 9. Plotting
     plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, save=is_save_plots)
-    plot_sele(z_centres, S_mean, S_std, save=is_save_plots)
-    λ_vals = np.arange(eta_ext.size)
-    plot_eta(λ_vals, eta_ext, eta_fit, save=is_save_plots)
+    plot_sele(z, S_mean, S_std, save=is_save_plots)
+    lambda_vals = np.arange(eta_ext.size)
+    plot_eta(lambda_vals, eta_ext, eta_fit, save=is_save_plots)
     plt.show(block=True)

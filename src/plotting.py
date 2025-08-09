@@ -17,7 +17,6 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
     ax.set_xlabel(r'$\varepsilon = ||\,G S - \eta_{\mathrm{ext}}\,||_2$')
     ax.set_ylabel(r'$||\,L S\,||_2$')
     ax.legend()
-    fig.tight_layout()
     if save:
         _ensure_results_dir()
         fig.savefig('results/lcurve.png', dpi=300)
@@ -33,7 +32,6 @@ def plot_sele(z: Sequence[float], S_mean: Sequence[float], S_std: Sequence[float
     ax.set_xlabel('z (cm)')
     ax.set_ylabel('SELE')
     ax.legend()
-    fig.tight_layout()
     if save:
         _ensure_results_dir()
         fig.savefig('results/sele_profile.png', dpi=300)
@@ -47,7 +45,6 @@ def plot_eta(lambda_vals, eta_meas, eta_fit, *, save: bool = False):
     ax.set_xlabel('Wavelength (arb. index)')
     ax.set_ylabel(r'$\eta_{ext}$')
     ax.legend()
-    fig.tight_layout()
     if save:
         _ensure_results_dir()
         fig.savefig('results/eta_fit.png', dpi=300)

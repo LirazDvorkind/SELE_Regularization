@@ -11,7 +11,7 @@ DATA_PATHS = {
     "k":       "Data/k.csv",                    # path to extinction coefficient k(λ), from MATLAB code
     "lambda_for_alpha":  "Data/n_k_wavelength_nm.csv",      # wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
     "eta_ext":  "Data/ELE_sim.csv",             # eta_ext (J) CSV, this is the experiment simulation results, in MATLAB it is called PLQY_sim
-  # "z":  "Data/z_mesh.csv",                    # the SELE z [cm] mesh, in MATLAB it is called SELE_z_interp
+    "z_gt":  "Data/z_mesh.csv",                 # the SELE z [cm] mesh, in MATLAB it is called SELE_z_interp
     "sele_gt":  "Data/SELE_ground_truth.csv",   # the real SELE calculated using deltas in simulations, this is the result we are looking for, in MATLAB it is called SELE_interp_for_G0
     "wavelengths":  "Data/wavelength_nm.csv",   # the wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back
 }
@@ -36,6 +36,7 @@ if __name__ == "__main__":
         k_path        = DATA_PATHS["k"],
         lambda_for_alpha_path = DATA_PATHS["lambda_for_alpha"],
         wavelengths_path      = DATA_PATHS["wavelengths"],
+        z_gt_path             = DATA_PATHS["z_gt"],
         sele_gt_path          = DATA_PATHS["sele_gt"],
         L_flag        = L_FLAG,
         kappa_max     = KAPPA_RANGE[0],

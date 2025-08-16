@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.io import load_eta, load_G, load_z, save_csv
+from src.io import load_eta, load_z, save_csv
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee
 from src.plotting import plot_lcurve, plot_sele, plot_interpolation_check, plot_eta
@@ -32,6 +30,7 @@ def run_regularization(
         k_path: str,
         lambda_for_alpha_path: str,
         wavelengths_path: str,
+        z_gt_path: str,
         sele_gt_path: str,
         L_flag: str = "L0",
         kappa_max: float = 1e-2,
@@ -47,6 +46,8 @@ def run_regularization(
 ):
     """Full regularisation pipeline supporting arbitrary 1‑D meshes."""
     # 1. Load data ---------------------------------------------------------
+    z_gt = load_eta(z_gt_path)
+    sele_gt = load_eta(sele_gt_path)
     eta_ext = load_eta(eta_path)
     z = load_z(z_path).ravel()
     # Load optical inputs for recomputing G on the new mesh
@@ -60,7 +61,6 @@ def run_regularization(
         wavelengths=wavelengths,
         k=k,
         lambda_for_alpha=lambda_for_alpha,
-        photon_flux=photon_flux,
         z_turn=z_turn,
         lin_mesh_size=lin_mesh_size,
         exp_base=exp_base
@@ -80,7 +80,7 @@ def run_regularization(
         raise ValueError(f"Row mismatch between G and η_ext: G[0] is {G.shape[0]} but n_ext is {eta_ext.size}")
 
     # 3. Regularisation operator
-    L = build_L(L_flag, len(z))
+    L = build_L(L_flag, len(z)-1)
 
     # 4. κ‑sweep
     kappa_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
@@ -102,14 +102,13 @@ def run_regularization(
     eta_fit = G @ S_knee / (photon_flux * e_charge)
 
     # 8. Persist results
-    Path("results").mkdir(exist_ok=True)
-    save_csv("results/raw/S_mean.csv", np.column_stack([z, S_mean]), header="z_cm,S_mean")
-    save_csv("results/raw/S_std.csv", np.column_stack([z, S_std]), header="z_cm,S_std")
+    z_centres = 0.5 * (z[:-1] + z[1:])  # length M-1
+    save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+    save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
     save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
 
     # 9. Plotting
     plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, save=is_save_plots)
-    plot_sele(z, S_mean, S_std, save=is_save_plots)
-    lambda_vals = np.arange(eta_ext.size)
-    plot_eta(lambda_vals, eta_ext, eta_fit, save=is_save_plots)
+    plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
+    plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
     plt.show(block=True)

@@ -14,7 +14,6 @@ def remesh_G(
         wavelengths: NDArray[np.float64],
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],
-        photon_flux: ArrayLike = 1.0,
         *,
         z_turn: float = 1e-4,
         lin_mesh_size: float = 3e-6,
@@ -39,8 +38,6 @@ def remesh_G(
         Extinction coefficient spectrum (unitless), shape (L,).
     lambda_for_alpha
         Wavelengths corresponding to k (nm), shape (L,), strictly positive.
-    photon_flux
-        Incident photon flux Φ_ph. Scalar or array of shape (L,), units photons·cm^-2·s^-1.
     z_turn
         Depth [cm] where the mesh transitions from linear to exponentially stretched spacing.
     lin_mesh_size
@@ -103,20 +100,18 @@ def remesh_G(
         k=k,
         wavelength_nm=wavelengths,
         z_cm=z_new,
-        photon_flux=photon_flux,
         volumetric=False,
     )
 
     plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
 
-    return z_new[:-1], G_new
+    return z_new, G_new
 
 
 def compute_front_generation(
         k: ArrayLike,
         wavelength_nm: ArrayLike,
         z_cm: ArrayLike,
-        photon_flux: ArrayLike = 1.0,
         volumetric: bool = False,
 ) -> NDArray[np.float64]:
     """
@@ -138,9 +133,6 @@ def compute_front_generation(
         Wavelengths (nm) corresponding to k. Shape (L,). Values must be > 0.
     z_cm
         Strictly increasing mesh edges (cm). Shape (M,), M >= 2.
-    photon_flux
-        Incident photon flux Φ_ph. Either a scalar [photons·cm^-2·s^-1] or shape (L,) to allow
-        wavelength-dependent illumination.
     volumetric
         If True, divides each element’s absorbed flux by its thickness Δz to return
         volumetric generation [photons·cm^-3·s^-1]. If False, returns area-based absorbed
@@ -175,23 +167,12 @@ def compute_front_generation(
     lambda_cm = wavelength_nm * 1e-7
     alpha_cm_inv = 4.0 * np.pi * k / lambda_cm  # (L,)
 
-    # Prepare photon flux with broadcasting to (L, 1)
-    photon_flux = np.asarray(photon_flux, dtype=np.float64)
-    if photon_flux.ndim == 0:
-        phi = np.broadcast_to(photon_flux, alpha_cm_inv.shape)
-    elif photon_flux.ndim == 1 and photon_flux.shape == alpha_cm_inv.shape:
-        phi = photon_flux
-    else:
-        raise ValueError("photon_flux must be a scalar or a 1D array of length L.")
-
     # Compute exponentials at edges for all wavelengths: shape (L, M)
     exp_edges = np.exp(-alpha_cm_inv[:, None] * z_cm[None, :])
 
     # Integrated absorption over element i: e^{-α z_i} - e^{-α z_{i+1}} -> (L, M-1)
     delta_exp = exp_edges[:, :-1] - exp_edges[:, 1:]
-
-    # Apply photon flux (broadcast over columns)
-    G = delta_exp * phi[:, None]
+    G = delta_exp
 
     if volumetric:
         dz = np.diff(z_cm)  # (M-1,)

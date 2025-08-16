@@ -109,7 +109,7 @@ def remesh_G(
 
     plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
 
-    return z_new, G_new
+    return z_new[:-1], G_new
 
 
 def compute_front_generation(

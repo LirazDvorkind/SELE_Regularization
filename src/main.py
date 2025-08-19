@@ -19,12 +19,12 @@ L_FLAG        = "L2"            # 'L0', 'L1', 'L2'
 IS_SAVE_PLOTS = True            # Save PNGs to results/
 KAPPA_RANGE   = (1e-2, 1e-15)   # (κ_max, κ_min)
 N_KAPPA       = 150             # Number of κ samples
-CONF_WINDOW   = 10 ** 0.5       # κ_knee ×/÷ CONF_WINDOW
+CONF_WINDOW   = 10 ** 0.5       # κ_knee ×/÷ CONF_WINDOW # TODO: Show this conf window on the l-curve
 E_CHARGE      = 1.60217657e-19  # electron charge [C]
 PHOTON_FLUX   = 1e14            # photons cm⁻² s⁻¹  ← pick any positive value
 Z_TURN        = 1e-4            # cm: turning depth (linear → exponential mesh)
-LIN_MESH_SIZE = 3e-6            # cm: linear-part element size
-EXP_BASE      = 10.0            # base for exponential spacing
+LIN_MESH_SIZE = 1e-5            # cm: linear-part element size (distance between linear mesh elements)
+EXP_BASE      = 400.0            # base for exponential spacing
 
 # ----------- do not edit below --------
 from src.pipeline import run_regularization

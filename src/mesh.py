@@ -73,7 +73,7 @@ def remesh_G(
         raise ValueError("exp_base must be > 1.0.")
 
     z_min = z_old[0]
-    z_max = z_old[-1]
+    z_max = 350e-4#z_old[-1] # TODO: quick-fx here
     if not (z_min < z_turn < z_max):
         raise ValueError("z_turn must lie strictly within [z_old[0], z_old[-1]].")
 

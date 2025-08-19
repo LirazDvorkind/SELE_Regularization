@@ -32,7 +32,7 @@ def run_regularization(
         wavelengths_path: str,
         z_gt_path: str,
         sele_gt_path: str,
-        L_flag: str = "L0",
+        L_flag: str,
         kappa_max: float = 1e-2,
         kappa_min: float = 1e-15,
         n_kappa: int = 200,

@@ -26,15 +26,22 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
     plt.show(block=False)
 
 
-def plot_sele(z: Sequence[float], S_mean: Sequence[float], S_std: Sequence[float],
-              *, save: bool = False):
+def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, save: bool = False):
+    mask = z_gt <= np.max(z_centres)
+    sele_gt = sele_gt[mask]
+    z_gt = z_gt[mask]
     fig, ax = plt.subplots()
-    ax.plot(z * 1e4, S_mean, label='SELE')
-    ax.fill_between(z, np.asarray(S_mean) - S_std, np.asarray(S_mean) + S_std,
+    ax.plot(z_centres * 1e4, S_mean, label='SELE (reconstructed)')
+    ax.fill_between(z_centres * 1e4,
+                    np.asarray(S_mean) - S_std,
+                    np.asarray(S_mean) + S_std,
                     alpha=0.3, label=r'$\pm 1\,\sigma$')
+
+    ax.plot(z_gt * 1e4, sele_gt, 'k--', label='SELE ground truth')
+
     ax.set_xlabel('z $[\\mu m]$')
     ax.set_ylabel('SELE')
-    plt.title("SELE Plot")
+    plt.title("SELE vs Ground Truth")
     ax.legend()
     if save:
         _ensure_results_dir()
@@ -46,7 +53,7 @@ def plot_eta(lambda_vals, eta_meas, eta_fit, *, save: bool = False):
     fig, ax = plt.subplots()
     ax.plot(lambda_vals, eta_meas, label='Measured')
     ax.plot(lambda_vals, eta_fit, '--', label='Reconstructed')
-    ax.set_xlabel('Wavelength (arb. index)')
+    ax.set_xlabel('Wavelength [nm]')
     ax.set_ylabel(r'$\eta_{ext}$')
     ax.legend()
     plt.title("Reconstructed ELE")

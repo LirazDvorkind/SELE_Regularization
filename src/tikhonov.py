@@ -5,20 +5,28 @@ from numpy.typing import NDArray
 from typing import List, Tuple
 from scipy.optimize import nnls
 
-def solve_tikhonov(A: NDArray, B: NDArray, L: NDArray, kappa: float) -> NDArray:
+def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float, force_zero: bool = True) -> NDArray:
     """Solve the Tikhonov‑regularized least squares problem.
 
-    min_S ||A S − B||² + κ² ||L S||²
+    min_S ||G S − J||² + κ² ||L S||²
     using the normal‑equations form.
 
     Returns
     -------
     S : ndarray, shape (N,)
     """
-    K = np.vstack((A, kappa * L))
-    rhs = np.concatenate((B, np.zeros(L.shape[0])))
-    # S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
-    S, _ = nnls(K, rhs)
+    if force_zero:
+        L_force_last_zero = np.zeros(L.shape)
+        L_force_last_zero[-1, -1] = 1
+        K = np.vstack((G, kappa * L, L_force_last_zero))
+        rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
+    else:
+        K = np.vstack((G, kappa * L))
+        rhs = np.concatenate((J, np.zeros(L.shape[0])))
+    # Solves with regular least squares
+    S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
+    # Solves with non negative least squares
+    # S, _ = nnls(K, rhs)  # from scipy.optimize import nnls
     return S
 
 def sweep_kappa(A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray
@@ -42,6 +50,8 @@ def _curvature(x: NDArray, y: NDArray) -> NDArray:
     ddy = np.gradient(dy)
     return np.abs(dx * ddy - dy * ddx) / np.maximum((dx ** 2 + dy ** 2) ** 1.5, 1e-15)
 
+# TODO: 1. check if there are built in knee finding algorithms for tikhonov
+#  2. try the min distance to [0,0] in log scale trick
 def find_knee(residuals: NDArray, seminorms: NDArray, kappa_vals: NDArray
              ) -> Tuple[float, int]:
     """Locate κ_knee using maximum curvature of the L‑curve."""

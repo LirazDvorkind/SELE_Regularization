@@ -8,7 +8,7 @@ import numpy as np
 from src.io import load_eta, load_z, save_csv
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee
-from src.plotting import plot_lcurve, plot_sele, plot_interpolation_check, plot_eta
+from src.plotting import plot_lcurve, plot_sele, plot_eta
 from src.mesh import remesh_G
 
 
@@ -88,7 +88,6 @@ def run_regularization(
 
     # 5. Knee detection
     kappa_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
-    # kappa_knee /= 7
     print(f"kappa_knee = {kappa_knee:.3e}")
 
     # 6. Confidence window

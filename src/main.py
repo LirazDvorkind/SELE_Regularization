@@ -13,7 +13,8 @@ DATA_PATHS = {
     "eta_ext":  "Data/ELE_sim.csv",             # eta_ext (J) CSV, this is the experiment simulation results, in MATLAB it is called PLQY_sim
     "z_gt":  "Data/z_mesh.csv",                 # the SELE z [cm] mesh, in MATLAB it is called SELE_z_interp
     "sele_gt":  "Data/SELE_ground_truth.csv",   # the real SELE calculated using deltas in simulations, this is the result we are looking for, in MATLAB it is called SELE_interp_for_G0
-    "wavelengths":  "Data/wavelength_nm.csv",   # the wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back
+    "wavelengths":  "Data/wavelength_nm.csv",   # the wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back,
+    "L_score_network": "Data/sele_score_net_d32.pt" # the machine learned score network (L function)
 }
 L_FLAG        = "L2"            # 'L0', 'L1', 'L2'
 IS_SAVE_PLOTS = True            # Save PNGs to results/
@@ -38,6 +39,7 @@ if __name__ == "__main__":
         wavelengths_path      = DATA_PATHS["wavelengths"],
         z_gt_path             = DATA_PATHS["z_gt"],
         sele_gt_path          = DATA_PATHS["sele_gt"],
+        L_score_network_path  = DATA_PATHS["L_score_network"],
         L_flag        = L_FLAG,
         kappa_max     = KAPPA_RANGE[0],
         kappa_min     = KAPPA_RANGE[1],

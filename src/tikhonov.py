@@ -5,6 +5,7 @@ from numpy.typing import NDArray
 from typing import List, Tuple
 from scipy.optimize import nnls
 
+
 def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float, force_zero: bool = True) -> NDArray:
     """Solve the Tikhonov‑regularized least squares problem.
 
@@ -29,8 +30,9 @@ def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float, force_zero:
     # S, _ = nnls(K, rhs)  # from scipy.optimize import nnls
     return S
 
+
 def sweep_kappa(A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray
-               ) -> Tuple[NDArray, NDArray, List[NDArray]]:
+                ) -> Tuple[NDArray, NDArray, List[NDArray]]:
     """Compute residual and seminorm across a range of κ values."""
     residuals = np.empty_like(kappa_vals)
     seminorms = np.empty_like(kappa_vals)
@@ -42,22 +44,38 @@ def sweep_kappa(A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray
         S_list.append(S)
     return residuals, seminorms, S_list
 
-def _curvature(x: NDArray, y: NDArray) -> NDArray:
-    """Numerical curvature of parametric curve (x(t), y(t))."""
-    dx = np.gradient(x)
-    dy = np.gradient(y)
-    ddx = np.gradient(dx)
-    ddy = np.gradient(dy)
-    return np.abs(dx * ddy - dy * ddx) / np.maximum((dx ** 2 + dy ** 2) ** 1.5, 1e-15)
 
-# TODO: 1. check if there are built in knee finding algorithms for tikhonov
-#  2. try the min distance to [0,0] in log scale trick
-def find_knee(residuals: NDArray, seminorms: NDArray, kappa_vals: NDArray
-             ) -> Tuple[float, int]:
-    """Locate κ_knee using maximum curvature of the L‑curve."""
-    log_r = np.log10(residuals)
-    log_s = np.log10(seminorms)
+def find_knee(residuals: NDArray, seminorms: NDArray, kappa_vals: NDArray,
+              *, normalize: bool = True) -> Tuple[float, int]:
+    """
+    Locate κ_knee by the minimum Euclidean distance to the origin in log–log space.
+    Optionally normalizes log-axes to [0,1] to balance scales.
+
+    Returns (kappa_at_knee, knee_index).
+    """
+    residuals = np.asarray(residuals, dtype=float)
+    seminorms = np.asarray(seminorms, dtype=float)
     kappa_vals = np.asarray(kappa_vals)
-    curv = _curvature(log_s, log_r)
-    idx = int(np.argmax(curv))
+
+    if residuals.shape != seminorms.shape:
+        raise ValueError("residuals and seminorms must have the same shape")
+    if residuals.shape[0] != kappa_vals.shape[0]:
+        raise ValueError("kappa_vals length must match residuals/seminorms")
+
+    # Guard against nonpositive values before log
+    eps = np.finfo(float).tiny
+    x = np.log10(np.clip(residuals, eps, None))
+    y = np.log10(np.clip(seminorms, eps, None))
+
+    if normalize:
+        def _norm(v: NDArray) -> NDArray:
+            vmin, vmax = np.nanmin(v), np.nanmax(v)
+            if not np.isfinite(vmin + vmax) or vmax == vmin:
+                return np.zeros_like(v)
+            return (v - vmin) / (vmax - vmin)
+
+        x, y = _norm(x), _norm(y)
+
+    d2 = x * x + y * y  # distance^2 to (0,0) in log–log space
+    idx = int(np.nanargmin(d2))
     return float(kappa_vals[idx]), idx

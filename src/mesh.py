@@ -9,8 +9,9 @@ from numpy.typing import ArrayLike, NDArray
 from plotting import plot_mesh_elements_position_and_size
 
 
-def remesh_G(
-        z_old: NDArray[np.float64],
+def non_uniform_mesh(
+        z_min: float,
+        z_max: float,
         wavelengths: NDArray[np.float64],
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],
@@ -21,17 +22,12 @@ def remesh_G(
 ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     Create a non-uniform mesh and (re)compute the front-illumination optical generation G
-    directly from Beer–Lambert optics using k(λ) and λ. This replaces interpolation-based
-    remeshing with a fresh optical calculation.
-
-    Why:
-        Recomputing G from k and λ ensures consistency with the optical model and avoids
-        artifacts introduced by interpolating a previously integrated G.
+    directly from Beer–Lambert optics using k(λ) and λ.
 
     Parameters
     ----------
-    z_old
-        Original mesh edges [cm], strictly increasing; only min/max are used to set bounds.
+    z_min, z_max
+        New mesh bounds [cm]
     wavelengths
         The G wavelengths [nm]
     k
@@ -56,13 +52,10 @@ def remesh_G(
     - Computes **front-illumination** G only.
     - For volumetric generation later, divide each column of G_new by Δz.
     """
-    z_old = np.asarray(z_old, dtype=np.float64)
     lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
     k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
 
-    if z_old.ndim != 1 or z_old.size < 2 or not np.all(np.diff(z_old) > 0.0):
-        raise ValueError("z_old must be 1D, length>=2, strictly increasing (cm).")
     if k.ndim != 1 or wavelengths.ndim != 1 or k.shape != wavelengths.shape:
         raise ValueError("k and wavelength_nm must be 1D arrays of the same shape.")
     if np.any(wavelengths <= 0.0):
@@ -71,9 +64,6 @@ def remesh_G(
         raise ValueError("lin_mesh_size must be positive.")
     if exp_base <= 1.0:
         raise ValueError("exp_base must be > 1.0.")
-
-    z_min = z_old[0]
-    z_max = 350e-4#z_old[-1] # TODO: quick-fx here
     if not (z_min < z_turn < z_max):
         raise ValueError("z_turn must lie strictly within [z_old[0], z_old[-1]].")
 

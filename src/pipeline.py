@@ -9,43 +9,36 @@ from src.io import load_eta, load_z, save_csv
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee
 from src.plotting import plot_lcurve, plot_sele, plot_eta
-from src.mesh import remesh_G
+from src.mesh import non_uniform_mesh
+from src.types.enums import LFlag, RegularizationMethod
+from src.types.config import Config
 
 
-def _edges_from_centres(centres: np.ndarray) -> np.ndarray:
-    """Return *edges* given a strictly increasing list of *centres*."""
-    centres = np.asarray(centres, float).ravel()
-    dz = np.diff(centres)
-    edges = np.empty(centres.size + 1, dtype=float)
-    edges[1:-1] = 0.5 * (centres[:-1] + centres[1:])
-    edges[0] = centres[0] - 0.5 * dz[0]
-    edges[-1] = centres[-1] + 0.5 * dz[-1]
-    return edges
-
-
-def run_regularization(
-        *,
-        eta_path: str,
-        z_path: str,
-        k_path: str,
-        lambda_for_alpha_path: str,
-        wavelengths_path: str,
-        z_gt_path: str,
-        sele_gt_path: str,
-        L_score_network_path: str,
-        L_flag: str,
-        kappa_max: float = 1e-2,
-        kappa_min: float = 1e-15,
-        n_kappa: int = 200,
-        conf_fact: float = 10.0,
-        is_save_plots: bool = True,
-        e_charge: float = 1.60217657e-19,
-        photon_flux: float = 1e14,
-        z_turn: float = 1e-4,
-        lin_mesh_size: float = 3e-6,
-        exp_base: float = 10.0,
-):
+def run_regularization(config: Config):
     """Full regularisation pipeline supporting arbitrary 1‑D meshes."""
+
+    # 0. Load configuration values:
+    eta_path: str = config.data_paths.eta_ext
+    z_path: str = config.data_paths.z
+    k_path: str = config.data_paths.k
+    lambda_for_alpha_path: str = config.data_paths.lambda_for_alpha
+    wavelengths_path: str = config.data_paths.wavelengths
+    z_gt_path: str = config.data_paths.z_gt
+    sele_gt_path: str = config.data_paths.sele_gt
+    L_score_network_path: str = config.data_paths.L_score_network
+    L_flag: LFlag = config.L_flag
+    regularization_method: RegularizationMethod = config.regularization_method
+    kappa_max, kappa_min = config.kappa_range
+    n_kappa: int = config.n_kappa
+    conf_fact: float = config.conf_window
+    is_save_plots: bool = config.is_save_plots
+    e_charge: float = config.e_charge
+    photon_flux: float = config.photon_flux
+    z_turn: float = config.z_turn
+    lin_mesh_size: float = config.lin_mesh_size
+    exp_base: float = config.exp_base
+    W: float = config.W
+
     # 1. Load data ---------------------------------------------------------
     z_gt = load_eta(z_gt_path)
     sele_gt = load_eta(sele_gt_path)
@@ -57,8 +50,9 @@ def run_regularization(
     wavelengths = load_z(wavelengths_path).ravel()  # wavelengths of G [nm]
 
     # Recompute G on a non-uniform mesh directly from Beer–Lambert optics
-    z_new, G_new = remesh_G(
-        z_old=z,
+    z_new, G_new = non_uniform_mesh(
+        z_min=float(z[0]),
+        z_max=W,
         wavelengths=wavelengths,
         k=k,
         lambda_for_alpha=lambda_for_alpha,
@@ -81,7 +75,7 @@ def run_regularization(
         raise ValueError(f"Row mismatch between G and η_ext: G[0] is {G.shape[0]} but n_ext is {eta_ext.size}")
 
     # 3. Regularisation operator
-    L = build_L(L_flag, len(z)-1)
+    L = build_L(L_flag, len(z) - 1)
 
     # 4. κ‑sweep
     kappa_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
@@ -108,7 +102,7 @@ def run_regularization(
     save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
 
     # 9. Plotting
-    plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, save=is_save_plots)
+    plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)
     plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
     plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
     plt.show(block=True)

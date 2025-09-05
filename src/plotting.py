@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from typing import Sequence
+import mplcursors
 
 
 def _ensure_results_dir():
@@ -11,18 +12,59 @@ def _ensure_results_dir():
 
 
 def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_vals,
-                knee_idx: int, *, save: bool = False):
+                knee_idx: int, mask: Sequence[bool], *, save: bool = False):
+    seminorms = np.asarray(seminorms)
+    residuals = np.asarray(residuals)
+    mask = np.asarray(mask, dtype=bool)
+
     fig, ax = plt.subplots()
-    ax.loglog(residuals, seminorms, '-o', markersize=3)
-    ax.scatter(residuals[knee_idx], seminorms[knee_idx], marker='x', s=60,
-               label=f'κ_knee = {kappa_vals[knee_idx]:.2e}')
+
+    # Main curve (Line2D)
+    line, = ax.loglog(residuals, seminorms, '-o', markersize=3, color="C0")
+
+    # Highlight masked points (PathCollection)
+    mask = np.asarray(mask, dtype=bool)
+    idx_mask = np.flatnonzero(mask)
+    sc_mask = ax.scatter(residuals[mask], seminorms[mask],
+                         c="red", s=20, label="Conf window")
+
+    # Knee point (single PathCollection)
+    idx_knee = np.array([knee_idx])
+    sc_knee = ax.scatter(residuals[knee_idx], seminorms[knee_idx],
+                         marker='x', s=60, color="black",
+                         label=f'κ_knee = {kappa_vals[knee_idx]:.2e}')
+
+    # One cursor for all artists; show κ on hover
+    cursor = mplcursors.cursor([line, sc_mask, sc_knee], hover=True)
+
+    # Build per-artist index mapping back to kappa indices
+    index_map = {
+        line: np.arange(len(kappa_vals), dtype=int),
+        sc_mask: idx_mask.astype(int),
+        sc_knee: np.array([knee_idx], dtype=int),
+    }
+
+    @cursor.connect("add")
+    def _(sel):
+        artist = sel.artist
+        mapping = index_map.get(artist)
+        if mapping is None or len(mapping) == 0:
+            sel.annotation.set_text("κ = n/a")
+            return
+        i_local = sel.index
+        i_local = 0 if i_local is None else int(i_local)
+        i_global = int(mapping[i_local])
+        sel.annotation.set_text(f"κ = {kappa_vals[i_global]:.2e}")
+
     ax.set_xlabel(r'$\varepsilon = ||\,G S - \eta_{\mathrm{ext}}\,||_2$')
     ax.set_ylabel(r'$||\,L S\,||_2$')
     plt.title("Regularization Loss Curve")
     ax.legend()
+
     if save:
         _ensure_results_dir()
         fig.savefig('results/lcurve.png', dpi=300)
+
     plt.show(block=False)
 
 

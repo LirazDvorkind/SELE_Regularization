@@ -1,3 +1,9 @@
+"""
+This is Alon's scoring model code
+It is not a part of the SELE_Regularization module
+You may run it stand-alone with `Current File` PyCharm configuration
+This also generates Data/score_model_curve.csv
+"""
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,6 +16,7 @@ score_network.eval()
 W = 30e-4  # cm
 x_res = 32
 grid = np.linspace(0, W, x_res) * 1e4  # µm
+# Liraz's note - this normalized grid is unused
 normalized_grid = (grid - grid.min()) / (grid.max() - grid.min()) * 2 * np.pi
 
 # The following is a normalized simulated SELE not seen by the score neural network
@@ -67,10 +74,12 @@ def gradient_ascent_w_score(x0, obj_grad_fn, lr=1e-2, steps=100, reg_weight=0.1,
 x0 = np.random.rand(x_res)
 
 print("Running optimization WITH score regularization...")
-x_opt_with_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=50, reg_weight=0.5)
+x_opt_with_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=200, reg_weight=0.5)
+# Original values: x_opt_with_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=50, reg_weight=0.5)
 
 print("\nRunning optimization WITHOUT score regularization...")
-x_opt_no_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=50, reg_weight=0.0)
+x_opt_no_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=200, reg_weight=0.0)
+# Original values: x_opt_no_reg = gradient_ascent_w_score(x0, sele_objective_grad, lr=1e-2, steps=50, reg_weight=0.0)
 
     
 plt.figure(figsize=(12, 8))
@@ -84,7 +93,6 @@ plt.ylabel('Function value')
 plt.title('Function Optimization: Effect of Score Network Regularization')
 plt.legend()
 plt.grid(True, alpha=0.3)
-plt.show()
 
 # Print final errors
 error_with_reg = np.sum((x_opt_with_reg - target_sele)**2)
@@ -92,3 +100,8 @@ error_no_reg = np.sum((x_opt_no_reg - target_sele)**2)
 
 print(f"\nFinal MSE with regularization: {error_with_reg:.6f}")
 print(f"Final MSE without regularization: {error_no_reg:.6f}")
+
+# Liraz's addition: save the learned curve
+np.savetxt("../Data/score_model_curve.csv", x_opt_no_reg, delimiter=',', header='', comments='')
+
+plt.show()

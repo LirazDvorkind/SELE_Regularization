@@ -5,36 +5,35 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.__init__ import CONFIG
 from src.mesh import calc_mesh_and_G
 from src.io import load_eta, load_z, save_csv, generate_run_report
 from src.operators import build_L
 from src.tikhonov import sweep_kappa, find_knee, set_kappa_knee
 from src.plotting import plot_lcurve, plot_sele, plot_eta
 from src.types.enums import LFlag, RegularizationMethod
-from src.types.config import Config
 from src.types.G_calculation import GInputData
 
 
-def run_regularization(config: Config):
+def run_regularization():
     """Full regularisation pipeline supporting arbitrary 1‑D meshes."""
 
     # 0. Load configuration values:
-    eta_path: str = config.data_paths.eta_ext
-    z_path: str = config.data_paths.z
-    k_path: str = config.data_paths.k
-    lambda_for_alpha_path: str = config.data_paths.lambda_for_alpha
-    wavelengths_path: str = config.data_paths.wavelengths
-    z_gt_path: str = config.data_paths.z_gt
-    sele_gt_path: str = config.data_paths.sele_gt
-    L_score_network_path: str = config.data_paths.L_score_network
-    L_flag: LFlag = config.L_flag
-    regularization_method: RegularizationMethod = config.regularization_method
-    kappa_max, kappa_min = config.kappa_range
-    n_kappa: int = config.n_kappa
-    conf_fact: float = config.conf_window
-    is_save_plots: bool = config.is_save_plots
-    e_charge: float = config.e_charge
-    photon_flux: float = config.photon_flux
+    eta_path: str = CONFIG.data_paths.eta_ext
+    z_path: str = CONFIG.data_paths.z
+    k_path: str = CONFIG.data_paths.k
+    lambda_for_alpha_path: str = CONFIG.data_paths.lambda_for_alpha
+    wavelengths_path: str = CONFIG.data_paths.wavelengths
+    z_gt_path: str = CONFIG.data_paths.z_gt
+    sele_gt_path: str = CONFIG.data_paths.sele_gt
+    L_flag: LFlag = CONFIG.L_flag
+    regularization_method: RegularizationMethod = CONFIG.regularization_method
+    kappa_max, kappa_min = CONFIG.kappa_range
+    n_kappa: int = CONFIG.n_kappa
+    conf_fact: float = CONFIG.conf_window
+    is_save_plots: bool = CONFIG.is_save_plots
+    e_charge: float = CONFIG.e_charge
+    photon_flux: float = CONFIG.photon_flux
 
     # 1. Load data ---------------------------------------------------------
     z_gt = load_eta(z_gt_path)
@@ -50,7 +49,7 @@ def run_regularization(config: Config):
     # Store in an easy-to-access object :)
     G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
 
-    G, z = calc_mesh_and_G(regularization_method, config, G_values)
+    G, z = calc_mesh_and_G(regularization_method, G_values)
 
     # 2. Unit normalisation (A and B must have same units)
     G = G * photon_flux * e_charge
@@ -62,9 +61,9 @@ def run_regularization(config: Config):
     # 3. Regularisation operator
     L = build_L(L_flag, len(z) - 1)
 
-    # 4. κ‑sweep
+    # 4. Tichonov κ‑sweep
     kappa_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-    residuals, seminorms, S_list = sweep_kappa(G, B, L, kappa_vals)
+    residuals, seminorms, S_list = sweep_kappa(regularization_method, G, B, L, kappa_vals)
 
     # 5. Knee detection
     kappa_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
@@ -86,7 +85,7 @@ def run_regularization(config: Config):
     save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
     save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
     save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
-    generate_run_report("results", config, kappa_knee)
+    generate_run_report("results", kappa_knee)
 
     # 9. Plotting
     plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)

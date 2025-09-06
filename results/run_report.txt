@@ -1,6 +1,6 @@
-Run report - 2025-09-06T18:43:22
+Run report - 2025-09-06T21:18:54
 regularization_method                             : MODEL_SCORING
-κ_knee                                            : 4.274e-09
+κ_knee                                            : 6.488e-07
 model_scoring_params.W                            : 0.003
 model_scoring_params.points_amount                : 32
 L_flag                                            : L2
@@ -12,3 +12,4 @@ conf_window                                       : 3.1622776601683795
 e_charge                                          : 1.60217657e-19
 photon_flux                                       : 100000000000000.0
 W                                                 : 0.035
+force_SELE_last_zero                              : True

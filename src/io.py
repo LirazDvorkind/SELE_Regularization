@@ -10,7 +10,7 @@ import os
 
 import torch
 
-from src.types.config import Config
+from src.__init__ import CONFIG
 from src.types.enums import RegularizationMethod
 
 
@@ -44,7 +44,17 @@ def load_L_network(path: str) -> np.ndarray:
     return score_network
 
 
-def generate_run_report(path: str, config: Config, kappa_knee: float) -> str:
+def load_score_model_L() -> np.ndarray:
+    # Uncomment these to load the ground truth SELE instead of the model-learned SELE.
+    # vect = _load_csv_vector(CONFIG.data_paths.sele_gt)
+    # # Interpolate the GT SELE because it is 10000 long
+    # return np.interp(np.linspace(0, CONFIG.model_scoring_params.W, CONFIG.model_scoring_params.points_amount),
+    #                  np.linspace(0, CONFIG.model_scoring_params.W, len(vect)),
+    #                  vect)
+    return _load_csv_vector(CONFIG.data_paths.score_model_curve)
+
+
+def generate_run_report(path: str, kappa_knee: float) -> str:
     def _fmt(v: Any) -> str:
         if hasattr(v, "name") and hasattr(v, "value"):  # Enum
             return v.name
@@ -64,7 +74,7 @@ def generate_run_report(path: str, config: Config, kappa_knee: float) -> str:
             yield key[:-1], obj
 
     # Decide which branch to exclude based on method
-    method = config.regularization_method
+    method = CONFIG.regularization_method
     exclude_root = ["model_scoring_params"] if method is RegularizationMethod.NON_UNIFORM_MESH else \
         ["non_uniform_mesh_params"] if method is RegularizationMethod.MODEL_SCORING else []
     exclude_root.append("data_paths")
@@ -73,13 +83,13 @@ def generate_run_report(path: str, config: Config, kappa_knee: float) -> str:
              f"{'regularization_method':50}: {method.name}",
              f"{'κ_knee':50}: {kappa_knee:.3e}"]
     # walk all top-level fields except the excluded branch (but include the chosen one)
-    for f in fields(config):
+    for f in fields(CONFIG):
         name = f.name
         if name == "regularization_method":
             continue
         if exclude_root and name in exclude_root:
             continue
-        for k, v in _flatten(f"{name}.", getattr(config, name)):
+        for k, v in _flatten(f"{name}.", getattr(CONFIG, name)):
             lines.append(f"{k:50}: {_fmt(v)}")
 
     report = "\n".join(lines) + "\n"

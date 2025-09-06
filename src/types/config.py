@@ -32,8 +32,8 @@ class DataPaths:
     # The wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back,
     wavelengths: str
 
-    # the machine learned score network (L function)
-    L_score_network: str
+    # The path to csv of machine learned score curve (L function)
+    score_model_curve: str
 
 
 @dataclass
@@ -89,3 +89,6 @@ class Config:
 
     # Width of the device
     W: float
+
+    # Should we force the last element of the SELE solution to equal to 0
+    force_SELE_last_zero: bool

@@ -79,3 +79,10 @@ def find_knee(residuals: NDArray, seminorms: NDArray, kappa_vals: NDArray,
     d2 = x * x + y * y  # distance^2 to (0,0) in log–log space
     idx = int(np.nanargmin(d2))
     return float(kappa_vals[idx]), idx
+
+
+def set_kappa_knee(kappa_vals: NDArray, *, desired_kappa_value: float):
+    """Find the closest kappa value to the desired one, return it and its index"""
+    idx = np.abs(kappa_vals - desired_kappa_value).argmin()
+    closest = kappa_vals[idx]
+    return closest, idx

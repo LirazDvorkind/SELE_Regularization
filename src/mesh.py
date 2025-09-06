@@ -6,10 +6,92 @@ from typing import Tuple
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from plotting import plot_mesh_elements_position_and_size
+from src.io import save_csv
+from src.plotting import plot_mesh_elements_position_and_size
+from src.types.G_calculation import GInputData
+from src.types.enums import RegularizationMethod
+from src.types.config import Config
 
 
-def non_uniform_mesh(
+def calc_mesh_and_G(regularization_method: RegularizationMethod, config: Config, G_values: GInputData) \
+        -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """
+    A driver function that returns the mesh and corresponding optical generation matrix G, given the desired
+    regularization method.
+
+    Parameters
+    ----------
+    regularization_method
+        The chosen regularization method (an enum value)
+
+    config
+        The app's config
+
+    G_values
+        The optical parameters vectors needed to calculate G
+
+    Returns
+    -------
+    G, z
+        G : (L, M-1) absorbed photon flux per element [photons·cm^-2·s^-1].
+        z : (M,) new mesh edges [cm], strictly increasing.
+    """
+    if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
+        # Recompute G on a non-uniform mesh directly from Beer–Lambert optics
+        z_max, z_min = config.non_uniform_mesh_params.z_range
+        G_new, z_new = _non_uniform_mesh(
+            z_min=z_min,
+            z_max=z_max,
+            wavelengths=G_values.wavelengths,
+            k=G_values.k,
+            lambda_for_alpha=G_values.lambda_for_alpha,
+            z_turn=config.non_uniform_mesh_params.z_turn,
+            lin_mesh_size=config.non_uniform_mesh_params.lin_mesh_size,
+            exp_base=config.non_uniform_mesh_params.exp_base
+        )
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/non_uniform_mesh_method/z_new.csv", z_new)
+        save_csv("results/raw/non_uniform_mesh_method/dz_new.csv", np.diff(z_new))
+        save_csv("results/raw/non_uniform_mesh_method/G_new.csv", G_new)
+        # Use the recomputed quantities from here onward
+        G, z = G_new, z_new
+        return G, z
+    elif regularization_method is RegularizationMethod.MODEL_SCORING:
+        G,z = _scoring_model_linear_mesh(config, G_values.wavelengths, G_values.k, G_values.lambda_for_alpha)
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/scoring_model_method/z.csv", z)
+        save_csv("results/raw/scoring_model_method/G.csv", G)
+        return G, z
+    else:
+        raise NotImplementedError(
+            f"The regularization method {regularization_method} is unsupported by {calc_mesh_and_G.__name__}")
+
+
+def _scoring_model_linear_mesh(
+        config: Config,
+        wavelengths: NDArray[np.float64],
+        k: NDArray[np.float64],
+        lambda_for_alpha: NDArray[np.float64]
+        ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """
+    Use the z vector Alon used, calculate its G and return both.
+    """
+    # Interpolate the k values
+    lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
+    wavelengths = np.asarray(wavelengths, dtype=np.float64)
+    k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
+
+    z = np.linspace(0, config.model_scoring_params.W, config.model_scoring_params.points_amount)  # cm
+    # Compute G on the mesh using the optical method
+    G = _compute_front_generation(
+        k=k,
+        wavelength_nm=wavelengths,
+        z_cm=z,
+        volumetric=False,
+    )
+    return G, z
+
+def _non_uniform_mesh(
         z_min: float,
         z_max: float,
         wavelengths: NDArray[np.float64],
@@ -86,7 +168,7 @@ def non_uniform_mesh(
     z_new = np.hstack([z_lin, z_exp[1:]])  # drop duplicate z_turn
 
     # ---------- compute G on the new mesh using the optical method ----------
-    G_new = compute_front_generation(
+    G_new = _compute_front_generation(
         k=k,
         wavelength_nm=wavelengths,
         z_cm=z_new,
@@ -95,10 +177,10 @@ def non_uniform_mesh(
 
     plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
 
-    return z_new, G_new
+    return G_new, z_new
 
 
-def compute_front_generation(
+def _compute_front_generation(
         k: ArrayLike,
         wavelength_nm: ArrayLike,
         z_cm: ArrayLike,

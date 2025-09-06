@@ -1,0 +1,6 @@
+matplotlib
+mplcursors
+numpy
+pyperclip
+scipy
+torch

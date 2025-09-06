@@ -6,16 +6,17 @@ from src.types.enums import RegularizationMethod, LFlag
 
 @dataclass
 class DataPaths:
-    # eta_ext="Data/ELE.csv", # path to Tamir's η_ext CSV
+    # eta_ext="Data/ELE.csv", # path to Tamir's eta_ext (ηₑₓₜ) CSV
     # G="Data/G_matrix.csv", # path to Tamir's optical‑generation matrix
 
     # path to Tamir's depth vector
     z: str
 
-    # path to extinction coefficient k(λ), from MATLAB code
+    # Path to extinction coefficient k(λ), from MATLAB code
     k: str
 
-    # wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
+    # Wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
+    # Reminder α(λ) = 4πk(λ)/λ [cm⁻¹]
     lambda_for_alpha: str
 
     # eta_ext (J) CSV, this is the experiment simulation results, in MATLAB it is called PLQY_sim
@@ -28,17 +29,41 @@ class DataPaths:
     # in MATLAB it is called SELE_interp_for_G0
     sele_gt: str
 
-    # the wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back,
+    # The wavelengths [nm] of eta_ext, in MATLAB it is called wavelength_back,
     wavelengths: str
 
     # the machine learned score network (L function)
     L_score_network: str
 
 
+@dataclass
+class NonUniformMeshParams:
+    # (z_max, z_min)
+    z_range: Tuple[float, float]
+
+    # cm: turning depth (linear → exponential mesh)
+    z_turn: float
+
+    # cm: linear-part element size (distance between linear mesh elements)
+    lin_mesh_size: float
+
+    # base for exponential spacing
+    exp_base: float
+
+@dataclass
+class ModelScoringParams:
+    W: float # Device width in cm
+    points_amount: int
+
+
 
 @dataclass
 class Config:
     data_paths: DataPaths
+
+    non_uniform_mesh_params: NonUniformMeshParams
+
+    model_scoring_params: ModelScoringParams
 
     L_flag: LFlag
 
@@ -61,15 +86,6 @@ class Config:
 
     # photons cm⁻² s⁻¹  ← pick any positive value
     photon_flux: float
-
-    # cm: turning depth (linear → exponential mesh)
-    z_turn: float
-
-    # cm: linear-part element size (distance between linear mesh elements)
-    lin_mesh_size: float
-
-    # base for exponential spacing
-    exp_base: float
 
     # Width of the device
     W: float

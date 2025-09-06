@@ -5,13 +5,14 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.io import load_eta, load_z, save_csv
+from src.mesh import calc_mesh_and_G
+from src.io import load_eta, load_z, save_csv, generate_run_report
 from src.operators import build_L
-from src.tikhonov import sweep_kappa, find_knee
+from src.tikhonov import sweep_kappa, find_knee, set_kappa_knee
 from src.plotting import plot_lcurve, plot_sele, plot_eta
-from src.mesh import non_uniform_mesh
 from src.types.enums import LFlag, RegularizationMethod
 from src.types.config import Config
+from src.types.G_calculation import GInputData
 
 
 def run_regularization(config: Config):
@@ -34,38 +35,22 @@ def run_regularization(config: Config):
     is_save_plots: bool = config.is_save_plots
     e_charge: float = config.e_charge
     photon_flux: float = config.photon_flux
-    z_turn: float = config.z_turn
-    lin_mesh_size: float = config.lin_mesh_size
-    exp_base: float = config.exp_base
-    W: float = config.W
 
     # 1. Load data ---------------------------------------------------------
     z_gt = load_eta(z_gt_path)
     sele_gt = load_eta(sele_gt_path)
     eta_ext = load_eta(eta_path)
     z = load_z(z_path).ravel()
+
     # Load optical inputs for recomputing G on the new mesh
     k = load_z(k_path).ravel()  # extinction coefficient k(λ) [unitless]
     lambda_for_alpha = load_z(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
     wavelengths = load_z(wavelengths_path).ravel()  # wavelengths of G [nm]
 
-    # Recompute G on a non-uniform mesh directly from Beer–Lambert optics
-    z_new, G_new = non_uniform_mesh(
-        z_min=float(z[0]),
-        z_max=W,
-        wavelengths=wavelengths,
-        k=k,
-        lambda_for_alpha=lambda_for_alpha,
-        z_turn=z_turn,
-        lin_mesh_size=lin_mesh_size,
-        exp_base=exp_base
-    )
-    # Persist the newly created values, including mesh element sizes
-    save_csv("results/raw/z_new.csv", z_new)
-    save_csv("results/raw/dz_new.csv", np.diff(z_new))
-    save_csv("results/raw/G_new.csv", G_new)
-    # Use the recomputed quantities from here onward
-    G, z = G_new, z_new
+    # Store in an easy-to-access object :)
+    G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
+
+    G, z = calc_mesh_and_G(regularization_method, config, G_values)
 
     # 2. Unit normalisation (A and B must have same units)
     G = G * photon_flux * e_charge
@@ -83,7 +68,8 @@ def run_regularization(config: Config):
 
     # 5. Knee detection
     kappa_knee, knee_idx = find_knee(residuals, seminorms, kappa_vals)
-    print(f"kappa_knee = {kappa_knee:.3e}")
+    # Use this for debugging different κ values
+    # kappa_knee, knee_idx = set_kappa_knee(kappa_vals, desired_kappa_value=3.5e-7)
 
     # 6. Confidence window
     mask = (kappa_vals >= kappa_knee / conf_fact) & (kappa_vals <= kappa_knee * conf_fact)
@@ -100,6 +86,7 @@ def run_regularization(config: Config):
     save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
     save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
     save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+    generate_run_report("results", config, kappa_knee)
 
     # 9. Plotting
     plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)

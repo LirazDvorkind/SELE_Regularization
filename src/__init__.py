@@ -13,7 +13,7 @@ CONFIG = Config(
         z_gt="Data/z_mesh.csv",
         sele_gt="Data/SELE_ground_truth.csv",
         wavelengths="Data/wavelength_nm.csv",
-        score_model_curve="Data/score_model_curve.csv",
+        score_model_curve="Data/sele_score_model_curve.csv",
     ),
     L_flag=LFlag.L2,
     regularization_method=RegularizationMethod.MODEL_SCORING,
@@ -24,7 +24,7 @@ CONFIG = Config(
     e_charge=1.60217657e-19,
     photon_flux=1e14,
     W=350e-4,
-    force_SELE_last_zero=True,
+    force_SELE_last_zero=False,
     non_uniform_mesh_params=NonUniformMeshParams(
         z_range=(350e-4, 1.462e-06),
         z_turn=1e-4,

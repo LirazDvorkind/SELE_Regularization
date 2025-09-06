@@ -44,7 +44,7 @@ def load_L_network(path: str) -> np.ndarray:
     return score_network
 
 
-def load_score_model_L() -> np.ndarray:
+def load_score_model_S() -> np.ndarray:
     # Uncomment these to load the ground truth SELE instead of the model-learned SELE.
     # vect = _load_csv_vector(CONFIG.data_paths.sele_gt)
     # # Interpolate the GT SELE because it is 10000 long

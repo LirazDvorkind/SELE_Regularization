@@ -2,7 +2,7 @@
 This is Alon's scoring model code
 It is not a part of the SELE_Regularization module
 You may run it stand-alone with `Current File` PyCharm configuration
-This also generates Data/score_model_curve.csv
+This also generates Data/sele_score_model_curve.csv
 """
 import torch
 import numpy as np
@@ -102,6 +102,6 @@ print(f"\nFinal MSE with regularization: {error_with_reg:.6f}")
 print(f"Final MSE without regularization: {error_no_reg:.6f}")
 
 # Liraz's addition: save the learned curve
-np.savetxt("../Data/score_model_curve.csv", x_opt_no_reg, delimiter=',', header='', comments='')
+np.savetxt("../Data/sele_score_model_curve.csv", x_opt_no_reg, delimiter=',', header='', comments='')
 
 plt.show()

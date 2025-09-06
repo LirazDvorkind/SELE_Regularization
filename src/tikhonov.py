@@ -24,7 +24,7 @@ def solve_tikhonov(regularization_method: RegularizationMethod, G: NDArray, J: N
     L_force_last_zero = np.zeros(L.shape)
     L_force_last_zero[-1, -1] = 1 if CONFIG.force_SELE_last_zero else 0
     if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
-        K = np.vstack((G, kappa * L, L_force_last_zero))
+        K = np.vstack((G, kappa * L, kappa * L_force_last_zero))
         rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
     elif regularization_method is RegularizationMethod.MODEL_SCORING:
         L_score = load_score_model_L()  # 32-long vector
@@ -33,7 +33,7 @@ def solve_tikhonov(regularization_method: RegularizationMethod, G: NDArray, J: N
                 f"Row mismatch between G and L_score: G[1] is {G.shape[1]} but L_score - 1 is {L_score.size - 1}")
         # Stack the solution G.shape[0] times
         L_score = np.tile(L_score[:31], (G.shape[0], 1))
-        K = np.vstack((G, kappa * L, L_score, L_force_last_zero))
+        K = np.vstack((G, kappa * L, kappa * L_score, kappa * L_force_last_zero))
         rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(G.shape[0]), np.zeros(L.shape[0])))
     else:
         raise NotImplementedError(

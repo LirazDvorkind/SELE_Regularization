@@ -3,15 +3,12 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 from typing import List, Tuple
-from scipy.optimize import nnls
 
-from src.io import load_score_model_S
 from src.__init__ import CONFIG
 from src.types.enums import RegularizationMethod
 
 
-def solve_tikhonov(regularization_method: RegularizationMethod, G: NDArray, J: NDArray, L: NDArray,
-                   kappa: float) -> NDArray:
+def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float) -> NDArray:
     """Solve the Tikhonov‑regularized least squares problem.
 
     min_S ||G S − J||² + κ² ||L S||²
@@ -23,19 +20,8 @@ def solve_tikhonov(regularization_method: RegularizationMethod, G: NDArray, J: N
     """
     L_force_last_zero = np.zeros(L.shape)
     L_force_last_zero[-1, -1] = 1 if CONFIG.force_SELE_last_zero else 0
-    if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
-        K = np.vstack((G, kappa * L, L_force_last_zero))
-        rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
-    elif regularization_method is RegularizationMethod.MODEL_SCORING:
-        S_score = load_score_model_S()  # 32-long vector
-        if G.shape[1] != S_score.size - 1:
-            raise ValueError(
-                f"Row mismatch between G and L_score: G[1] is {G.shape[1]} but L_score - 1 is {S_score.size - 1}")
-        K = np.vstack((G, kappa * L, np.eye(S_score.size-1), L_force_last_zero))
-        rhs = np.concatenate((J, np.zeros(L.shape[0]), S_score[:31], np.zeros(L.shape[0])))
-    else:
-        raise NotImplementedError(
-            f"The regularization method {regularization_method} is unsupported by {solve_tikhonov.__name__}")
+    K = np.vstack((G, kappa * L, L_force_last_zero))
+    rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
     # Solves with regular least squares
     S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
     # Solves with non negative least squares
@@ -43,14 +29,13 @@ def solve_tikhonov(regularization_method: RegularizationMethod, G: NDArray, J: N
     return S
 
 
-def sweep_kappa(regularization_method: RegularizationMethod, A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray
-                ) -> Tuple[NDArray, NDArray, List[NDArray]]:
+def sweep_kappa(A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray) -> Tuple[NDArray, NDArray, List[NDArray]]:
     """Compute residual and seminorm across a range of κ values."""
     residuals = np.empty_like(kappa_vals)
     seminorms = np.empty_like(kappa_vals)
     S_list: List[NDArray] = []
     for i, kappa in enumerate(kappa_vals):
-        S = solve_tikhonov(regularization_method, A, B, L, kappa)
+        S = solve_tikhonov(A, B, L, kappa)
         residuals[i] = np.linalg.norm(A @ S - B)
         seminorms[i] = np.linalg.norm(L @ S)
         S_list.append(S)

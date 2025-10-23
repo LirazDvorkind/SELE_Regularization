@@ -1,7 +1,4 @@
-"""Entry point for running in PyCharm or any IDE.
-
-Edit the CONFIG section below and press Run.
-"""
+"""Entry point for running in PyCharm or any IDE."""
 from __future__ import annotations
 
 # ----------- do not edit below --------

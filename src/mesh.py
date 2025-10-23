@@ -80,7 +80,9 @@ def _scoring_model_linear_mesh(
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
     k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
 
-    z = np.linspace(0, CONFIG.model_scoring_params.W, CONFIG.model_scoring_params.points_amount)  # cm
+    z = np.linspace(0, CONFIG.model_scoring_params.W, CONFIG.model_scoring_params.points_amount+1)
+    # z is in [cm] units.
+    # We add 1 to the points amount because the optical generation matrix returns of size smaller by one.
     # Compute G on the mesh using the optical method
     G = _compute_front_generation(
         k=k,

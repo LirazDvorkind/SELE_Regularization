@@ -1,15 +1,18 @@
-Run report - 2025-09-06T22:00:06
-regularization_method                             : MODEL_SCORING
-κ_knee                                            : 1.000e-02
-model_scoring_params.W                            : 0.003
-model_scoring_params.points_amount                : 32
+Run report - 2025-10-21T17:53:09
+regularization_method                             : NON_UNIFORM_MESH
+κ_knee                                            : 2.593e-06
+non_uniform_mesh_params.z_range.0                 : 0.035
+non_uniform_mesh_params.z_range.1                 : 1.462e-06
+non_uniform_mesh_params.z_turn                    : 0.0001
+non_uniform_mesh_params.lin_mesh_size             : 1e-05
+non_uniform_mesh_params.exp_base                  : 400.0
 L_flag                                            : L2
 is_save_plots                                     : True
 kappa_range.0                                     : 0.01
 kappa_range.1                                     : 1e-15
-n_kappa                                           : 150
+n_kappa                                           : 30
 conf_window                                       : 3.1622776601683795
 e_charge                                          : 1.60217657e-19
 photon_flux                                       : 100000000000000.0
 W                                                 : 0.035
-force_SELE_last_zero                              : False
+force_SELE_last_zero                              : True

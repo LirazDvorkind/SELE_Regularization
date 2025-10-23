@@ -8,10 +8,10 @@ from src.__init__ import CONFIG
 from src.types.enums import RegularizationMethod
 
 
-def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float) -> NDArray:
+def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa: float) -> NDArray:
     """Solve the Tikhonov‑regularized least squares problem.
 
-    min_S ||G S − J||² + κ² ||L S||²
+    min_S ||G S − B||² + κ² ||L S||²
     using the normal‑equations form.
 
     Returns
@@ -21,7 +21,7 @@ def solve_tikhonov(G: NDArray, J: NDArray, L: NDArray, kappa: float) -> NDArray:
     L_force_last_zero = np.zeros(L.shape)
     L_force_last_zero[-1, -1] = 1 if CONFIG.force_SELE_last_zero else 0
     K = np.vstack((G, kappa * L, L_force_last_zero))
-    rhs = np.concatenate((J, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
+    rhs = np.concatenate((B, np.zeros(L.shape[0]), np.zeros(L.shape[0])))
     # Solves with regular least squares
     S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
     # Solves with non negative least squares

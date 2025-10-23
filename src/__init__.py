@@ -19,12 +19,12 @@ CONFIG = Config(
     regularization_method=RegularizationMethod.MODEL_SCORING,
     is_save_plots=True,
     kappa_range=(1e-2, 1e-15),
-    n_kappa=150,
+    n_kappa=30, # was 150
     conf_window=10 ** 0.5,
     e_charge=1.60217657e-19,
     photon_flux=1e14,
     W=350e-4,
-    force_SELE_last_zero=False,
+    force_SELE_last_zero=True,
     non_uniform_mesh_params=NonUniformMeshParams(
         z_range=(350e-4, 1.462e-06),
         z_turn=1e-4,
@@ -35,6 +35,8 @@ CONFIG = Config(
         # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
         # Don't touch these!
         W=30e-4,  # cm
-        points_amount=32
+        points_amount=32,
+        kappa2_range=(1e4, 1e-15),
+        n_kappa2=20
     )
 )

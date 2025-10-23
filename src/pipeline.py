@@ -9,7 +9,7 @@ from src.__init__ import CONFIG
 from src.mesh import calc_mesh_and_G
 from src.io import load_eta, load_z, save_csv, generate_run_report
 from src.operators import build_L
-from src.plotting import plot_lcurve, plot_sele, plot_eta
+from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d
 from src.tichonov import tikhonov_non_uniform
 from src.tichonov import tikhonov_score_model
 from src.types.enums import LFlag, RegularizationMethod
@@ -124,17 +124,36 @@ def run_regularization():
         # 3. Regularisation operator
         L = build_L(L_flag, len(z) - 1)
 
-        # 4. Tichonov κ‑sweep
-        kappa_vals_L = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-        # TODO: play around with the range and then put it in the config
-        kappa_vals_model_score = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-        residuals, seminorms, S_list = tikhonov_score_model.sweep_kappa(G, B, L, kappa_vals_L, kappa_vals_model_score)
+        # 4. Tikhonov κ‑sweep
+        kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
+        kappa2_max, kappa2_min = CONFIG.model_scoring_params.kappa2_range
+        kappa2_vals = np.logspace(np.log10(kappa2_max), np.log10(kappa2_min), CONFIG.model_scoring_params.n_kappa2)
+        residuals, seminorms, model_residuals, S_list = tikhonov_score_model.sweep_kappa(G, B, L, kappa1_vals, kappa2_vals)
 
         # TODO: I stopped here. Need to plot 3D knee here and finish (comment out the rest temporarily).
+        plot_lsurface_3d(
+            residuals=residuals,
+            seminorms=seminorms,
+            model_residuals=model_residuals,
+            kappa1_vals=kappa1_vals,  # your κ₁ grid
+            kappa2_vals=kappa2_vals,  # your κ₂ grid
+            save=True
+        )
+
         # 5. Knee detection
-        kappa_knee, knee_idx = tikhonov_score_model.find_knee(residuals, seminorms, kappa_vals)
+        kappa1_knee, kappa2_knee, knee_idx1, knee_idx2 = tikhonov_score_model.find_knee(
+            residuals, seminorms, model_residuals, kappa1_vals, kappa2_vals)
         # Use this for debugging different κ values
         # kappa_knee, knee_idx = set_kappa_knee(kappa_vals, desired_kappa_value=3.5e-7)
+        print(kappa1_knee, kappa2_knee, knee_idx1, knee_idx2)
+        # TODO: Plot on the 3D graph.
+        #  It's weird how the code likes to pick the largest kappas, so make sure, by looking at the plot, if it
+        #   is not a matter of wrong knee detection code.
+        #  Then take the average of the 2D conf window, as before, and obtain the mean S
+        #  Then plot them and see what happens
+        #  GENERAL REMINDER: Commit to save progress; Take the laptop with you so you will have it on Sunday for the
+        #   meeting with Gideon.
+        return
 
         # 6. Confidence window
         mask = (kappa_vals >= kappa_knee / conf_fact) & (kappa_vals <= kappa_knee * conf_fact)

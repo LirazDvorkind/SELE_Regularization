@@ -55,6 +55,12 @@ class ModelScoringParams:
     W: float # Device width in cm
     points_amount: int
 
+    # (κ2_max, κ2_min) - the kappa of the model regularization term, ||S-S_model||
+    kappa2_range: Tuple[float, float]
+
+    # Number of κ2 samples
+    n_kappa2: int
+
 
 
 @dataclass

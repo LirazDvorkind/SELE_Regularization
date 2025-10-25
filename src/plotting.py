@@ -1,12 +1,12 @@
 """Plotting helpers (matplotlib)."""
 from __future__ import annotations
-import numpy as np
 import matplotlib.pyplot as plt
 import os
-from typing import Sequence
+from typing import Sequence, Optional, Tuple
 import mplcursors
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # needed for 3D projection import side effect
+
 
 def _ensure_results_dir():
     os.makedirs('results', exist_ok=True)
@@ -159,14 +159,15 @@ def plot_mesh_elements_position_and_size(z: np.ndarray, z_turn: float, *, save: 
         fig.savefig('results/mesh.png', dpi=300)
     plt.show(block=False)
 
+
 def plot_lsurface_3d(
-    residuals: np.ndarray,        # shape (n1, n2)  = || G S - B ||
-    seminorms: np.ndarray,        # shape (n1, n2)  = || L S ||
-    model_residuals: np.ndarray,  # shape (n1, n2)  = || S - S_model ||
-    *,
-    kappa1_vals: np.ndarray | None = None,   # optional κ₁ grid (len = n1)
-    kappa2_vals: np.ndarray | None = None,   # optional κ₂ grid (len = n2)
-    save: bool = False
+        residuals: np.ndarray,  # shape (n1, n2)  = || G S - B ||
+        seminorms: np.ndarray,  # shape (n1, n2)  = || L S ||
+        model_residuals: np.ndarray,  # shape (n1, n2)  = || S - S_model ||
+        *,
+        kappa1_vals: np.ndarray | None = None,  # optional κ₁ grid (len = n1)
+        kappa2_vals: np.ndarray | None = None,  # optional κ₂ grid (len = n2)
+        save: bool = False
 ) -> None:
     """
     3D 'L-surface' visualization:
@@ -255,4 +256,71 @@ def plot_lsurface_3d(
         import os
         os.makedirs('results', exist_ok=True)
         fig.savefig('results/l_surface_3d.png', dpi=300)
+    plt.show(block=False)
+
+
+def plot_lsurface_3d(
+        residuals: np.ndarray,
+        seminorms: np.ndarray,
+        model_residuals: np.ndarray,
+        *,
+        kappa1_vals: np.ndarray | None = None,
+        kappa2_vals: np.ndarray | None = None,
+        cross_section: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, int]] = None,
+        save: bool = False
+) -> None:
+    """3D L-surface plot with faint wireframe cross-section at chosen κ₂."""
+    import numpy as np
+    import matplotlib.pyplot as plt
+    eps = 1e-300
+    R = np.maximum(residuals, eps)
+    S = np.maximum(seminorms, eps)
+    M = np.maximum(model_residuals, eps)
+    X, Y, Z = np.log10(R), np.log10(S), np.log10(M)
+
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    surf = ax.plot_surface(X, Y, Z, cmap="viridis", alpha=0.85, linewidth=0, antialiased=True)
+    fig.colorbar(surf, shrink=0.6, aspect=12, label="log10 model residual")
+    scat = ax.scatter(X.ravel(), Y.ravel(), Z.ravel(), c=Z.ravel(), cmap="viridis", s=16, depthshade=True)
+
+    ax.set_xlabel(r"log10 ||GS−B||")
+    ax.set_ylabel(r"log10 ||LS||")
+    ax.set_zlabel(r"log10 ||S−Sₘ||")
+    ax.set_title("3D L-surface")
+
+    # ---- cross-section at chosen kappa2 (wireframe) ----
+    if cross_section is not None:
+        Xs, Ys, Zs, idx_star = cross_section
+        ax.plot3D(Xs, Ys, Zs, "k-", linewidth=1.0, alpha=0.6)
+        ax.scatter(Xs[idx_star], Ys[idx_star], Zs[idx_star], c="k", s=40)
+
+    if save:
+        _ensure_results_dir()
+        fig.savefig("results/l_surface_3d.png", dpi=300)
+    plt.show(block=False)
+
+
+def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, *, save=False):
+    """Residual heatmap over (κ₁, κ₂) with slice knees and chosen point overlay."""
+    eps = 1e-300
+    Z = np.log10(np.maximum(residuals, eps)).T
+    fig, ax = plt.subplots(figsize=(7, 5))
+    im = ax.imshow(
+        Z, origin="lower", aspect="auto",
+        extent=[np.log10(kappa1_vals[0]), np.log10(kappa1_vals[-1]),
+                np.log10(kappa2_vals[0]), np.log10(kappa2_vals[-1])],
+        cmap="viridis"
+    )
+    fig.colorbar(im, ax=ax, label="log10 ||GS−B||")
+    ax.plot(np.log10(kappa1_vals[i_knee_per_j]), np.log10(kappa2_vals), "w.", ms=4, label="slice knees")
+    ax.plot(np.log10(kappa1_vals[i_star]), np.log10(kappa2_vals[j_star]), "ko", label="chosen (κ₁*, κ₂*)")
+    ax.set_xlabel("log10 κ₁")
+    ax.set_ylabel("log10 κ₂")
+    ax.legend(loc="upper right")
+    ax.set_title("Residual heatmap with slice knees")
+    if save:
+        _ensure_results_dir()
+        fig.savefig("results/residual_heatmap.png", dpi=300)
     plt.show(block=False)

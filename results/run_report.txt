@@ -1,4 +1,4 @@
-Run report - 2025-10-21T17:53:09
+Run report - 2025-10-25T17:12:28
 regularization_method                             : NON_UNIFORM_MESH
 κ_knee                                            : 2.593e-06
 non_uniform_mesh_params.z_range.0                 : 0.035

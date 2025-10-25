@@ -1,53 +1,41 @@
-"""High‑level orchestration of the SELE extraction workflow (non‑uniform mesh version)."""
-
+"""High-level orchestration of the SELE extraction workflow (non-uniform mesh + model-scoring)."""
 from __future__ import annotations
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 from src.__init__ import CONFIG
 from src.mesh import calc_mesh_and_G
-from src.io import load_eta, load_z, save_csv, generate_run_report
+from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.operators import build_L
-from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d
-from src.tichonov import tikhonov_non_uniform
-from src.tichonov import tikhonov_score_model
+from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
+from src.tichonov import tikhonov_non_uniform, tikhonov_score_model
 from src.types.enums import LFlag, RegularizationMethod
 from src.types.G_calculation import GInputData
 
 
 def run_regularization():
-    """Full regularisation pipeline supporting arbitrary 1‑D meshes."""
-
-    # 0. Load configuration values:
-    eta_path: str = CONFIG.data_paths.eta_ext
-    z_path: str = CONFIG.data_paths.z
-    k_path: str = CONFIG.data_paths.k
-    lambda_for_alpha_path: str = CONFIG.data_paths.lambda_for_alpha
-    wavelengths_path: str = CONFIG.data_paths.wavelengths
-    z_gt_path: str = CONFIG.data_paths.z_gt
-    sele_gt_path: str = CONFIG.data_paths.sele_gt
-    L_flag: LFlag = CONFIG.L_flag
-    regularization_method: RegularizationMethod = CONFIG.regularization_method
+    """Run full SELE regularization pipeline."""
+    eta_path, z_path, k_path = CONFIG.data_paths.eta_ext, CONFIG.data_paths.z, CONFIG.data_paths.k
+    lambda_for_alpha_path, wavelengths_path = CONFIG.data_paths.lambda_for_alpha, CONFIG.data_paths.wavelengths
+    z_gt_path, sele_gt_path = CONFIG.data_paths.z_gt, CONFIG.data_paths.sele_gt
+    L_flag, regularization_method = CONFIG.L_flag, CONFIG.regularization_method
     kappa_max, kappa_min = CONFIG.kappa_range
-    n_kappa: int = CONFIG.n_kappa
-    conf_fact: float = CONFIG.conf_window
-    is_save_plots: bool = CONFIG.is_save_plots
-    e_charge: float = CONFIG.e_charge
-    photon_flux: float = CONFIG.photon_flux
+    conf_fact, n_kappa = CONFIG.conf_window, CONFIG.n_kappa
+    e_charge, photon_flux = CONFIG.e_charge, CONFIG.photon_flux
+    is_save_plots = CONFIG.is_save_plots
 
-    # NON UNIFORM MESH PIPELINE
+    # --- NON UNIFORM MESH MODE ---------------------------------------------------
     if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
         # 1. Load data ---------------------------------------------------------
         z_gt = load_eta(z_gt_path)
         sele_gt = load_eta(sele_gt_path)
         eta_ext = load_eta(eta_path)
-        z = load_z(z_path).ravel()
+        z = load_csv(z_path).ravel()
 
         # Load optical inputs for recomputing G on the new mesh
-        k = load_z(k_path).ravel()  # extinction coefficient k(λ) [unitless]
-        lambda_for_alpha = load_z(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
-        wavelengths = load_z(wavelengths_path).ravel()  # wavelengths of G [nm]
+        k = load_csv(k_path).ravel()  # extinction coefficient k(λ) [unitless]
+        lambda_for_alpha = load_csv(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
+        wavelengths = load_csv(wavelengths_path).ravel()  # wavelengths of G [nm]
 
         # Store in an easy-to-access object :)
         G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
@@ -96,84 +84,74 @@ def run_regularization():
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)
 
-    # MODEL CURVE SCORE FUNCTION PIPELINE
+    # --- MODEL SCORING MODE ------------------------------------------------------
     elif regularization_method is RegularizationMethod.MODEL_SCORING:
-        # 1. Load data ---------------------------------------------------------
+        # 1. Load data
         z_gt = load_eta(z_gt_path)
         sele_gt = load_eta(sele_gt_path)
         eta_ext = load_eta(eta_path)
-        z = load_z(z_path).ravel()
+        z = load_csv(z_path).ravel()
 
         # Load optical inputs for recomputing G on the new mesh
-        k = load_z(k_path).ravel()  # extinction coefficient k(λ) [unitless]
-        lambda_for_alpha = load_z(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
-        wavelengths = load_z(wavelengths_path).ravel()  # wavelengths of G [nm]
+        k = load_csv(k_path).ravel()  # extinction coefficient k(λ) [unitless]
+        lambda_for_alpha = load_csv(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
+        wavelengths = load_csv(wavelengths_path).ravel()  # wavelengths of G [nm]
 
         # Store in an easy-to-access object :)
         G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
 
         G, z = calc_mesh_and_G(regularization_method, G_values)
 
-        # 2. Unit normalisation (A and B must have same units)
-        G = G * photon_flux * e_charge
+        # 2. Unit normalisation
+        G *= photon_flux * e_charge
         B = eta_ext * photon_flux * e_charge
-
         if G.shape[0] != eta_ext.size:
-            raise ValueError(f"Row mismatch between G and η_ext: G[0] is {G.shape[0]} but n_ext is {eta_ext.size}")
+            raise ValueError("Row mismatch between G and η_ext")
 
         # 3. Regularisation operator
         L = build_L(L_flag, len(z) - 1)
 
         # 4. Tikhonov κ‑sweep
         kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-        kappa2_max, kappa2_min = CONFIG.model_scoring_params.kappa2_range
-        kappa2_vals = np.logspace(np.log10(kappa2_max), np.log10(kappa2_min), CONFIG.model_scoring_params.n_kappa2)
+        k2_max, k2_min = CONFIG.model_scoring_params.kappa2_range
+        kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.model_scoring_params.n_kappa2)
         residuals, seminorms, model_residuals, S_list = tikhonov_score_model.sweep_kappa(G, B, L, kappa1_vals, kappa2_vals)
 
-        # TODO: I stopped here. Need to plot 3D knee here and finish (comment out the rest temporarily).
-        plot_lsurface_3d(
-            residuals=residuals,
-            seminorms=seminorms,
-            model_residuals=model_residuals,
-            kappa1_vals=kappa1_vals,  # your κ₁ grid
-            kappa2_vals=kappa2_vals,  # your κ₂ grid
-            save=True
-        )
+        # 5. Find knees by slicing along a dimension
+        i_knee_per_j, _ = tikhonov_score_model.slice_knees(residuals, seminorms, kappa1_vals)
+        res_k, sem_k, mod_k = residuals[i_knee_per_j, np.arange(kappa2_vals.size)], seminorms[i_knee_per_j, np.arange(kappa2_vals.size)], model_residuals[i_knee_per_j, np.arange(kappa2_vals.size)]
+        nrm = tikhonov_score_model._minmax_norm
+        score = nrm(res_k) + nrm(sem_k) + nrm(mod_k)
+        j_star = int(np.nanargmin(score))
+        i_star = int(i_knee_per_j[j_star])
+        kappa1_star, kappa2_star = float(kappa1_vals[i_star]), float(kappa2_vals[j_star])
 
-        # 5. Knee detection
-        kappa1_knee, kappa2_knee, knee_idx1, knee_idx2 = tikhonov_score_model.find_knee(
-            residuals, seminorms, model_residuals, kappa1_vals, kappa2_vals)
-        # Use this for debugging different κ values
-        # kappa_knee, knee_idx = set_kappa_knee(kappa_vals, desired_kappa_value=3.5e-7)
-        print(kappa1_knee, kappa2_knee, knee_idx1, knee_idx2)
-        # TODO: Plot on the 3D graph.
-        #  It's weird how the code likes to pick the largest kappas, so make sure, by looking at the plot, if it
-        #   is not a matter of wrong knee detection code.
-        #  Then take the average of the 2D conf window, as before, and obtain the mean S
-        #  Then plot them and see what happens
-        #  GENERAL REMINDER: Commit to save progress; Take the laptop with you so you will have it on Sunday for the
-        #   meeting with Gideon.
-        return
+        # 6. Confidence window 1-D (κ₁)
+        k1_min, k1_max = kappa1_star / conf_fact, kappa1_star * conf_fact
+        mask_1d = (kappa1_vals >= k1_min) & (kappa1_vals <= k1_max)
+        if not np.any(mask_1d):
+            mask_1d = np.zeros_like(kappa1_vals, bool)
+            mask_1d[i_star] = True
 
-        # 6. Confidence window
-        mask = (kappa_vals >= kappa_knee / conf_fact) & (kappa_vals <= kappa_knee * conf_fact)
-        S_stack = np.stack([S_list[i] for i, m in enumerate(mask) if m], axis=1)
-        S_mean = S_stack.mean(axis=1)
-        S_std = S_stack.std(axis=1)
-
-        # 7. Reconstruction @ kappa_knee
-        S_knee = S_list[knee_idx]
+        S_stack = np.stack([S_list[i][j_star] for i in np.flatnonzero(mask_1d)], axis=1)
+        S_mean, S_std = S_stack.mean(axis=1), S_stack.std(axis=1)
+        S_knee = S_list[i_star][j_star]
         eta_fit = G @ S_knee / (photon_flux * e_charge)
 
-        # 8. Persist results
-        z_centres = 0.5 * (z[:-1] + z[1:])  # length M-1
+        # 7. Save & report
+        z_centres = 0.5 * (z[:-1] + z[1:])
         save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
         save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
         save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
-        generate_run_report("results", kappa_knee)
+        generate_run_report("results", kappa1_knee=kappa1_star, kappa2_knee=kappa2_star)
 
-        # 9. Plotting
-        plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)
+        # 8. Plots
+        eps = np.finfo(float).tiny
+        Xs, Ys, Zs = np.log10(np.maximum(residuals[:, j_star], eps)), np.log10(np.maximum(seminorms[:, j_star], eps)), np.log10(np.maximum(model_residuals[:, j_star], eps))
+        cross_section = (Xs, Ys, Zs, i_star)
+        plot_lsurface_3d(residuals, seminorms, model_residuals, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals, cross_section=cross_section, save=is_save_plots)
+        plot_lcurve(seminorms[:, j_star], residuals[:, j_star], kappa1_vals, i_star, mask_1d, save=is_save_plots)
+        plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, save=is_save_plots)
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)

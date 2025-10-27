@@ -1,16 +1,17 @@
 """High-level orchestration of the SELE extraction workflow (non-uniform mesh + model-scoring)."""
 from __future__ import annotations
+
 import matplotlib.pyplot as plt
 import numpy as np
 
 from src.__init__ import CONFIG
-from src.mesh import calc_mesh_and_G
 from src.io import load_eta, load_csv, save_csv, generate_run_report
+from src.mesh import calc_mesh_and_G
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
 from src.tichonov import tikhonov_non_uniform, tikhonov_score_model
-from src.types.enums import LFlag, RegularizationMethod
 from src.types.G_calculation import GInputData
+from src.types.enums import RegularizationMethod
 
 
 def run_regularization():
@@ -97,7 +98,7 @@ def run_regularization():
         lambda_for_alpha = load_csv(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
         wavelengths = load_csv(wavelengths_path).ravel()  # wavelengths of G [nm]
 
-        # Store in an easy-to-access object :)
+        # Store values related to calculating G in an easy-to-access object :)
         G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
 
         G, z = calc_mesh_and_G(regularization_method, G_values)

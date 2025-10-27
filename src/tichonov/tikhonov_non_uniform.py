@@ -14,9 +14,26 @@ def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa: float) -> NDArray:
     min_S ||G S − B||² + κ² ||L S||²
     using the normal-equations form.
     """
+    # ---------- Whitening by median row 2-norm (stabilizes κ tradeoffs) ----------
+    def _median_row_norm(A: np.ndarray) -> float:
+        if A.ndim != 2 or A.size == 0:
+            return 1.0
+        rn = np.linalg.norm(A, axis=1)
+        rn = rn[np.isfinite(rn)]
+        if rn.size == 0:
+            return 1.0
+        m = float(np.median(rn))
+        return m if m > 0 else 1.0
+
+    g_scale = _median_row_norm(G)
+    l_scale = _median_row_norm(L)
+
+    # Scale logging (helps pick sensible κ-ranges)
+    print(f"[scales] G_medRow2={g_scale:.3e}  L_medRow2={l_scale:.3e}")
+
     # Build stacked least-squares system
-    K_parts = [G, kappa * L]
-    rhs_parts = [B, np.zeros(L.shape[0])]
+    K_parts = [ G / g_scale, (kappa * L) / l_scale ]
+    rhs_parts = [ B / g_scale, np.zeros(L.shape[0]) ]
 
     # Clean 1×N constraint row to force the last SELE element to zero (optional)
     if CONFIG.force_SELE_last_zero:
@@ -32,6 +49,7 @@ def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa: float) -> NDArray:
     # Regular least squares
     S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
     return S
+
 
 
 def sweep_kappa(A: NDArray, B: NDArray, L: NDArray, kappa_vals: NDArray) -> Tuple[NDArray, NDArray, List[NDArray]]:

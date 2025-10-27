@@ -13,7 +13,11 @@ def _load_csv_vector(path: str) -> np.ndarray:
 
 
 def load_eta(path: str) -> np.ndarray: return _load_csv_vector(path)
+
+
 def load_G(path: str) -> np.ndarray: return np.load(path) if path.endswith('.npy') else np.loadtxt(path, delimiter=',')
+
+
 def load_csv(path: str) -> np.ndarray: return _load_csv_vector(path)
 
 
@@ -29,7 +33,16 @@ def load_L_network(path: str):
 
 
 def load_score_model_S() -> np.ndarray:
-    return _load_csv_vector(CONFIG.data_paths.score_model_curve)
+    # The normalized SELE the model learned
+    normalized_sele_vector = _load_csv_vector(CONFIG.data_paths.score_model_curve).astype(float)
+    vmin, vmax = float(np.nanmin(normalized_sele_vector)), float(np.nanmax(normalized_sele_vector))
+    sele = (normalized_sele_vector - vmin) / (vmax - vmin)  # now in [0,1]
+
+    if CONFIG.force_SELE_last_zero:
+        # Physical convention: zero at the back contact
+        # To make sure that SELE and forced zero won't tug the Tikhonov solution in different directions
+        sele[-1] = 0.0
+    return sele
 
 
 def generate_run_report(path: str,
@@ -37,6 +50,7 @@ def generate_run_report(path: str,
                         kappa1_knee: float | None = None,
                         kappa2_knee: float | None = None) -> str:
     """Generate run report compatible with both 1-D and 2-D modes."""
+
     def _fmt(v: Any) -> str:
         if hasattr(v, "name") and hasattr(v, "value"): return v.name
         return f"{v}"
@@ -48,10 +62,12 @@ def generate_run_report(path: str,
             for k, v in obj.items(): yield from _flatten(f"{key}{k}.", v)
         elif isinstance(obj, (list, tuple)):
             for i, v in enumerate(obj): yield from _flatten(f"{key}{i}.", v)
-        else: yield key[:-1], obj
+        else:
+            yield key[:-1], obj
 
     method = CONFIG.regularization_method
-    exclude = ["model_scoring_params"] if method is RegularizationMethod.NON_UNIFORM_MESH else ["non_uniform_mesh_params"]
+    exclude = ["model_scoring_params"] if method is RegularizationMethod.NON_UNIFORM_MESH else [
+        "non_uniform_mesh_params"]
     exclude.append("data_paths")
 
     lines = [f"Run report - {datetime.now().isoformat(timespec='seconds')}",
@@ -69,6 +85,7 @@ def generate_run_report(path: str,
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     if os.path.isdir(path) or path.endswith(os.sep):
         path = os.path.join(path, "run_report.txt")
-    with open(path, "w", encoding="utf-8") as fh: fh.write(report)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(report)
     print(report, end="")
     return report

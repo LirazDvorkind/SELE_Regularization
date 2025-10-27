@@ -161,105 +161,6 @@ def plot_mesh_elements_position_and_size(z: np.ndarray, z_turn: float, *, save: 
 
 
 def plot_lsurface_3d(
-        residuals: np.ndarray,  # shape (n1, n2)  = || G S - B ||
-        seminorms: np.ndarray,  # shape (n1, n2)  = || L S ||
-        model_residuals: np.ndarray,  # shape (n1, n2)  = || S - S_model ||
-        *,
-        kappa1_vals: np.ndarray | None = None,  # optional κ₁ grid (len = n1)
-        kappa2_vals: np.ndarray | None = None,  # optional κ₂ grid (len = n2)
-        save: bool = False
-) -> None:
-    """
-    3D 'L-surface' visualization:
-      X = log10 data residual, Y = log10 seminorm, Z = log10 model residual
-    Each point corresponds to a (kappa1, kappa2) pair. If kappa grids are provided,
-    a scatter overlay becomes interactive and shows (κ₁, κ₂) on hover.
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
-    # Try to enable hover tooltips; continue silently if unavailable
-    try:
-        import mplcursors  # type: ignore
-        _HAS_MPLCURSORS = True
-    except Exception:
-        _HAS_MPLCURSORS = False
-
-    # Safety and positivity checks for log-space
-    eps = 1e-300
-    R = np.maximum(np.asarray(residuals, float), eps)
-    S = np.maximum(np.asarray(seminorms, float), eps)
-    M = np.maximum(np.asarray(model_residuals, float), eps)
-
-    X = np.log10(R)  # data residual
-    Y = np.log10(S)  # smoothness seminorm
-    Z = np.log10(M)  # model residual
-
-    n1, n2 = X.shape
-
-    fig = plt.figure(figsize=(9, 7))
-    ax = fig.add_subplot(111, projection='3d')
-
-    dense_enough = (n1 >= 3) and (n2 >= 3)
-    surf_obj = None
-    if dense_enough:
-        surf_obj = ax.plot_surface(
-            X, Y, Z, cmap='viridis', alpha=0.85, linewidth=0, antialiased=True
-        )
-        cbar = fig.colorbar(surf_obj, shrink=0.6, aspect=12)
-        cbar.set_label('log10 model residual')
-
-    # Always add a scatter overlay (enables hover if κ grids provided)
-    scat = ax.scatter(
-        X.ravel(), Y.ravel(), Z.ravel(),
-        c=Z.ravel(), cmap='viridis', s=16, depthshade=True, alpha=0.9 if surf_obj is not None else 1.0
-    )
-
-    ax.set_xlabel(r'$\log_{10}\,\|\,G S - B\,\|_2$ (data residual)')
-    ax.set_ylabel(r'$\log_{10}\,\|\,L S\,\|_2$ (seminorm)')
-    ax.set_zlabel(r'$\log_{10}\,\|\,S - S_{\mathrm{model}}\,\|_2$ (model residual)')
-    ax.set_title("3D L-surface: data fit vs smoothness vs model proximity")
-
-    # Optional contours projected to the sides (helpful for reading structure)
-    try:
-        ax.contour(X, Y, Z, zdir='z', offset=Z.min(), cmap='viridis', levels=8, linewidths=1, alpha=0.7)
-        ax.contour(X, Y, Z, zdir='x', offset=X.min(), cmap='viridis', levels=8, linewidths=1, alpha=0.7)
-        ax.contour(X, Y, Z, zdir='y', offset=Y.min(), cmap='viridis', levels=8, linewidths=1, alpha=0.7)
-    except Exception:
-        pass
-
-    # Interactivity: show (κ₁, κ₂) and diagnostics on hover if grids provided
-    if _HAS_MPLCURSORS and (kappa1_vals is not None) and (kappa2_vals is not None):
-        k1 = np.asarray(kappa1_vals, float)
-        k2 = np.asarray(kappa2_vals, float)
-        if k1.shape == (n1,) and k2.shape == (n2,):
-            ii, jj = np.meshgrid(np.arange(n1), np.arange(n2), indexing='ij')
-            flat_i = ii.ravel()
-            flat_j = jj.ravel()
-
-            cursor = mplcursors.cursor(scat, hover=True)
-
-            @cursor.connect("add")
-            def _on_add(sel):
-                idx = int(sel.index)
-                i = int(flat_i[idx])
-                j = int(flat_j[idx])
-                sel.annotation.set_text(
-                    "κ₁ = {:.2e}\nκ₂ = {:.2e}\n‖GS−B‖ = {:.3e}\n‖LS‖   = {:.3e}\n‖S−Sₘ‖ = {:.3e}".format(
-                        k1[i], k2[j], R[i, j], S[i, j], M[i, j]
-                    )
-                )
-
-    plt.tight_layout()
-    if save:
-        import os
-        os.makedirs('results', exist_ok=True)
-        fig.savefig('results/l_surface_3d.png', dpi=300)
-    plt.show(block=False)
-
-
-def plot_lsurface_3d(
         residuals: np.ndarray,
         seminorms: np.ndarray,
         model_residuals: np.ndarray,
@@ -305,17 +206,42 @@ def plot_lsurface_3d(
 def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, *, save=False):
     """Residual heatmap over (κ₁, κ₂) with slice knees and chosen point overlay."""
     eps = 1e-300
-    Z = np.log10(np.maximum(residuals, eps)).T
+    Z = np.log10(np.maximum(residuals, eps))  # shape (n1, n2), axis0=κ1, axis1=κ2
+
+    k1 = np.asarray(kappa1_vals)
+    k2 = np.asarray(kappa2_vals)
+
+    # imshow expects row=y, col=x → transpose so rows correspond to κ2, cols to κ1
+    Z_disp = Z.T
+    k1_disp = k1
+    k2_disp = k2
+
+    # Ensure extents are ascending; flip Z accordingly so pixels align with ticks
+    if k1_disp[0] > k1_disp[-1]:
+        k1_disp = k1_disp[::-1]
+        Z_disp = Z_disp[:, ::-1]  # flip x (columns)
+    if k2_disp[0] > k2_disp[-1]:
+        k2_disp = k2_disp[::-1]
+        Z_disp = Z_disp[::-1, :]  # flip y (rows)
+
+    x0, x1 = np.log10(k1_disp[0]), np.log10(k1_disp[-1])
+    y0, y1 = np.log10(k2_disp[0]), np.log10(k2_disp[-1])
+
     fig, ax = plt.subplots(figsize=(7, 5))
     im = ax.imshow(
-        Z, origin="lower", aspect="auto",
-        extent=[np.log10(kappa1_vals[0]), np.log10(kappa1_vals[-1]),
-                np.log10(kappa2_vals[0]), np.log10(kappa2_vals[-1])],
+        Z_disp, origin="lower", aspect="auto",
+        extent=[x0, x1, y0, y1],
         cmap="viridis"
     )
     fig.colorbar(im, ax=ax, label="log10 ||GS−B||")
-    ax.plot(np.log10(kappa1_vals[i_knee_per_j]), np.log10(kappa2_vals), "w.", ms=4, label="slice knees")
-    ax.plot(np.log10(kappa1_vals[i_star]), np.log10(kappa2_vals[j_star]), "ko", label="chosen (κ₁*, κ₂*)")
+
+    # Plot slice knees and chosen point using the displayed (possibly reversed) κ arrays
+    ax.plot(np.log10(k1_disp[np.asarray(i_knee_per_j, int)]),
+            np.log10(k2_disp), "w.", ms=4, label="slice knees")
+
+    ax.plot(np.log10(k1_disp[int(i_star)]),
+            np.log10(k2_disp[int(j_star)]), "ko", label="chosen (κ₁*, κ₂*)")
+
     ax.set_xlabel("log10 κ₁")
     ax.set_ylabel("log10 κ₂")
     ax.legend(loc="upper right")

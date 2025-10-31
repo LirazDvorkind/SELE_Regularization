@@ -18,7 +18,7 @@ CONFIG = Config(
     L_flag=LFlag.L2,
     regularization_method=RegularizationMethod.MODEL_SCORING,
     is_save_plots=True,
-    kappa_range=(1e3, 1e-3),
+    kappa_range=(3e1, 3e-3),
     n_kappa=40, # was 150
     conf_window=10 ** 0.5,
     e_charge=1.60217657e-19,
@@ -36,7 +36,7 @@ CONFIG = Config(
         # Don't touch these!
         W=30e-4,  # cm
         points_amount=32,
-        kappa2_range=(1e3, 1e-3),
+        kappa2_range=(3e1, 3e-3),
         n_kappa2=30
     )
 )

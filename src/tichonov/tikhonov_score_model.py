@@ -29,14 +29,16 @@ def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa1: float, kappa2: fl
 
     g_scale = _median_row_norm(G)
     l_scale = _median_row_norm(L)
-    i_scale = 1.0  # identity rows already have unit row-norm
+    # Whiten the prior to the same magnitude scale as S
+    # Use rms magnitude of S_model as a proxy (robust & unit-aware)
+    s_scale = max(1e-12, float(np.linalg.norm(S_model) / np.sqrt(N)))
 
     # Scale logging (helps pick sensible κ-ranges)
-    print(f"[scales] G_medRow2={g_scale:.3e}  L_medRow2={l_scale:.3e}  I_row2={i_scale:.3e}")
+    print(f"[scales] G_medRow2={g_scale:.3e}  L_medRow2={l_scale:.3e}  S_rms={s_scale:.3e}")
 
     # Build stacked least-squares system (whitened)
-    K_parts = [ G / g_scale, (kappa1 * L) / l_scale, (kappa2 * np.eye(N)) / i_scale ]
-    rhs_parts = [ B / g_scale, np.zeros(L.shape[0]), S_model / i_scale ]
+    K_parts = [ G / g_scale, (kappa1 * L) / l_scale, (kappa2 * np.eye(N)) / s_scale ]
+    rhs_parts = [ B / g_scale, np.zeros(L.shape[0]), S_model / s_scale ]
 
     # Clean 1×N constraint row to force the last SELE element to zero (optional)
     if CONFIG.force_SELE_last_zero:

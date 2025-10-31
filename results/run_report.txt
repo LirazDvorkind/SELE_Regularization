@@ -1,16 +1,16 @@
-Run report - 2025-10-27T19:56:22
+Run report - 2025-10-28T16:08:02
 regularization_method                             : MODEL_SCORING
-κ1_knee                                           : 1.000e+03
-κ2_knee                                           : 1.610e-03
+κ1_knee                                           : 3.000e+01
+κ2_knee                                           : 3.000e-03
 model_scoring_params.W                            : 0.003
 model_scoring_params.points_amount                : 32
-model_scoring_params.kappa2_range.0               : 1000.0
-model_scoring_params.kappa2_range.1               : 0.001
+model_scoring_params.kappa2_range.0               : 30.0
+model_scoring_params.kappa2_range.1               : 0.003
 model_scoring_params.n_kappa2                     : 30
 L_flag                                            : L2
 is_save_plots                                     : True
-kappa_range.0                                     : 1000.0
-kappa_range.1                                     : 0.001
+kappa_range.0                                     : 30.0
+kappa_range.1                                     : 0.003
 n_kappa                                           : 40
 conf_window                                       : 3.1622776601683795
 e_charge                                          : 1.60217657e-19

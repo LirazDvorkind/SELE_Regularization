@@ -28,9 +28,6 @@ def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa: float) -> NDArray:
     g_scale = _median_row_norm(G)
     l_scale = _median_row_norm(L)
 
-    # Scale logging (helps pick sensible κ-ranges)
-    print(f"[scales] G_medRow2={g_scale:.3e}  L_medRow2={l_scale:.3e}")
-
     # Build stacked least-squares system
     K_parts = [ G / g_scale, (kappa * L) / l_scale ]
     rhs_parts = [ B / g_scale, np.zeros(L.shape[0]) ]

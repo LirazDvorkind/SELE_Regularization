@@ -9,8 +9,11 @@ from src.__init__ import CONFIG
 from src.tichonov import tikhonov_non_uniform
 
 
-def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa1: float, kappa2: float) -> NDArray:
-    """Solve:  min_S ||G S − B||² + κ₁²||L S||² + κ₂²||S − S_model||²"""
+def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray,
+                   kappa1: float, kappa2: float) -> NDArray:
+    """Solve:  min_S ||G S − B||² + κ₁²||L S||² + κ₂²||(I - uuᵀ)S||²
+    where u = S_model / ||S_model||  (shape-only projector prior)
+    """
     S_model = load_score_model_S()
     N = G.shape[1]
     if N != S_model.size:
@@ -29,29 +32,37 @@ def solve_tikhonov(G: NDArray, B: NDArray, L: NDArray, kappa1: float, kappa2: fl
 
     g_scale = _median_row_norm(G)
     l_scale = _median_row_norm(L)
-    # Whiten the prior to the same magnitude scale as S
-    # Use rms magnitude of S_model as a proxy (robust & unit-aware)
     s_scale = max(1e-12, float(np.linalg.norm(S_model) / np.sqrt(N)))
 
-    # Scale logging (helps pick sensible κ-ranges)
-    print(f"[scales] G_medRow2={g_scale:.3e}  L_medRow2={l_scale:.3e}  S_rms={s_scale:.3e}")
+    # ---------- Projector prior (shape alignment, amplitude free) ----------
+    u = S_model / max(1e-12, np.linalg.norm(S_model))
+    P = np.eye(N) - np.outer(u, u)  # symmetric idempotent projector
 
-    # Build stacked least-squares system (whitened)
-    K_parts = [ G / g_scale, (kappa1 * L) / l_scale, (kappa2 * np.eye(N)) / s_scale ]
-    rhs_parts = [ B / g_scale, np.zeros(L.shape[0]), S_model / s_scale ]
+    # Build stacked least-squares system
+    K_parts = [
+        G / g_scale,
+        (kappa1 * L) / l_scale,
+        (kappa2 * P) / s_scale,
+    ]
+    rhs_parts = [
+        B / g_scale,
+        np.zeros(L.shape[0]),
+        np.zeros(N),  # target of P*S = 0
+    ]
 
-    # Clean 1×N constraint row to force the last SELE element to zero (optional)
+    # Optional constraint: last SELE element = 0
     if CONFIG.force_SELE_last_zero:
         C = np.zeros((1, N), dtype=G.dtype)
         C[0, -1] = 1.0
         K_parts.append(C)
         rhs_parts.append(np.zeros(1, dtype=B.dtype))
 
+    # Stack and solve
     K = np.vstack(K_parts)
     rhs = np.concatenate(rhs_parts)
-
     S, *_ = np.linalg.lstsq(K, rhs, rcond=None)
     return S
+
 
 
 

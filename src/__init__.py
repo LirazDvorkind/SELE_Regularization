@@ -36,7 +36,7 @@ CONFIG = Config(
         # Don't touch these!
         W=30e-4,  # cm
         points_amount=32,
-        kappa2_range=(3e1, 3e-3),
+        kappa2_range=(3e-1, 3e-5),
         n_kappa2=30
     )
 )

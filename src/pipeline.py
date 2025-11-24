@@ -9,7 +9,7 @@ from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
-from src.tichonov import tikhonov_non_uniform, tikhonov_score_model
+from src.tichonov import tikhonov_non_uniform, tikhonov_score_model, model_score_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod
 
@@ -86,7 +86,7 @@ def run_regularization():
         plt.show(block=True)
 
     # --- MODEL SCORING MODE ------------------------------------------------------
-    elif regularization_method is RegularizationMethod.MODEL_SCORING:
+    elif regularization_method is RegularizationMethod.TOTAL_VARIATION_TEMPLATE:
         # 1. Load data
         z_gt = load_eta(z_gt_path)
         sele_gt = load_eta(sele_gt_path)
@@ -114,8 +114,8 @@ def run_regularization():
 
         # 4. Tikhonov κ‑sweep
         kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-        k2_max, k2_min = CONFIG.model_scoring_params.kappa2_range
-        kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.model_scoring_params.n_kappa2)
+        k2_max, k2_min = CONFIG.total_variation_template_params.kappa2_range
+        kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.total_variation_template_params.n_kappa2)
         residuals, seminorms, model_residuals, S_list = tikhonov_score_model.sweep_kappa(G, B, L, kappa1_vals, kappa2_vals)
 
         # 5. Find knees by slicing along a dimension
@@ -153,6 +153,56 @@ def run_regularization():
         plot_lsurface_3d(residuals, seminorms, model_residuals, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals, cross_section=cross_section, save=is_save_plots)
         plot_lcurve(seminorms[:, j_star], residuals[:, j_star], kappa1_vals, i_star, mask_1d, save=is_save_plots)
         plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, save=is_save_plots)
+        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
+        plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
+        plt.show(block=True)
+
+    elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
+        # 1. Load data
+        z_gt = load_eta(z_gt_path)
+        sele_gt = load_eta(sele_gt_path)
+        eta_ext = load_eta(eta_path)
+        z = load_csv(z_path).ravel()
+
+        # Load optical inputs for recomputing G on the new mesh
+        k = load_csv(k_path).ravel()  # extinction coefficient k(λ) [unitless]
+        lambda_for_alpha = load_csv(lambda_for_alpha_path).ravel()  # wavelengths for alpha [nm]
+        wavelengths = load_csv(wavelengths_path).ravel()  # wavelengths of G [nm]
+
+        # Store values related to calculating G in an easy-to-access object :)
+        G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
+
+        G, z = calc_mesh_and_G(regularization_method, G_values)
+
+        # 2. Unit normalisation
+        G *= photon_flux * e_charge
+        B = eta_ext * photon_flux * e_charge
+        if G.shape[0] != eta_ext.size:
+            raise ValueError("Row mismatch between G and η_ext")
+
+        # 3. Regularisation via Gradient Descent with Score Model
+        S_rec = model_score_grad.solve_gradient_descent(
+            G, B,
+            learning_rate=CONFIG.model_score_grad_params.learning_rate,
+            steps=CONFIG.model_score_grad_params.num_steps,
+            reg_weight=CONFIG.model_score_grad_params.reg_weight,
+            force_zero_last=CONFIG.force_SELE_last_zero
+        )
+
+        S_mean = S_rec
+        S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
+
+        # 4. Fit
+        eta_fit = G @ S_rec / (photon_flux * e_charge)
+
+        # 5. Save & report
+        z_centres = 0.5 * (z[:-1] + z[1:])
+        save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+        save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+        save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+        # generate_run_report("results", kappa1_knee=0, kappa2_knee=0) # TODO: Update report for this method
+
+        # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)

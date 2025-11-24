@@ -56,8 +56,14 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         # Use the recomputed quantities from here onward
         G, z = G_new, z_new
         return G, z
-    elif regularization_method is RegularizationMethod.MODEL_SCORING:
-        G,z = _scoring_model_linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha)
+    elif regularization_method is RegularizationMethod.TOTAL_VARIATION_TEMPLATE:
+        G,z = _scoring_model_linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_params.W, CONFIG.total_variation_template_params.points_amount)
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/scoring_model_method/z.csv", z)
+        save_csv("results/raw/scoring_model_method/G.csv", G)
+        return G, z
+    elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
+        G,z = _scoring_model_linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_params.W, CONFIG.model_score_grad_params.points_amount)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
@@ -70,7 +76,9 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
 def _scoring_model_linear_mesh(
         wavelengths: NDArray[np.float64],
         k: NDArray[np.float64],
-        lambda_for_alpha: NDArray[np.float64]
+        lambda_for_alpha: NDArray[np.float64],
+        W: float,
+        points_amount: int
         ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     Use the z vector Alon used, calculate its G and return both.
@@ -80,7 +88,7 @@ def _scoring_model_linear_mesh(
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
     k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
 
-    z = np.linspace(0, CONFIG.model_scoring_params.W, CONFIG.model_scoring_params.points_amount+1)
+    z = np.linspace(0, W, points_amount+1)
     # z is in [cm] units.
     # We add 1 to the points amount because the optical generation matrix returns of size smaller by one.
     # Compute G on the mesh using the optical method

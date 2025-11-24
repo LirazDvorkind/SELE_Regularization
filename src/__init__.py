@@ -1,6 +1,6 @@
 """SELE toolbox with non‑uniform mesh support."""
 from src.types.config import DataPaths, Config
-from src.types.config import NonUniformMeshParams, ModelScoringParams
+from src.types.config import NonUniformMeshParams, TotalVariationTemplateParams, ModelScoreGradParams
 from src.types.enums import RegularizationMethod, LFlag
 
 # Config defined here so all .py files can import it safely without circular imports (global parameter!)
@@ -16,7 +16,7 @@ CONFIG = Config(
         score_model_curve="Data/sele_score_model_curve.csv",
     ),
     L_flag=LFlag.L2,
-    regularization_method=RegularizationMethod.MODEL_SCORING,
+    regularization_method=RegularizationMethod.MODEL_SCORE_GRAD,
     is_save_plots=True,
     kappa_range=(3e1, 3e-3),
     n_kappa=40, # was 150
@@ -31,12 +31,19 @@ CONFIG = Config(
         lin_mesh_size=1e-5,
         exp_base=400.0,
     ),
-    model_scoring_params=ModelScoringParams(
+    total_variation_template_params=TotalVariationTemplateParams(
         # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
         # Don't touch these!
         W=30e-4,  # cm
         points_amount=32,
         kappa2_range=(3e-1, 3e-5),
         n_kappa2=30
+    ),
+    model_score_grad_params=ModelScoreGradParams(
+        W=30e-4,  # cm
+        points_amount=32,
+        learning_rate=1e-5,
+        num_steps=2000,
+        reg_weight=0.0005
     )
 )

@@ -51,7 +51,7 @@ class NonUniformMeshParams:
     exp_base: float
 
 @dataclass
-class ModelScoringParams:
+class TotalVariationTemplateParams:
     W: float # Device width in cm
     points_amount: int
 
@@ -61,6 +61,14 @@ class ModelScoringParams:
     # Number of κ2 samples
     n_kappa2: int
 
+@dataclass
+class ModelScoreGradParams:
+    W: float # Device width in cm
+    points_amount: int
+
+    learning_rate: float
+    num_steps: int
+    reg_weight: float
 
 
 @dataclass
@@ -69,7 +77,9 @@ class Config:
 
     non_uniform_mesh_params: NonUniformMeshParams
 
-    model_scoring_params: ModelScoringParams
+    total_variation_template_params: TotalVariationTemplateParams
+
+    model_score_grad_params: ModelScoreGradParams
 
     L_flag: LFlag
 

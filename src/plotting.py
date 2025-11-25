@@ -203,8 +203,8 @@ def plot_lsurface_3d(
     plt.show(block=False)
 
 
-def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, *, save=False):
-    """Residual heatmap over (κ₁, κ₂) with slice knees and chosen point overlay."""
+def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, *, save=False):
+    """Residual heatmap over (κ₁, κ₂) with chosen point overlay."""
     eps = 1e-300
     Z = np.log10(np.maximum(residuals, eps))  # shape (n1, n2), axis0=κ1, axis1=κ2
 
@@ -235,17 +235,13 @@ def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i
     )
     fig.colorbar(im, ax=ax, label="log10 ||GS−B||")
 
-    # Plot slice knees and chosen point using the displayed (possibly reversed) κ arrays
-    ax.plot(np.log10(k1_disp[np.asarray(i_knee_per_j, int)]),
-            np.log10(k2_disp), "w.", ms=4, label="slice knees")
-
     ax.plot(np.log10(k1_disp[int(i_star)]),
             np.log10(k2_disp[int(j_star)]), "ko", label="chosen (κ₁*, κ₂*)")
 
     ax.set_xlabel("log10 κ₁")
     ax.set_ylabel("log10 κ₂")
     ax.legend(loc="upper right")
-    ax.set_title("Residual heatmap with slice knees")
+    ax.set_title("Residual heatmap with chosen point")
     if save:
         _ensure_results_dir()
         fig.savefig("results/residual_heatmap.png", dpi=300)

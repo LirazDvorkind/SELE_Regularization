@@ -4,3 +4,4 @@ numpy
 pyperclip
 scipy
 torch
+cvxpy

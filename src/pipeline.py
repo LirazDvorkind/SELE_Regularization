@@ -9,9 +9,9 @@ from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
-from src.tichonov import tikhonov_non_uniform, tikhonov_score_model, model_score_grad
+from src.tichonov import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
 from src.types.G_calculation import GInputData
-from src.types.enums import RegularizationMethod
+from src.types.enums import RegularizationMethod, LFlag
 
 
 def run_regularization():
@@ -110,21 +110,17 @@ def run_regularization():
             raise ValueError("Row mismatch between G and η_ext")
 
         # 3. Regularisation operator
-        L = build_L(L_flag, len(z) - 1)
+        L1 = build_L(LFlag.L1, len(z) - 1)
+        L2 = build_L(LFlag.L2, len(z) - 1)
 
         # 4. Tikhonov κ‑sweep
         kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
         k2_max, k2_min = CONFIG.total_variation_template_params.kappa2_range
         kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.total_variation_template_params.n_kappa2)
-        residuals, seminorms, model_residuals, S_list = tikhonov_score_model.sweep_kappa(G, B, L, kappa1_vals, kappa2_vals)
+        residuals, seminorms, tv_norms, S_list = tikhonov_total_variation.sweep_kappa(G, B, L1, L2, kappa1_vals, kappa2_vals)
 
-        # 5. Find knees by slicing along a dimension
-        i_knee_per_j, _ = tikhonov_score_model.slice_knees(residuals, seminorms, kappa1_vals)
-        res_k, sem_k, mod_k = residuals[i_knee_per_j, np.arange(kappa2_vals.size)], seminorms[i_knee_per_j, np.arange(kappa2_vals.size)], model_residuals[i_knee_per_j, np.arange(kappa2_vals.size)]
-        nrm = tikhonov_score_model._minmax_norm
-        score = nrm(res_k) + nrm(sem_k) + nrm(mod_k)
-        j_star = int(np.nanargmin(score))
-        i_star = int(i_knee_per_j[j_star])
+        # 5. Find knee
+        i_star, j_star = tikhonov_total_variation.find_knee(residuals, seminorms, tv_norms)
         kappa1_star, kappa2_star = float(kappa1_vals[i_star]), float(kappa2_vals[j_star])
 
         # 6. Confidence window 1-D (κ₁)
@@ -148,11 +144,11 @@ def run_regularization():
 
         # 8. Plots
         eps = np.finfo(float).tiny
-        Xs, Ys, Zs = np.log10(np.maximum(residuals[:, j_star], eps)), np.log10(np.maximum(seminorms[:, j_star], eps)), np.log10(np.maximum(model_residuals[:, j_star], eps))
+        Xs, Ys, Zs = np.log10(np.maximum(residuals[:, j_star], eps)), np.log10(np.maximum(seminorms[:, j_star], eps)), np.log10(np.maximum(tv_norms[:, j_star], eps))
         cross_section = (Xs, Ys, Zs, i_star)
-        plot_lsurface_3d(residuals, seminorms, model_residuals, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals, cross_section=cross_section, save=is_save_plots)
+        plot_lsurface_3d(residuals, seminorms, tv_norms, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals, cross_section=cross_section, save=is_save_plots)
         plot_lcurve(seminorms[:, j_star], residuals[:, j_star], kappa1_vals, i_star, mask_1d, save=is_save_plots)
-        plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, i_knee_per_j, save=is_save_plots)
+        plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, save=is_save_plots)
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)

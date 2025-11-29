@@ -16,9 +16,9 @@ CONFIG = Config(
         score_model_curve="Data/sele_score_model_curve.csv",
     ),
     L_flag=LFlag.L2,
-    regularization_method=RegularizationMethod.TOTAL_VARIATION_TEMPLATE,
+    regularization_method=RegularizationMethod.MODEL_SCORE_GRAD,
     is_save_plots=True,
-    kappa_range=(1e-3, 1e-7),
+    kappa_range=(1e3, 1e-3),
     n_kappa=40, # was 150
     conf_window=10 ** 0.5,
     e_charge=1.60217657e-19,

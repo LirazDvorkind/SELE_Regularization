@@ -1,7 +1,11 @@
-Run report - 2025-11-25T12:57:34
-regularization_method                             : TOTAL_VARIATION_TEMPLATE
-κ1_knee                                           : 9.427e-05
-κ2_knee                                           : 1.743e-05
+Run report - 2025-11-29T16:24:39
+regularization_method                             : NON_UNIFORM_MESH
+κ_knee                                            : 2.424e+00
+non_uniform_mesh_params.z_range.0                 : 0.035
+non_uniform_mesh_params.z_range.1                 : 1.462e-06
+non_uniform_mesh_params.z_turn                    : 0.0001
+non_uniform_mesh_params.lin_mesh_size             : 1e-05
+non_uniform_mesh_params.exp_base                  : 400.0
 total_variation_template_params.W                 : 0.003
 total_variation_template_params.points_amount     : 32
 total_variation_template_params.kappa2_range.0    : 0.01
@@ -14,8 +18,8 @@ model_score_grad_params.num_steps                 : 2000
 model_score_grad_params.reg_weight                : 0.0005
 L_flag                                            : L2
 is_save_plots                                     : True
-kappa_range.0                                     : 0.001
-kappa_range.1                                     : 1e-07
+kappa_range.0                                     : 1000.0
+kappa_range.1                                     : 0.001
 n_kappa                                           : 40
 conf_window                                       : 3.1622776601683795
 e_charge                                          : 1.60217657e-19

@@ -9,7 +9,7 @@ from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
-from src.tichonov import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
+from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod, LFlag
 
@@ -181,10 +181,13 @@ def run_regularization():
             G, B,
             learning_rate=CONFIG.model_score_grad_params.learning_rate,
             steps=CONFIG.model_score_grad_params.num_steps,
-            reg_weight=CONFIG.model_score_grad_params.reg_weight,
-            force_zero_last=CONFIG.force_SELE_last_zero
+            reg_weight=CONFIG.model_score_grad_params.reg_weight
         )
 
+        # Uncomment these to overwrite the S to become the ground truth sampled at 32 points
+        # z_centres = 0.5 * (z[:-1] + z[1:])
+        # temp_mask = np.searchsorted(z_gt, z_centres, side='right')
+        # S_rec = sele_gt[temp_mask]
         S_mean = S_rec
         S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
 

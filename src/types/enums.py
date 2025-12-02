@@ -3,7 +3,7 @@ from enum import Enum
 
 class RegularizationMethod(Enum):
     NON_UNIFORM_MESH = 'NON_UNIFORM_MESH',
-    TOTAL_VARIATION_TEMPLATE = 'TOTAL_VARIATION_TEMPLATE',
+    TOTAL_VARIATION = 'TOTAL_VARIATION_TEMPLATE',
     MODEL_SCORE_GRAD = 'MODEL_SCORE_GRAD'
 
 class LFlag(Enum):

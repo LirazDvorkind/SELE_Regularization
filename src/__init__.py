@@ -42,6 +42,7 @@ CONFIG = Config(
     model_score_grad_params=ModelScoreGradParams(
         W=30e-4,  # cm
         points_amount=32,
+        longer_points_amount=10000,
         learning_rate=1e-5,
         num_steps=2000,
         reg_weight=0.0005

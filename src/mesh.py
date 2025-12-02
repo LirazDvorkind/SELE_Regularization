@@ -56,14 +56,14 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         # Use the recomputed quantities from here onward
         G, z = G_new, z_new
         return G, z
-    elif regularization_method is RegularizationMethod.TOTAL_VARIATION_TEMPLATE:
-        G,z = _scoring_model_linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_params.W, CONFIG.total_variation_template_params.points_amount)
+    elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_params.W, CONFIG.total_variation_template_params.points_amount)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
         return G, z
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
-        G,z = _scoring_model_linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_params.W, CONFIG.model_score_grad_params.points_amount)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_params.W, CONFIG.model_score_grad_params.points_amount)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
@@ -73,7 +73,7 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
             f"The regularization method {regularization_method} is unsupported by {calc_mesh_and_G.__name__}")
 
 
-def _scoring_model_linear_mesh(
+def _linear_mesh(
         wavelengths: NDArray[np.float64],
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],

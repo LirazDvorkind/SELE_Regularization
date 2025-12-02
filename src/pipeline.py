@@ -6,7 +6,7 @@ import numpy as np
 
 from src.__init__ import CONFIG
 from src.io import load_eta, load_csv, save_csv, generate_run_report
-from src.mesh import calc_mesh_and_G
+from src.mesh import calc_mesh_and_G, _linear_mesh
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
 from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
@@ -85,8 +85,8 @@ def run_regularization():
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)
 
-    # --- MODEL SCORING MODE ------------------------------------------------------
-    elif regularization_method is RegularizationMethod.TOTAL_VARIATION_TEMPLATE:
+    # --- TOTAL VARIATION MODE ------------------------------------------------------
+    elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
         # 1. Load data
         z_gt = load_eta(z_gt_path)
         sele_gt = load_eta(sele_gt_path)
@@ -153,6 +153,7 @@ def run_regularization():
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)
 
+    # --- MODEL SCORE GRADIENT MODE ------------------------------------------------------
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
         # 1. Load data
         z_gt = load_eta(z_gt_path)
@@ -177,28 +178,44 @@ def run_regularization():
             raise ValueError("Row mismatch between G and η_ext")
 
         # 3. Regularisation via Gradient Descent with Score Model
-        S_rec = model_score_grad.solve_gradient_descent(
-            G, B,
-            learning_rate=CONFIG.model_score_grad_params.learning_rate,
-            steps=CONFIG.model_score_grad_params.num_steps,
-            reg_weight=CONFIG.model_score_grad_params.reg_weight
-        )
+        # Set to True to overwrite S to become the ground truth sampled at 'longer_points_amount' points
+        override_with_ground_truth = False
+        if override_with_ground_truth:
+            G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
+                                              CONFIG.model_score_grad_params.W,
+                                              CONFIG.model_score_grad_params.longer_points_amount)
+            z_centres = 0.5 * (z_longer[:-1] + z_longer[1:])
+            temp_mask = np.searchsorted(z_gt, z_centres, side='right')
+            S_rec = sele_gt[temp_mask]
+            S_mean = S_rec
+            S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
 
-        # Uncomment these to overwrite the S to become the ground truth sampled at 32 points
-        # z_centres = 0.5 * (z[:-1] + z[1:])
-        # temp_mask = np.searchsorted(z_gt, z_centres, side='right')
-        # S_rec = sele_gt[temp_mask]
-        S_mean = S_rec
-        S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
+            # 4. Fit
+            eta_fit = G_longer @ S_rec / (1 * 1)
 
-        # 4. Fit
-        eta_fit = G @ S_rec / (photon_flux * e_charge)
+            # 5. Save & report
+            save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+            save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+            save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+        else:
+            S_rec = model_score_grad.solve_gradient_descent(
+                G, B,
+                learning_rate=CONFIG.model_score_grad_params.learning_rate,
+                steps=CONFIG.model_score_grad_params.num_steps,
+                reg_weight=CONFIG.model_score_grad_params.reg_weight
+            )
+            S_mean = S_rec
+            S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
 
-        # 5. Save & report
-        z_centres = 0.5 * (z[:-1] + z[1:])
-        save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-        save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
-        save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+            # 4. Fit
+            eta_fit = G @ S_rec / (photon_flux * e_charge)
+
+            # 5. Save & report
+            z_centres = 0.5 * (z[:-1] + z[1:])
+            save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+            save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+            save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+
         # generate_run_report("results", kappa1_knee=0, kappa2_knee=0) # TODO: Update report for this method
 
         # 6. Plots

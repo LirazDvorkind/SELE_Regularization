@@ -12,6 +12,7 @@ from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plo
 from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod, LFlag
+from src.utils import expand_sele
 
 
 def run_regularization():
@@ -172,8 +173,9 @@ def run_regularization():
         G, z = calc_mesh_and_G(regularization_method, G_values)
 
         # 2. Unit normalisation
-        G *= photon_flux * e_charge
-        B = eta_ext * photon_flux * e_charge
+        unit_factor = photon_flux * e_charge
+        G *= unit_factor
+        B = eta_ext * unit_factor
         if G.shape[0] != eta_ext.size:
             raise ValueError("Row mismatch between G and η_ext")
 
@@ -184,14 +186,16 @@ def run_regularization():
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
                                               CONFIG.model_score_grad_params.W,
                                               CONFIG.model_score_grad_params.longer_points_amount)
-            z_centres = 0.5 * (z_longer[:-1] + z_longer[1:])
+            z_centres = 0.5 * (z[:-1] + z[1:])
             temp_mask = np.searchsorted(z_gt, z_centres, side='right')
             S_rec = sele_gt[temp_mask]
+            # Upsample to longer_points_amount points, strongly weighted near the surface
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount, front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
 
             # 4. Fit
-            eta_fit = G_longer @ S_rec / (1 * 1)
+            eta_fit = G_longer @ S_rec / (unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
             save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
@@ -204,14 +208,19 @@ def run_regularization():
                 steps=CONFIG.model_score_grad_params.num_steps,
                 reg_weight=CONFIG.model_score_grad_params.reg_weight
             )
+            z_centres = 0.5 * (z[:-1] + z[1:])
+            G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
+                                              CONFIG.model_score_grad_params.W,
+                                              CONFIG.model_score_grad_params.longer_points_amount)
+            # Upsample to longer_points_amount points, strongly weighted near the surface
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount, front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
 
             # 4. Fit
-            eta_fit = G @ S_rec / (photon_flux * e_charge)
+            eta_fit = G_longer @ S_rec / (unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
-            z_centres = 0.5 * (z[:-1] + z[1:])
             save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
             save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")

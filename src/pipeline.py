@@ -9,7 +9,7 @@ from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G, _linear_mesh
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
-from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, model_score_grad
+from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, score_model_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod, LFlag
 from src.utils import expand_sele
@@ -118,7 +118,8 @@ def run_regularization():
         kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
         k2_max, k2_min = CONFIG.total_variation_template_params.kappa2_range
         kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.total_variation_template_params.n_kappa2)
-        residuals, seminorms, tv_norms, S_list = tikhonov_total_variation.sweep_kappa(G, B, L1, L2, kappa1_vals, kappa2_vals)
+        residuals, seminorms, tv_norms, S_list = tikhonov_total_variation.sweep_kappa(G, B, L1, L2, kappa1_vals,
+                                                                                      kappa2_vals)
 
         # 5. Find knee
         i_star, j_star = tikhonov_total_variation.find_knee(residuals, seminorms, tv_norms)
@@ -145,9 +146,11 @@ def run_regularization():
 
         # 8. Plots
         eps = np.finfo(float).tiny
-        Xs, Ys, Zs = np.log10(np.maximum(residuals[:, j_star], eps)), np.log10(np.maximum(seminorms[:, j_star], eps)), np.log10(np.maximum(tv_norms[:, j_star], eps))
+        Xs, Ys, Zs = np.log10(np.maximum(residuals[:, j_star], eps)), np.log10(
+            np.maximum(seminorms[:, j_star], eps)), np.log10(np.maximum(tv_norms[:, j_star], eps))
         cross_section = (Xs, Ys, Zs, i_star)
-        plot_lsurface_3d(residuals, seminorms, tv_norms, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals, cross_section=cross_section, save=is_save_plots)
+        plot_lsurface_3d(residuals, seminorms, tv_norms, kappa1_vals=kappa1_vals, kappa2_vals=kappa2_vals,
+                         cross_section=cross_section, save=is_save_plots)
         plot_lcurve(seminorms[:, j_star], residuals[:, j_star], kappa1_vals, i_star, mask_1d, save=is_save_plots)
         plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, save=is_save_plots)
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
@@ -190,19 +193,21 @@ def run_regularization():
             temp_mask = np.searchsorted(z_gt, z_centres, side='right')
             S_rec = sele_gt[temp_mask]
             # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount, front_weight=1.0, z_original=z_centres)
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount,
+                                           front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
 
             # 4. Fit
-            eta_fit = G_longer @ S_rec / (unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
+            eta_fit = G_longer @ S_rec / (
+                unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
             save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
             save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
         else:
-            S_rec = model_score_grad.solve_gradient_descent(
+            S_rec = score_model_grad.solve_gradient_descent(
                 G, B,
                 learning_rate=CONFIG.model_score_grad_params.learning_rate,
                 steps=CONFIG.model_score_grad_params.num_steps,
@@ -213,12 +218,14 @@ def run_regularization():
                                               CONFIG.model_score_grad_params.W,
                                               CONFIG.model_score_grad_params.longer_points_amount)
             # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount, front_weight=1.0, z_original=z_centres)
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount,
+                                           front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
-            S_std = np.zeros_like(S_rec) # No statistical mean in this method yet
+            S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
 
             # 4. Fit
-            eta_fit = G_longer @ S_rec / (unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
+            eta_fit = G_longer @ S_rec / (
+                unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
             save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")

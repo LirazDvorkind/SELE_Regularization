@@ -26,7 +26,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray,
 
     NOTE ON ARGUMENTS:
     - 'steps': Number of diffusion steps (e.g., 1000).
-    - 'reg_weight': Now acts as the GUIDANCE SCALE (xi). Controls how strictly we enforce G*S=B.
+    - 'reg_weight': Now acts as the GUIDANCE SCALE. Controls how strictly we enforce G*S=B.
     - 'learning_rate': Not used in SDE (step size is fixed by dt), but kept for signature compatibility. TODO: remove it
     """
     model_path_pt = "Data/sele_score_net_d32.pt"
@@ -62,8 +62,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray,
     # The diffusion process starts from N(0, I) in the NORMALIZED space.
     S_norm = np.random.randn(N)
 
-    # TODO: Re-check the reg_weight - what's it's doing and whether it works. Go over the code again and check it is ok.
-    print(f"Starting Reverse SDE. Steps={steps}, Guidance(xi)={reg_weight:.1f}")
+    print(f"Starting Reverse SDE. Steps={steps}, Guidance (reg_weight)={reg_weight}")
 
     # 5. Reverse SDE Loop (t = 1.0 -> 0.0)
     dt = 1.0 / steps
@@ -99,14 +98,13 @@ def solve_gradient_descent(G: NDArray, B: NDArray,
 
         # --- C. Combine Forces (Guided Score) ---
         # Score pushes up log-p. Gradient pushes down Error.
-        # Guided Score = Score - xi * Grad_Error
         guided_score = score_model - (reg_weight * grad_fidelity_norm)
 
         # --- D. Euler-Maruyama Update Step ---
         diffusion_drift = (0.5 * beta_t * S_norm + beta_t * guided_score) * dt
 
-        # Sample noise z (unless it's the very last step, then 0 to denoise fully)
-        z = np.random.randn(N) if i < steps - 1 else np.zeros(N)
+        # Sample noise z (unless it's the last steps, then 0 to denoise fully)
+        z = np.random.randn(N) if i < steps - steps/25 else np.zeros(N)
         diffusion_noise = np.sqrt(beta_t * dt) * z
 
         S_norm = S_norm + diffusion_drift + diffusion_noise

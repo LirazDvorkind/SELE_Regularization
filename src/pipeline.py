@@ -209,7 +209,6 @@ def run_regularization():
         else:
             S_rec = score_model_grad.solve_gradient_descent(
                 G, B,
-                learning_rate=CONFIG.model_score_grad_params.learning_rate,
                 steps=CONFIG.model_score_grad_params.num_steps,
                 reg_weight=CONFIG.model_score_grad_params.reg_weight
             )

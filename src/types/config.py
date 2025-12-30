@@ -66,8 +66,6 @@ class ModelScoreGradParams:
     W: float # Device width in cm
     points_amount: int
     longer_points_amount: int
-
-    learning_rate: float
     num_steps: int
     reg_weight: float
 

@@ -19,15 +19,13 @@ import torch
 from numpy.typing import NDArray
 
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray,
-                           learning_rate: float, steps: int, reg_weight: float) -> NDArray:
+def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float) -> NDArray:
     """
     Solves for S using Conditional Reverse SDE.
 
     NOTE ON ARGUMENTS:
     - 'steps': Number of diffusion steps (e.g., 1000).
     - 'reg_weight': Now acts as the GUIDANCE SCALE. Controls how strictly we enforce G*S=B.
-    - 'learning_rate': Not used in SDE (step size is fixed by dt), but kept for signature compatibility. TODO: remove it
     """
     model_path_pt = "Data/sele_score_net_d32.pt"
     device = torch.device('cpu')
@@ -114,6 +112,15 @@ def solve_gradient_descent(G: NDArray, B: NDArray,
             score_mag = np.linalg.norm(score_model)
             grad_mag = np.linalg.norm(grad_fidelity_norm)
             print(f"t={t:.2f} | Score={score_mag:.2e} | DataGrad={grad_mag:.2e}")
+            # import matplotlib.pyplot as plt
+            # plt.plot(score_model, label="Score model")
+            # plt.plot(-reg_weight*grad_fidelity_norm, label="-reg_weight*grad")
+            # plt.plot(S_norm, label="S_norm")
+            # plt.plot(diffusion_drift, label="diffusion_drift")
+            # plt.plot(diffusion_noise, label="diffusion_noise")
+            # plt.legend()
+            # plt.title("[debug] - S_norm and the values that push it around")
+            # plt.show()
 
     # 6. Final Un-normalization
     S_final = (S_norm + 1.0) / norm_scale_factor + d_min

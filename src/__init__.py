@@ -44,6 +44,6 @@ CONFIG = Config(
         points_amount=32,
         longer_points_amount=300,
         num_steps=200,
-        reg_weight=0.9
+        reg_weight=1
     )
 )

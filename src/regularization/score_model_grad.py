@@ -156,8 +156,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
             if i > MIN_STEPS:
                 if np.abs(mse_history[-1] - mse_history[-2]) < STOP_CHANGE:
                     if small_error_steps_amount > STOP_STEPS:
-                        print(
-                            f"Stopping Early: MSE diff < {STOP_CHANGE} at step {i}")
+                        print(f"Stopping Early: MSE diff < {STOP_CHANGE} at step {i}")
                         break
                     else:
                         small_error_steps_amount += 1
@@ -184,7 +183,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     # Plot MSE History
     if S_gt is not None and len(mse_history) > 0:
         plt.figure(figsize=(8, 4))
-        plt.plot(mse_history, label="MSE (Reconstruction vs GT)")
+        plt.plot(mse_history, label="SELE Reconstruction error vs GT")
         plt.yscale('log')  # Log scale is usually better for convergence plots
         plt.xlabel("Optimization Step")
         plt.ylabel("Mean Squared Error (Physical Units)")

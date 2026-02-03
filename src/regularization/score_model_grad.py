@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug plots
 
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float) -> NDArray:
+def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float, S_gt: NDArray = None) -> NDArray:
     """
     Solves for S using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
 
@@ -29,12 +29,15 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     """
 
     # --- 0. HYPERPARAMETERS --- TODO - move these to the __init__ config section
-    OPT_STEPS = 5000       # "T" in paper: Number of optimization iterations
+    MAX_STEPS = 5000       # "T" in paper: Number of optimization iterations
     LR = 1e-2               # "eta" in paper: Learning rate
     MOMENTUM = 0.95         # "mu" in paper: Nesterov momentum coefficient. Controls the "inertia" (how much past velocity is kept).
     T0 = 1e-3               # Small fixed time step to sample "clean" score
     IS_SHOW_DEBUG_PLOT = False
     reg_weight = 10
+    STOP_CHANGE = 1e-8       # Stop if error changes less than this
+    STOP_STEPS = 20          # How many steps the mse diff is less than the threshold
+    MIN_STEPS = 50          # Minimum steps to run before checking (to let momentum build)
 
     # "reg_weight" passed as argument acts as the "score factor" or regularization strength.
     # reg_weight too high = ignoring data, too low = ignoring physics (score model)
@@ -42,7 +45,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     # T0: Larger t means the model expects more noise, so it pushes toward coarser, blurrier features.
     #     Smaller t (like 1e-4) assumes the image is nearly clean, enforcing finer details.
 
-    print(f"Starting NAG Solver. Steps={OPT_STEPS}, LR={LR}, Momentum={MOMENTUM}, Reg={reg_weight}")
+    print(f"Starting NAG Solver. Steps={MAX_STEPS}, LR={LR}, Momentum={MOMENTUM}, Reg={reg_weight}")
 
     model_path_pt = "Data/sele_score_net_d32.pt"
     device = torch.device('cpu')
@@ -77,8 +80,12 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     S_norm = np.random.randn(N)
     velocity = np.zeros_like(S_norm) # Initialize momentum buffer v^(0) = 0
 
+    # Trackers
+    mse_history = []
+    small_error_steps_amount = 0
+
     # 5. Nesterov Optimization Loop
-    for i in range(OPT_STEPS):
+    for i in range(MAX_STEPS):
 
         # --- A. Nesterov Lookahead ---
         # Evaluate gradients at the predicted position (x + mu*v)
@@ -126,9 +133,41 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
         # x^(t+1) = x^(t) + v^(t+1)
         S_norm = S_norm + velocity
 
+        # --- F. MSE Tracking ---
+        if S_gt is not None:
+            # 1. Un-normalize current estimate to physical space
+            S_current_phys = (S_norm + 1.0) / norm_scale_factor + d_min
+
+            # 2. Interpolate S_current to match S_gt length if needed
+            if len(S_current_phys) != len(S_gt):
+                x_curr = np.linspace(0, 1, len(S_current_phys))
+                x_gt = np.linspace(0, 1, len(S_gt))
+                # Interpolate current estimate onto GT grid
+                S_interp = np.interp(x_gt, x_curr, S_current_phys)
+                diff = S_interp - S_gt
+            else:
+                diff = S_current_phys - S_gt
+
+            # 3. Calculate MSE
+            current_mse = np.mean(diff ** 2)
+            mse_history.append(current_mse)
+
+            # --- G. STOPPING CONDITION CHECK ---
+            if i > MIN_STEPS:
+                if np.abs(mse_history[-1] - mse_history[-2]) < STOP_CHANGE:
+                    if small_error_steps_amount > STOP_STEPS:
+                        print(
+                            f"Stopping Early: MSE diff < {STOP_CHANGE} at step {i}")
+                        break
+                    else:
+                        small_error_steps_amount += 1
+                else:
+                    small_error_steps_amount = 0
+
         # --- Monitoring & Plotting ---
-        if i % (OPT_STEPS // 10) == 0:
-            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor={adaptive_factor:.2e}")
+        if i % (MAX_STEPS // 20) == 0:
+            mse_str = f" | MSE={current_mse:.2e}" if S_gt is not None else ""
+            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor={adaptive_factor:.2e}{mse_str}")
 
             # Debug Plotting
             if IS_SHOW_DEBUG_PLOT:
@@ -141,6 +180,18 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
                 plt.title(f"[Debug] Optimization Forces at Iter {i}")
                 plt.grid(True, alpha=0.3)
                 plt.show()
+
+    # Plot MSE History
+    if S_gt is not None and len(mse_history) > 0:
+        plt.figure(figsize=(8, 4))
+        plt.plot(mse_history, label="MSE (Reconstruction vs GT)")
+        plt.yscale('log')  # Log scale is usually better for convergence plots
+        plt.xlabel("Optimization Step")
+        plt.ylabel("Mean Squared Error (Physical Units)")
+        plt.title("Convergence of SELE Reconstruction")
+        plt.grid(True, which="both", linestyle='--', alpha=0.5)
+        plt.legend()
+        plt.show()
 
     # 6. Final Un-normalization
     S_final = (S_norm + 1.0) / norm_scale_factor + d_min

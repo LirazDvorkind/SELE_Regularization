@@ -5,3 +5,6 @@ pyperclip
 scipy
 torch
 cvxpy
+
+seaborn
+pandas

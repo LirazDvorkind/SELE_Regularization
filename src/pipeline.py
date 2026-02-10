@@ -211,6 +211,8 @@ def run_regularization():
                 G, B,
                 steps=CONFIG.model_score_grad_params.num_steps,
                 reg_weight=CONFIG.model_score_grad_params.reg_weight,
+                lr_max=1e-2,
+                momentum=0.95,
                 S_gt=sele_gt
             )
             z_centres = 0.5 * (z[:-1] + z[1:])

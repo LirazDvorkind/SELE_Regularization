@@ -20,7 +20,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug plots
 
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float, S_gt: NDArray = None) -> NDArray:
+def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float, lr_max=1e-2, momentum=0.95, S_gt: NDArray = None) -> NDArray:
     """
     Solves for S using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
 
@@ -30,7 +30,8 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
 
     # --- 0. HYPERPARAMETERS --- TODO - move these to the __init__ config section
     MAX_STEPS = 5000       # "T" in paper: Number of optimization iterations
-    LR = 1e-2               # "eta" in paper: Learning rate
+    LR_MAX = 1e-2               # "eta" in paper: Learning rate
+    LR_MIN = 1e-5               # Cosine annealing to LR_MIN
     MOMENTUM = 0.95         # "mu" in paper: Nesterov momentum coefficient. Controls the "inertia" (how much past velocity is kept).
     T0 = 1e-3               # Small fixed time step to sample "clean" score
     IS_SHOW_DEBUG_PLOT = False
@@ -45,14 +46,14 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     # T0: Larger t means the model expects more noise, so it pushes toward coarser, blurrier features.
     #     Smaller t (like 1e-4) assumes the image is nearly clean, enforcing finer details.
 
-    print(f"Starting NAG Solver. Steps={MAX_STEPS}, LR={LR}, Momentum={MOMENTUM}, Reg={reg_weight}")
+    print(f"Starting NAG Solver. Steps={MAX_STEPS}, LR={LR_MAX} to {LR_MIN}, Momentum={MOMENTUM}, Reg={reg_weight}")
 
     model_path_pt = "Data/sele_score_net_d32.pt"
     device = torch.device('cpu')
 
     # Set random seed for reproducibility
-    # torch.manual_seed(42)
-    # np.random.seed(42)
+    torch.manual_seed(42)
+    np.random.seed(42)
 
     # 1. Load Model
     try:
@@ -117,7 +118,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
         score_mag = np.linalg.norm(score_model) + 1e-12 # avoid div by zero
 
         # Adaptive weight: scales score to match data gradient magnitude
-        # alpha = ||g|| / ||s||. We also apply the user's reg_weight here.
+        # alpha = ||g|| / ||s||. We also apply reg_weight here.
         adaptive_factor = (grad_mag / score_mag) * reg_weight
 
         # The 'force' is: -Gradient + Weighted_Score
@@ -127,8 +128,10 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
         total_update = grad_fidelity_norm - score_weighted
 
         # --- E. Momentum Update ---
+        # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
+        current_lr = LR_MIN + 0.5 * (LR_MAX - LR_MIN) * (1 + np.cos(i / MAX_STEPS * np.pi))
         # v^(t+1) = mu * v^(t) - eta * (grad - score_weighted)
-        velocity = MOMENTUM * velocity - LR * total_update
+        velocity = MOMENTUM * velocity - current_lr * total_update
 
         # x^(t+1) = x^(t) + v^(t+1)
         S_norm = S_norm + velocity

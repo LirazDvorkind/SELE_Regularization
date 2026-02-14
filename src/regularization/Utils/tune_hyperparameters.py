@@ -18,7 +18,6 @@ PARAM_GRID = {
 }
 
 SOLVER_DIM = 32
-GT_DIM = 100
 
 def preprocess_ground_truth(S_gt_100, target_dim=32):
     x_old = np.linspace(0, 30, len(S_gt_100))
@@ -33,7 +32,7 @@ def generate_synthetic_data(S_gt_profiles, G_matrix):
         S_32 = preprocess_ground_truth(S_100, target_dim=SOLVER_DIM)
         # B = G * S (Physical measurement)
         B = G_matrix @ S_32
-        dataset.append({'S_gt_32': S_32, 'B': B})
+        dataset.append({'S_gt': S_32, 'B': B})
     return dataset
 
 
@@ -56,7 +55,7 @@ def run_tuning_suite(dataset, G_matrix):
 
         for item in dataset:
             B_target = item['B']
-            S_gt = item['S_gt_32']
+            S_gt = item['S_gt']
 
             # --- RUN SOLVER ---
             S_est = solve_gradient_descent(
@@ -69,7 +68,7 @@ def run_tuning_suite(dataset, G_matrix):
                 S_gt=S_gt
             )
 
-            # 1. Calculate ELE Error (Data Misfit) - [USER REQUESTED METRIC]
+            # 1. Calculate ELE Error (Data Misfit) - [METRIC]
             B_est = G_matrix @ S_est
             mse_ele = np.mean((B_est - B_target) ** 2)
             ele_errors.append(mse_ele)
@@ -93,14 +92,14 @@ def run_tuning_suite(dataset, G_matrix):
 
 
 def generate_report(df):
-    # Sort by ELE Error (Data Fidelity) as requested
+    # Sort by ELE Error (Data Fidelity)
     df_sorted = df.sort_values(by='mean_ele_error')
     best_run = df_sorted.iloc[0]
 
     print("\n" + "=" * 50)
     print(f"🏆 WINNER (Lowest ELE Data Error)")
     print("=" * 50)
-    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Mom={best_run['momentum']}")
+    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Momentum={best_run['momentum']}")
     print(f"Error (ELE) : {best_run['mean_ele_error']:.2e} (Primary)")
     print(f"Error (SELE): {best_run['mean_sele_error']:.2e} (Sanity Check)")
     print("=" * 50)
@@ -125,8 +124,8 @@ def generate_report(df):
 
 if __name__ == "__main__":
     # Mock Data for testing
-    G = np.random.randn(10, 32)
-    S_profiles = [np.exp(-np.linspace(0, 5, 100)) for _ in range(3)]
+    G = np.random.randn(10, 32) # TODO: Obtain G (sp2?) from the MATLAB code and insert here
+    S_profiles = [np.exp(-np.linspace(0, 5, 100)) for _ in range(3)] # TODO: insert from .mat (convert to csv)
 
     data = generate_synthetic_data(S_profiles, G)
     results_df = run_tuning_suite(data, G)

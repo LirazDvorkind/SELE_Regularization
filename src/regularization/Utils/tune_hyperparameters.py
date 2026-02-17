@@ -123,11 +123,29 @@ def generate_report(df):
     plt.show()
 
 
+# --- MAIN EXECUTION BLOCK ---
 if __name__ == "__main__":
-    # Mock Data for testing
-    G = np.random.randn(10, 32)
-    S_profiles = [np.exp(-np.linspace(0, 5, 100)) for _ in range(3)]
+    import os
+    from src.io import load_csv
 
-    data = generate_synthetic_data(S_profiles, G)
+    print("Loading SELE and G...")
+
+    # 1. Load optical parameters from CONFIG
+    G = load_csv("../../../Data/G_score_model.csv")
+    # 4. Load the dataset of 100-point SELE profiles
+    S_profiles_100 = load_csv("../../../Data/sele_dataset.csv")
+
+    # 5. Prepare synthetic measurements (B) for all profiles
+    print(f"Preparing synthetic dataset for {len(S_profiles_100)} profiles...")
+    data = generate_synthetic_data(S_profiles_100, G)
+
+    # 6. Run Tuning
     results_df = run_tuning_suite(data, G)
+
+    # 7. Generate Report and Plots
     generate_report(results_df)
+
+    # 8. Save Stats
+    os.makedirs("results/tuning", exist_ok=True)
+    results_df.to_csv("results/tuning/hyperparameter_tuning_results.csv", index=False)
+    print("Saved tuning results to results/tuning/hyperparameter_tuning_results.csv")

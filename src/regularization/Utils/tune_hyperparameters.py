@@ -62,11 +62,11 @@ def run_tuning_suite(dataset, G_matrix):
             S_est = solve_gradient_descent(
                 G=G_matrix,
                 B=B_target,
-                steps=3000,
                 reg_weight=config['reg_weight'],
                 lr_max=config['lr_max'],
                 momentum=config['momentum'],
-                S_gt=S_gt
+                S_gt=S_gt,
+                model_path="../../../Data/sele_score_net_d32.pt"
             )
 
             # 1. Calculate ELE Error (Data Misfit) - [USER REQUESTED METRIC]
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # 1. Load optical parameters from CONFIG
     G = load_csv("../../../Data/G_score_model.csv")
     # 4. Load the dataset of 100-point SELE profiles
-    S_profiles_100 = load_csv("../../../Data/sele_dataset.csv")
+    S_profiles_100 = load_csv("../../../Data/sele_dataset.csv")[95:100,:]
 
     # 5. Prepare synthetic measurements (B) for all profiles
     print(f"Preparing synthetic dataset for {len(S_profiles_100)} profiles...")

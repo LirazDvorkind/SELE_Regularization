@@ -44,6 +44,7 @@ CONFIG = Config(
         points_amount=32,
         longer_points_amount=300,
         num_steps=200,
-        reg_weight=1
+        reg_weight=1,
+        model_path="Data/sele_score_net_d32.pt"
     )
 )

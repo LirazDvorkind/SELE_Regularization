@@ -68,6 +68,7 @@ class ModelScoreGradParams:
     longer_points_amount: int
     num_steps: int
     reg_weight: float
+    model_path: str
 
 
 @dataclass

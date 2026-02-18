@@ -209,11 +209,12 @@ def run_regularization():
         else:
             S_rec = score_model_grad.solve_gradient_descent(
                 G, B,
-                steps=CONFIG.model_score_grad_params.num_steps,
+                # steps=CONFIG.model_score_grad_params.num_steps,
                 reg_weight=CONFIG.model_score_grad_params.reg_weight,
-                lr_max=1e-2,
+                lr_max=0.02,
                 momentum=0.95,
-                S_gt=sele_gt
+                S_gt=sele_gt,
+                model_path=CONFIG.model_score_grad_params.model_path,
             )
             z_centres = 0.5 * (z[:-1] + z[1:])
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,

@@ -1,18 +1,3 @@
-"""
-Conditional Generation using Reverse SDE (Euler-Maruyama with Guidance).
-
-METHODOLOGY:
-This module generates a SELE profile 'S' by solving the Reverse-Time SDE
-from t=1.0 (Pure Noise) to t=0.0 (Clean Signal).
-
-It combines two forces at every time step:
-1. The Score Network: Pushes the signal to look like a valid SELE profile.
-2. The Data Gradient: Pushes the signal to satisfy the measurement G*S = B.
-
-This is superior to simple optimization because it allows the model to
-traverse the "generative path," refining coarse features first (at high t)
-and fine details later (at low t), effectively avoiding local minima.
-"""
 from __future__ import annotations
 import numpy as np
 import torch
@@ -20,7 +5,7 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug plots
 
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float, lr_max=1e-2, momentum=0.95, S_gt: NDArray = None) -> NDArray:
+def solve_gradient_descent(G: NDArray, B: NDArray, reg_weight: float, lr_max: float, momentum: float, model_path: str, S_gt: NDArray = None) -> NDArray:
     """
     Solves for S using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
 
@@ -30,12 +15,12 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
 
     # --- 0. HYPERPARAMETERS --- TODO - move these to the __init__ config section
     MAX_STEPS = 5000       # "T" in paper: Number of optimization iterations
-    LR_MAX = 1e-2               # "eta" in paper: Learning rate
+    LR_MAX = lr_max # was 1e-2               # "eta" in paper: Learning rate
     LR_MIN = 1e-5               # Cosine annealing to LR_MIN
-    MOMENTUM = 0.95         # "mu" in paper: Nesterov momentum coefficient. Controls the "inertia" (how much past velocity is kept).
+    MOMENTUM = momentum # was 0.95         # "mu" in paper: Nesterov momentum coefficient. Controls the "inertia" (how much past velocity is kept).
     T0 = 1e-3               # Small fixed time step to sample "clean" score
     IS_SHOW_DEBUG_PLOT = False
-    reg_weight = 10
+    reg_weight = reg_weight # was 10
     STOP_CHANGE = 1e-8       # Stop if error changes less than this
     STOP_STEPS = 20          # How many steps the mse diff is less than the threshold
     MIN_STEPS = 50          # Minimum steps to run before checking (to let momentum build)
@@ -45,10 +30,9 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
     # MOMENTUM high = plow through noise but may cause overshoot, too low = slower but less overshoot
     # T0: Larger t means the model expects more noise, so it pushes toward coarser, blurrier features.
     #     Smaller t (like 1e-4) assumes the image is nearly clean, enforcing finer details.
+    if IS_SHOW_DEBUG_PLOT:
+        print(f"Starting NAG Solver. Steps={MAX_STEPS}, LR={LR_MAX} to {LR_MIN}, Momentum={MOMENTUM}, Reg={reg_weight}")
 
-    print(f"Starting NAG Solver. Steps={MAX_STEPS}, LR={LR_MAX} to {LR_MIN}, Momentum={MOMENTUM}, Reg={reg_weight}")
-
-    model_path_pt = "Data/sele_score_net_d32.pt"
     device = torch.device('cpu')
 
     # Set random seed for reproducibility
@@ -57,7 +41,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
 
     # 1. Load Model
     try:
-        score_network = torch.load(model_path_pt, map_location=device, weights_only=False)
+        score_network = torch.load(model_path, map_location=device, weights_only=False)
         score_network.eval()
     except Exception as e:
         raise FileNotFoundError(f"Failed to load ScoreNet: {e}")
@@ -158,7 +142,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
             # --- G. STOPPING CONDITION CHECK ---
             if i > MIN_STEPS:
                 if np.abs(mse_history[-1] - mse_history[-2]) < STOP_CHANGE:
-                    if small_error_steps_amount > STOP_STEPS:
+                    if IS_SHOW_DEBUG_PLOT and small_error_steps_amount > STOP_STEPS:
                         print(f"Stopping Early: MSE diff < {STOP_CHANGE} at step {i}")
                         break
                     else:
@@ -167,7 +151,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
                     small_error_steps_amount = 0
 
         # --- Monitoring & Plotting ---
-        if i % (MAX_STEPS // 20) == 0:
+        if IS_SHOW_DEBUG_PLOT and i % (MAX_STEPS // 20) == 0:
             mse_str = f" | MSE={current_mse:.2e}" if S_gt is not None else ""
             print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor={adaptive_factor:.2e}{mse_str}")
 
@@ -184,7 +168,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, steps: int, reg_weight: float
                 plt.show()
 
     # Plot MSE History
-    if S_gt is not None and len(mse_history) > 0:
+    if IS_SHOW_DEBUG_PLOT and S_gt is not None and len(mse_history) > 0:
         plt.figure(figsize=(8, 4))
         plt.plot(mse_history, label="SELE Reconstruction error vs GT")
         plt.yscale('log')  # Log scale is usually better for convergence plots

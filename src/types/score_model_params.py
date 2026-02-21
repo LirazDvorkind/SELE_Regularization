@@ -10,11 +10,11 @@ class NesterovHyperparams:
 
     # MOMENTUM = "mu" Nesterov momentum coefficient. Controls the "inertia" (how much past velocity is kept).
     # MOMENTUM high = plow through noise but may cause overshoot, too low = slower but less overshoot
-    MOMENTUM: float = 0.95
+    MOMENTUM: float = 0.9
 
     model_path: str = "Data/sele_score_net_d32.pt"
 
-    LR_MAX: float = 2e-2
+    LR_MAX: float = 1e-2
 
     LR_MIN: float = 1e-5 # Cosine annealing from LR_MAX to LR_MIN
 

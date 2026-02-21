@@ -1,7 +1,6 @@
 from matplotlib import pyplot as plt
 
-from Utils.pickle_save_load import pickle_load
-from src.plotting import plot_sele, plot_eta
+from src.io import load_csv
 from src.regularization.score_model.helpers import load_S_B_G
 from src.regularization.score_model.score_model_grad import solve_gradient_descent
 from src.types.score_model_params import NesterovHyperparams
@@ -9,13 +8,15 @@ from src.types.score_model_params import NesterovHyperparams
 import numpy as np
 
 config = {
-    'reg_weight': 20,
-    'lr_max': 0.02,
-    'momentum': 0.8
+    'reg_weight': 2.5,
+    'lr_max': 0.04,
+    'momentum': 0.95
 }
 
 if __name__ == "__main__":
-    data, G = load_S_B_G()
+    random_sample = 872 # np.random.randint(100, 1000)
+    print(f"Random curve number {random_sample}")
+    data, G = load_S_B_G(lower_index=random_sample, upper_index=random_sample+1)
 
     for item in data:
         B_target = item['B']
@@ -46,27 +47,12 @@ if __name__ == "__main__":
         mse_sele = np.mean((S_est - S_gt) ** 2)
         print(f"mse_sele: {mse_sele}")
 
-        d1 = pickle_load("plotting_data/sele_plot.p")
-        z_gt = d1['z_gt']
-        sele_gt = d1['sele_gt']
-        z_centres = d1['z_centres']
-        S_mean = d1['S_mean']
-        S_std = d1['S_std']
-        d2 = pickle_load("plotting_data/ele_plot.p")
-        wavelengths = d2['wavelengths']
-        eta_ext = d2['eta_ext']
-        eta_fit = d2['eta_fit']
-        mask = z_gt <= np.max(z_centres)
-        sele_gt = sele_gt[mask]
-        z_gt = z_gt[mask]
+        W = 30e-4  # cm
+        x_res = 32
+        z_centres = np.linspace(0, W, x_res) * 1e4  # µm
         fig, ax = plt.subplots()
-        ax.plot(z_centres * 1e4, S_mean, label='SELE (reconstructed)')
-        ax.fill_between(z_centres * 1e4,
-                        np.asarray(S_mean) - S_std,
-                        np.asarray(S_mean) + S_std,
-                        alpha=0.3, label=r'$\pm 1\,\sigma$')
-
-        ax.plot(z_gt * 1e4, sele_gt, 'k--', label='SELE ground truth')
+        ax.plot(z_centres, S_est, label='SELE (reconstructed)')
+        ax.plot(z_centres, S_gt, 'k--', label='SELE ground truth')
 
         ax.set_xlabel('z $[\\mu m]$')
         ax.set_ylabel('SELE')
@@ -76,10 +62,11 @@ if __name__ == "__main__":
 
 
         fig2, ax = plt.subplots()
-        ax.plot(wavelengths, eta_ext, label='Measured')
-        ax.plot(wavelengths, eta_fit, '--', label='Reconstructed')
+        wavelengths = load_csv("../../../Data/wavelength_nm.csv").ravel()  # wavelengths of G [nm]
+        ax.plot(wavelengths, B_target, label='Measured')
+        ax.plot(wavelengths, B_est, '--', label='Reconstructed')
         ax.set_xlabel('Wavelength [nm]')
         ax.set_ylabel(r'$\eta_{ext}$')
         ax.legend()
         plt.title("Reconstructed ELE")
-        plt.show(block=False)
+        plt.show(block=True)

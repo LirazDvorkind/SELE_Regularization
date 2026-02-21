@@ -240,8 +240,4 @@ def run_regularization():
         # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
-        # To plot with these params without re-calculating
-        # pickle_save("sele_plot.p",
-        #             {'z_centres': z_centres, 'S_mean': S_mean, 'S_std': S_std, 'sele_gt': sele_gt, 'z_gt': z_gt})
-        # pickle_save("ele_plot.p", {'wavelengths': wavelengths, 'eta_ext': eta_ext, 'eta_fit': eta_fit})
         plt.show(block=True)

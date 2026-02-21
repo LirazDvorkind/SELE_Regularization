@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 from src.types.enums import RegularizationMethod, LFlag
+from src.types.score_model_params import NesterovHyperparams
 
 
 @dataclass
@@ -37,7 +38,8 @@ class DataPaths:
 
 
 @dataclass
-class NonUniformMeshParams:
+class NonUniformMeshConfig:
+    """For when regularization method is NON_UNIFORM_MESH"""
     # (z_max, z_min)
     z_range: Tuple[float, float]
 
@@ -51,7 +53,8 @@ class NonUniformMeshParams:
     exp_base: float
 
 @dataclass
-class TotalVariationTemplateParams:
+class TotalVariationTemplateConfig:
+    """For when regularization method is TOTAL_VARIATION_TEMPLATE"""
     W: float # Device width in cm
     points_amount: int
 
@@ -62,24 +65,23 @@ class TotalVariationTemplateParams:
     n_kappa2: int
 
 @dataclass
-class ModelScoreGradParams:
+class ModelScoreGradConfig:
+    """For when regularization method is MODEL_SCORE_GRAD"""
     W: float # Device width in cm
     points_amount: int
     longer_points_amount: int
     num_steps: int
-    reg_weight: float
-    model_path: str
 
 
 @dataclass
 class Config:
     data_paths: DataPaths
 
-    non_uniform_mesh_params: NonUniformMeshParams
+    non_uniform_mesh_config: NonUniformMeshConfig
 
-    total_variation_template_params: TotalVariationTemplateParams
+    total_variation_template_config: TotalVariationTemplateConfig
 
-    model_score_grad_params: ModelScoreGradParams
+    model_score_grad_config: ModelScoreGradConfig
 
     L_flag: LFlag
 

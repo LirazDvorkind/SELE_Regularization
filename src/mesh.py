@@ -38,16 +38,16 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
     """
     if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
         # Recompute G on a non-uniform mesh directly from Beer–Lambert optics
-        z_max, z_min = CONFIG.non_uniform_mesh_params.z_range
+        z_max, z_min = CONFIG.non_uniform_mesh_config.z_range
         G_new, z_new = _non_uniform_mesh(
             z_min=z_min,
             z_max=z_max,
             wavelengths=G_values.wavelengths,
             k=G_values.k,
             lambda_for_alpha=G_values.lambda_for_alpha,
-            z_turn=CONFIG.non_uniform_mesh_params.z_turn,
-            lin_mesh_size=CONFIG.non_uniform_mesh_params.lin_mesh_size,
-            exp_base=CONFIG.non_uniform_mesh_params.exp_base
+            z_turn=CONFIG.non_uniform_mesh_config.z_turn,
+            lin_mesh_size=CONFIG.non_uniform_mesh_config.lin_mesh_size,
+            exp_base=CONFIG.non_uniform_mesh_config.exp_base
         )
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/non_uniform_mesh_method/z_new.csv", z_new)
@@ -57,13 +57,13 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         G, z = G_new, z_new
         return G, z
     elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_params.W, CONFIG.total_variation_template_params.points_amount)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_config.W, CONFIG.total_variation_template_config.points_amount)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
         return G, z
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_params.W, CONFIG.model_score_grad_params.points_amount)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_config.W, CONFIG.model_score_grad_config.points_amount)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)

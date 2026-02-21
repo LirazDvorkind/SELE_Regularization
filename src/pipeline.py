@@ -4,14 +4,17 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
+from Utils.pickle_save_load import pickle_save
 from src.__init__ import CONFIG
 from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G, _linear_mesh
 from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta, plot_lsurface_3d, plot_heatmap_residual
-from src.regularization import tikhonov_non_uniform, tikhonov_total_variation, score_model_grad
+from src.regularization import tikhonov_non_uniform, tikhonov_total_variation
+from src.regularization.score_model import score_model_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod, LFlag
+from src.types.score_model_params import NesterovHyperparams
 from src.utils import expand_sele
 
 
@@ -116,8 +119,8 @@ def run_regularization():
 
         # 4. Tikhonov κ‑sweep
         kappa1_vals = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
-        k2_max, k2_min = CONFIG.total_variation_template_params.kappa2_range
-        kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.total_variation_template_params.n_kappa2)
+        k2_max, k2_min = CONFIG.total_variation_template_config.kappa2_range
+        kappa2_vals = np.logspace(np.log10(k2_max), np.log10(k2_min), CONFIG.total_variation_template_config.n_kappa2)
         residuals, seminorms, tv_norms, S_list = tikhonov_total_variation.sweep_kappa(G, B, L1, L2, kappa1_vals,
                                                                                       kappa2_vals)
 
@@ -187,13 +190,13 @@ def run_regularization():
         override_with_ground_truth = False
         if override_with_ground_truth:
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
-                                              CONFIG.model_score_grad_params.W,
-                                              CONFIG.model_score_grad_params.longer_points_amount)
+                                              CONFIG.model_score_grad_config.W,
+                                              CONFIG.model_score_grad_config.longer_points_amount)
             z_centres = 0.5 * (z[:-1] + z[1:])
             temp_mask = np.searchsorted(z_gt, z_centres, side='right')
             S_rec = sele_gt[temp_mask]
             # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount,
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.longer_points_amount,
                                            front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
@@ -208,20 +211,17 @@ def run_regularization():
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
         else:
             S_rec = score_model_grad.solve_gradient_descent(
-                G, B,
-                # steps=CONFIG.model_score_grad_params.num_steps,
-                reg_weight=CONFIG.model_score_grad_params.reg_weight,
-                lr_max=0.02,
-                momentum=0.95,
+                G,
+                B,
+                hyperparams=NesterovHyperparams(),
                 S_gt=sele_gt,
-                model_path=CONFIG.model_score_grad_params.model_path,
             )
             z_centres = 0.5 * (z[:-1] + z[1:])
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
-                                              CONFIG.model_score_grad_params.W,
-                                              CONFIG.model_score_grad_params.longer_points_amount)
+                                              CONFIG.model_score_grad_config.W,
+                                              CONFIG.model_score_grad_config.longer_points_amount)
             # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_params.longer_points_amount,
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.longer_points_amount,
                                            front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
@@ -240,4 +240,8 @@ def run_regularization():
         # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
         plot_eta(wavelengths, eta_ext, eta_fit, save=is_save_plots)
+        # To plot with these params without re-calculating
+        # pickle_save("sele_plot.p",
+        #             {'z_centres': z_centres, 'S_mean': S_mean, 'S_std': S_std, 'sele_gt': sele_gt, 'z_gt': z_gt})
+        # pickle_save("ele_plot.p", {'wavelengths': wavelengths, 'eta_ext': eta_ext, 'eta_fit': eta_fit})
         plt.show(block=True)

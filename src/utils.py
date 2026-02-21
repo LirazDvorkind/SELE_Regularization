@@ -1,11 +1,12 @@
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 
+
 def expand_sele(
-    S,
-    points_amount,
-    front_weight=3.0,
-    z_original=None,
+        S,
+        points_amount,
+        front_weight=3.0,
+        z_original=None,
 ):
     """
     Expand a SELE profile S to a denser grid using shape-preserving cubic interpolation
@@ -62,3 +63,11 @@ def expand_sele(
     S_new = interp(z_new)
 
     return z_new, S_new
+
+
+def match_length_interp(from_vect, new_length):
+    x_from = np.linspace(0, 1, len(from_vect))
+    x_to = np.linspace(0, 1, new_length)
+    # Interpolate current estimate onto GT grid
+    interp = np.interp(x_to, x_from, from_vect)
+    return interp

@@ -1,7 +1,8 @@
 """SELE toolbox with non‑uniform mesh support."""
 from src.types.config import DataPaths, Config
-from src.types.config import NonUniformMeshParams, TotalVariationTemplateParams, ModelScoreGradParams
+from src.types.config import NonUniformMeshConfig, TotalVariationTemplateConfig, ModelScoreGradConfig
 from src.types.enums import RegularizationMethod, LFlag
+from src.types.score_model_params import NesterovHyperparams
 
 # Config defined here so all .py files can import it safely without circular imports (global parameter!)
 CONFIG = Config(
@@ -25,13 +26,13 @@ CONFIG = Config(
     photon_flux=1e14,
     W=350e-4,
     force_SELE_last_zero=True,
-    non_uniform_mesh_params=NonUniformMeshParams(
+    non_uniform_mesh_config=NonUniformMeshConfig(
         z_range=(350e-4, 1.462e-06),
         z_turn=1e-4,
         lin_mesh_size=1e-5,
         exp_base=400.0,
     ),
-    total_variation_template_params=TotalVariationTemplateParams(
+    total_variation_template_config=TotalVariationTemplateConfig(
         # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
         # Don't touch these!
         W=30e-4,  # cm
@@ -39,12 +40,10 @@ CONFIG = Config(
         kappa2_range=(1e-2, 1e-6),
         n_kappa2=30
     ),
-    model_score_grad_params=ModelScoreGradParams(
+    model_score_grad_config=ModelScoreGradConfig(
         W=30e-4,  # cm
         points_amount=32,
         longer_points_amount=300,
-        num_steps=200,
-        reg_weight=1,
-        model_path="Data/sele_score_net_d32.pt"
+        num_steps=200
     )
 )

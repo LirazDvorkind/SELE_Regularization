@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug pl
 from src.types.score_model_params import NesterovHyperparams
 from src.utils import match_length_interp
 
+from src.regularization.score_model.model_definition import ScoreNetwork
 
 # --- Solver Implementation ---
 def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperparams, S_gt: NDArray) -> NDArray:
@@ -27,17 +28,33 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
     torch.manual_seed(42)
     np.random.seed(42)
 
-    # 1. Load Model
+    # 1. Load Model and Configuration
     try:
-        score_network = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
-        score_network.eval()
-    except Exception as e:
-        raise FileNotFoundError(f"Failed to load ScoreNet: {e}")
+        # Load the checkpoint dictionary
+        checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
 
-    # 2. Hardcoded Constants
-    d_min = hyperparams.min_data_value
-    d_max = hyperparams.max_data_value
-    norm_scale_factor = 2.0 / (d_max - d_min) # ~57.54
+        # Retrieve configuration to initialize the correct architecture
+        model_config = checkpoint['config']
+
+        score_network = ScoreNetwork(
+            input_dim=model_config['target_length'] + 1,
+            output_dim=model_config['target_length'],
+            hidden_dims=model_config['hidden_dims'],
+        )
+
+        # Load the state dictionary into the model
+        score_network.load_state_dict(checkpoint['model_state_dict'])
+        score_network.to(device)
+        score_network.eval()
+
+    except Exception as e:
+        raise FileNotFoundError(f"Failed to load ScoreNet checkpoint: {e}")
+
+    # 2. Normalization Constants
+    # Using the exact min/max saved during training ensures perfect data reconstruction
+    d_min = checkpoint['data_min']
+    d_max = checkpoint['data_max']
+    norm_scale_factor = 2.0 / (d_max - d_min)
 
     # 3. Setup Physics
     N = G.shape[1]
@@ -78,11 +95,11 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
 
         # --- C. Score Network Prediction (at lookahead) ---
         # Use fixed small time T0 to approximate the score of the clean data
-        x_input = np.concatenate([S_lookahead, [hyperparams.T0]])
-        x_tensor = torch.tensor(x_input, dtype=torch.float32, device=device).unsqueeze(0)
+        x_tensor = torch.tensor(S_lookahead, dtype=torch.float32, device=device).unsqueeze(0)
+        t_tensor = torch.tensor(np.array([hyperparams.T0]), dtype=torch.float32, device=device).unsqueeze(0)
 
         with torch.no_grad():
-            score_model = score_network(x_tensor).squeeze().numpy()
+            score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
 
         # --- D. Adaptive Weighting & Update ---
         # Calculate norms for adaptive scaling

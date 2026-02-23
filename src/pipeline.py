@@ -176,8 +176,9 @@ def run_regularization():
         G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
 
         G, z = calc_mesh_and_G(regularization_method, G_values)
+        # np.savetxt('src/regularization/score_model/standalones/Data/G_score_model_500.csv', G, delimiter=',')
 
-        # 2. Unit normalisation
+        # 2. Unit normalization
         unit_factor = photon_flux * e_charge
         G *= unit_factor
         B = eta_ext * unit_factor

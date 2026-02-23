@@ -36,14 +36,14 @@ CONFIG = Config(
         # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
         # Don't touch these!
         W=30e-4,  # cm
-        points_amount=32,
+        points_amount=500,
         kappa2_range=(1e-2, 1e-6),
         n_kappa2=30
     ),
     model_score_grad_config=ModelScoreGradConfig(
         W=30e-4,  # cm
-        points_amount=32,
-        longer_points_amount=300,
+        points_amount=500,
+        longer_points_amount=500,
         num_steps=200
     )
 )

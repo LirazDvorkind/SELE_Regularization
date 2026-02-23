@@ -47,7 +47,7 @@ if __name__ == "__main__":
         print(f"mse_sele: {mse_sele}")
 
         W = 30e-4  # cm
-        x_res = 32
+        x_res = G.shape[1]
         z_centres = np.linspace(0, W, x_res) * 1e4  # µm
         fig, ax = plt.subplots()
         ax.plot(z_centres, S_est, label='SELE (reconstructed)')

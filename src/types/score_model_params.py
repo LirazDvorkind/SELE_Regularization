@@ -12,7 +12,17 @@ class NesterovHyperparams:
     # MOMENTUM high = plow through noise but may cause overshoot, too low = slower but less overshoot
     MOMENTUM: float = 0.9
 
-    model_path: str = "Data/sele_score_net_d32.pt"
+    model_path: str = "Data/sele_score_net_d500.pt" # Can be d32
+
+    # Make sure these match the min and max the model was trained on
+    # TODO: These can be read from the config of the model! Figure that out
+    # If d32:
+    # min_data_value: float = 2.7389012e-21
+    # max_data_value: float = 0.03475773
+    # If d500:
+    min_data_value: float = 1.8961768789343347e-19
+    max_data_value: float = 0.0338745042681694
+
 
     LR_MAX: float = 1e-2
 

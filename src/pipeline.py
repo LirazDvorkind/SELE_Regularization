@@ -4,7 +4,6 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Utils.pickle_save_load import pickle_save
 from src.__init__ import CONFIG
 from src.io import load_eta, load_csv, save_csv, generate_run_report
 from src.mesh import calc_mesh_and_G, _linear_mesh

@@ -35,8 +35,8 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
         raise FileNotFoundError(f"Failed to load ScoreNet: {e}")
 
     # 2. Hardcoded Constants
-    d_min = 2.7389012e-21
-    d_max = 0.03475773
+    d_min = hyperparams.min_data_value
+    d_max = hyperparams.max_data_value
     norm_scale_factor = 2.0 / (d_max - d_min) # ~57.54
 
     # 3. Setup Physics

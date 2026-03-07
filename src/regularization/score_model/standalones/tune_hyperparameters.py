@@ -1,3 +1,4 @@
+"""Tune hyperparameters over a large set of curves"""
 import numpy as np
 import pandas as pd
 import itertools
@@ -45,7 +46,7 @@ def run_tuning_suite(dataset, G_matrix):
                     REG_WEIGHT=config['reg_weight'],
                     LR_MAX=config['lr_max'],
                     MOMENTUM=config['momentum'],
-                    model_path="Data/sele_score_net_d32.pt",
+                    model_path="Data/sele_score_net_d500.pt",
                     IS_SHOW_DEBUG_PLOT=False,
                     IS_SHOW_DEBUG_DATA=False,
                     IS_SHOW_MSE_PLOT=False,
@@ -97,7 +98,7 @@ def generate_report(df):
 
 # --- MAIN EXECUTION BLOCK ---
 if __name__ == "__main__":
-    data, G = load_S_B_G()
+    data, G = load_S_B_G(points_amount=500)
 
     # Run Tuning
     results_df = run_tuning_suite(data, G)
@@ -107,5 +108,5 @@ if __name__ == "__main__":
 
     # Save Stats
     os.makedirs("Results/tuning", exist_ok=True)
-    results_df.to_csv("Results/tuning/hyperparameter_tuning_results.csv", index=False)
-    print("Saved tuning results to Results/tuning/hyperparameter_tuning_results.csv")
+    results_df.to_csv("Results/tuning/hyperparameter_tuning_results_500.csv", index=False)
+    print("Saved tuning results to Results/tuning/hyperparameter_tuning_results_500.csv")

@@ -143,7 +143,7 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
 
             # --- G. STOPPING CONDITION CHECK ---
             if i > hyperparams.MIN_STEPS:
-                if mse_history[-1] > 1:
+                if mse_history[-1] > 1 or np.isnan(mse_history[-1]):
                     if hyperparams.IS_SHOW_DEBUG_DATA:
                         print(f"Stopping Early: MSE > 1 at step {i}")
                     break

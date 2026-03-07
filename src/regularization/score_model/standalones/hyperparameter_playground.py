@@ -1,3 +1,4 @@
+"""Test a hyperparameter set on a curve to see how it fares"""
 from matplotlib import pyplot as plt
 
 from src.io import load_csv
@@ -8,15 +9,23 @@ from src.types.score_model_params import NesterovHyperparams
 import numpy as np
 
 config = {
-    'reg_weight': 2.5,
-    'lr_max': 0.04,
-    'momentum': 0.95
+    'reg_weight': 5.0,
+    'lr_max': 0.01,
+    'momentum': 0.9
 }
 
+# TODO:
+#  1. Read and understand the training script loss - you may write a summary too
+#  1.1. Read chat's log idea and see if it fits our case. Is log the way to go when normalizing? In general, data science.
+#  2. Retrain with more data
+#  3. Test and see if the model got better with more data
+#  4. Increase to 500 points
+
 if __name__ == "__main__":
-    random_sample = 872 # np.random.randint(100, 1000)
+    random_sample = np.random.randint(100, 1000)
+    model_size: int = 32  # 32 or 500
     print(f"Random curve number {random_sample}")
-    data, G = load_S_B_G(lower_index=random_sample, upper_index=random_sample+1)
+    data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)
 
     for item in data:
         B_target = item['B']
@@ -30,6 +39,7 @@ if __name__ == "__main__":
                 REG_WEIGHT=config['reg_weight'],
                 LR_MAX=config['lr_max'],
                 MOMENTUM=config['momentum'],
+                model_path=f"Data/sele_score_net_d{str(model_size)}.pt",
                 IS_SHOW_DEBUG_PLOT=False,
                 IS_SHOW_DEBUG_DATA=True,
                 IS_SHOW_MSE_PLOT=True
@@ -58,7 +68,6 @@ if __name__ == "__main__":
         plt.title("SELE vs Ground Truth")
         ax.legend()
         plt.show(block=False)
-
 
         fig2, ax = plt.subplots()
         wavelengths = load_csv("Data/wavelength_nm.csv").ravel()  # wavelengths of G [nm]

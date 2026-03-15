@@ -1,9 +1,11 @@
 """Plotting helpers (matplotlib)."""
 from __future__ import annotations
-import numpy as np
 import matplotlib.pyplot as plt
 import os
-from typing import Sequence
+from typing import Sequence, Optional, Tuple
+import mplcursors
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # needed for 3D projection import side effect
 
 
 def _ensure_results_dir():
@@ -11,18 +13,59 @@ def _ensure_results_dir():
 
 
 def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_vals,
-                knee_idx: int, *, save: bool = False):
+                knee_idx: int, mask: Sequence[bool], *, save: bool = False):
+    seminorms = np.asarray(seminorms)
+    residuals = np.asarray(residuals)
+    mask = np.asarray(mask, dtype=bool)
+
     fig, ax = plt.subplots()
-    ax.loglog(residuals, seminorms, '-o', markersize=3)
-    ax.scatter(residuals[knee_idx], seminorms[knee_idx], marker='x', s=60,
-               label=f'κ_knee = {kappa_vals[knee_idx]:.2e}')
+
+    # Main curve (Line2D)
+    line, = ax.loglog(residuals, seminorms, '-o', markersize=3, color="C0")
+
+    # Highlight masked points (PathCollection)
+    mask = np.asarray(mask, dtype=bool)
+    idx_mask = np.flatnonzero(mask)
+    sc_mask = ax.scatter(residuals[mask], seminorms[mask],
+                         c="red", s=20, label="Conf window")
+
+    # Knee point (single PathCollection)
+    idx_knee = np.array([knee_idx])
+    sc_knee = ax.scatter(residuals[knee_idx], seminorms[knee_idx],
+                         marker='x', s=60, color="black",
+                         label=f'κ_knee = {kappa_vals[knee_idx]:.2e}')
+
+    # One cursor for all artists; show κ on hover
+    cursor = mplcursors.cursor([line, sc_mask, sc_knee], hover=True)
+
+    # Build per-artist index mapping back to kappa indices
+    index_map = {
+        line: np.arange(len(kappa_vals), dtype=int),
+        sc_mask: idx_mask.astype(int),
+        sc_knee: np.array([knee_idx], dtype=int),
+    }
+
+    @cursor.connect("add")
+    def _(sel):
+        artist = sel.artist
+        mapping = index_map.get(artist)
+        if mapping is None or len(mapping) == 0:
+            sel.annotation.set_text("κ = n/a")
+            return
+        i_local = sel.index
+        i_local = 0 if i_local is None else int(i_local)
+        i_global = int(mapping[i_local])
+        sel.annotation.set_text(f"κ = {kappa_vals[i_global]:.2e}")
+
     ax.set_xlabel(r'$\varepsilon = ||\,G S - \eta_{\mathrm{ext}}\,||_2$')
     ax.set_ylabel(r'$||\,L S\,||_2$')
     plt.title("Regularization Loss Curve")
     ax.legend()
+
     if save:
         _ensure_results_dir()
         fig.savefig('results/lcurve.png', dpi=300)
+
     plt.show(block=False)
 
 
@@ -114,4 +157,92 @@ def plot_mesh_elements_position_and_size(z: np.ndarray, z_turn: float, *, save: 
     if save:
         _ensure_results_dir()
         fig.savefig('results/mesh.png', dpi=300)
+    plt.show(block=False)
+
+
+def plot_lsurface_3d(
+        residuals: np.ndarray,
+        seminorms: np.ndarray,
+        model_residuals: np.ndarray,
+        *,
+        kappa1_vals: np.ndarray | None = None,
+        kappa2_vals: np.ndarray | None = None,
+        cross_section: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, int]] = None,
+        save: bool = False
+) -> None:
+    """3D L-surface plot with faint wireframe cross-section at chosen κ₂."""
+    import numpy as np
+    import matplotlib.pyplot as plt
+    eps = 1e-300
+    R = np.maximum(residuals, eps)
+    S = np.maximum(seminorms, eps)
+    M = np.maximum(model_residuals, eps)
+    X, Y, Z = np.log10(R), np.log10(S), np.log10(M)
+
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    surf = ax.plot_surface(X, Y, Z, cmap="viridis", alpha=0.85, linewidth=0, antialiased=True)
+    fig.colorbar(surf, shrink=0.6, aspect=12, label="log10 model residual")
+    scat = ax.scatter(X.ravel(), Y.ravel(), Z.ravel(), c=Z.ravel(), cmap="viridis", s=16, depthshade=True)
+
+    ax.set_xlabel(r"log10 ||GS−B||")
+    ax.set_ylabel(r"log10 ||LS||")
+    ax.set_zlabel(r"log10 ||S−Sₘ||")
+    ax.set_title("3D L-surface")
+
+    # ---- cross-section at chosen kappa2 (wireframe) ----
+    if cross_section is not None:
+        Xs, Ys, Zs, idx_star = cross_section
+        ax.plot3D(Xs, Ys, Zs, "k-", linewidth=1.0, alpha=0.6)
+        ax.scatter(Xs[idx_star], Ys[idx_star], Zs[idx_star], c="k", s=40)
+
+    if save:
+        _ensure_results_dir()
+        fig.savefig("results/l_surface_3d.png", dpi=300)
+    plt.show(block=False)
+
+
+def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, *, save=False):
+    """Residual heatmap over (κ₁, κ₂) with chosen point overlay."""
+    eps = 1e-300
+    Z = np.log10(np.maximum(residuals, eps))  # shape (n1, n2), axis0=κ1, axis1=κ2
+
+    k1 = np.asarray(kappa1_vals)
+    k2 = np.asarray(kappa2_vals)
+
+    # imshow expects row=y, col=x → transpose so rows correspond to κ2, cols to κ1
+    Z_disp = Z.T
+    k1_disp = k1
+    k2_disp = k2
+
+    # Ensure extents are ascending; flip Z accordingly so pixels align with ticks
+    if k1_disp[0] > k1_disp[-1]:
+        k1_disp = k1_disp[::-1]
+        Z_disp = Z_disp[:, ::-1]  # flip x (columns)
+    if k2_disp[0] > k2_disp[-1]:
+        k2_disp = k2_disp[::-1]
+        Z_disp = Z_disp[::-1, :]  # flip y (rows)
+
+    x0, x1 = np.log10(k1_disp[0]), np.log10(k1_disp[-1])
+    y0, y1 = np.log10(k2_disp[0]), np.log10(k2_disp[-1])
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    im = ax.imshow(
+        Z_disp, origin="lower", aspect="auto",
+        extent=[x0, x1, y0, y1],
+        cmap="viridis"
+    )
+    fig.colorbar(im, ax=ax, label="log10 ||GS−B||")
+
+    ax.plot(np.log10(k1_disp[int(i_star)]),
+            np.log10(k2_disp[int(j_star)]), "ko", label="chosen (κ₁*, κ₂*)")
+
+    ax.set_xlabel("log10 κ₁")
+    ax.set_ylabel("log10 κ₂")
+    ax.legend(loc="upper right")
+    ax.set_title("Residual heatmap with chosen point")
+    if save:
+        _ensure_results_dir()
+        fig.savefig("results/residual_heatmap.png", dpi=300)
     plt.show(block=False)

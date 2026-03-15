@@ -1,0 +1,30 @@
+C:\Users\Liraz\AppData\Local\Programs\Python\Python313\python.exe C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\src\regularization\score_model\tune_hyperparameters.py
+Loading SELE and G...
+Preparing synthetic dataset for 100 profiles...
+--- Starting Grid Search ---
+Testing 45 configs on 100 curves.
+Total Simulations: 4500
+Progress: 10.00%... (450/4500)
+Progress: 20.00%... (900/4500)
+Progress: 30.00%... (1350/4500)
+Progress: 40.00%... (1800/4500)
+Progress: 50.00%... (2250/4500)
+Progress: 60.00%... (2700/4500)
+Progress: 70.00%... (3150/4500)
+Progress: 80.00%... (3600/4500)
+Progress: 90.00%... (4050/4500)
+Progress: 100.00%... (4500/4500)
+
+==================================================
+🏆 WINNER (Lowest ELE Data Error)
+==================================================
+Parameters: Reg=2.5 | LR=0.04 | Mom=0.95
+Error (ELE) : 1.62e-20 (Primary)
+Error (SELE): 3.25e-03 (Sanity Check)
+==================================================
+⚠️ WARNING: The selected parameters have low Data Error but HIGH Reconstruction Error.
+This suggests the solver is 'overfitting' (ignoring physics to fit the data).
+Consider picking a parameter set with slightly higher ELE error but lower SELE error.
+Saved tuning results to results/tuning/hyperparameter_tuning_results.csv
+
+Process finished with exit code 0

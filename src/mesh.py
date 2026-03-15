@@ -6,11 +6,103 @@ from typing import Tuple
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from plotting import plot_mesh_elements_position_and_size
+from src.io import save_csv
+from src.plotting import plot_mesh_elements_position_and_size
+from src.types.G_calculation import GInputData
+from src.types.enums import RegularizationMethod
+from src.__init__ import CONFIG
 
 
-def remesh_G(
-        z_old: NDArray[np.float64],
+def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInputData) \
+        -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """
+    A driver function that returns the mesh and corresponding optical generation matrix G, given the desired
+    regularization method.
+
+    Parameters
+    ----------
+    regularization_method
+        The chosen regularization method (an enum value)
+
+    config
+        The app's config
+
+    G_values
+        The optical parameters vectors needed to calculate G
+
+    Returns
+    -------
+    G, z
+        G : (L, M-1) absorbed photon flux per element [photons·cm^-2·s^-1].
+        z : (M,) new mesh edges [cm], strictly increasing.
+    """
+    if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
+        # Recompute G on a non-uniform mesh directly from Beer–Lambert optics
+        z_max, z_min = CONFIG.non_uniform_mesh_config.z_range
+        G_new, z_new = _non_uniform_mesh(
+            z_min=z_min,
+            z_max=z_max,
+            wavelengths=G_values.wavelengths,
+            k=G_values.k,
+            lambda_for_alpha=G_values.lambda_for_alpha,
+            z_turn=CONFIG.non_uniform_mesh_config.z_turn,
+            lin_mesh_size=CONFIG.non_uniform_mesh_config.lin_mesh_size,
+            exp_base=CONFIG.non_uniform_mesh_config.exp_base
+        )
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/non_uniform_mesh_method/z_new.csv", z_new)
+        save_csv("results/raw/non_uniform_mesh_method/dz_new.csv", np.diff(z_new))
+        save_csv("results/raw/non_uniform_mesh_method/G_new.csv", G_new)
+        # Use the recomputed quantities from here onward
+        G, z = G_new, z_new
+        return G, z
+    elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_config.W, CONFIG.total_variation_template_config.points_amount)
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/scoring_model_method/z.csv", z)
+        save_csv("results/raw/scoring_model_method/G.csv", G)
+        return G, z
+    elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_config.W, CONFIG.model_score_grad_config.points_amount)
+        # Persist the newly created values, including mesh element sizes
+        save_csv("results/raw/scoring_model_method/z.csv", z)
+        save_csv("results/raw/scoring_model_method/G.csv", G)
+        return G, z
+    else:
+        raise NotImplementedError(
+            f"The regularization method {regularization_method} is unsupported by {calc_mesh_and_G.__name__}")
+
+
+def _linear_mesh(
+        wavelengths: NDArray[np.float64],
+        k: NDArray[np.float64],
+        lambda_for_alpha: NDArray[np.float64],
+        W: float,
+        points_amount: int
+        ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """
+    Use the z vector Alon used, calculate its G and return both.
+    """
+    # Interpolate the k values
+    lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
+    wavelengths = np.asarray(wavelengths, dtype=np.float64)
+    k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
+
+    z = np.linspace(0, W, points_amount+1)
+    # z is in [cm] units.
+    # We add 1 to the points amount because the optical generation matrix returns of size smaller by one.
+    # Compute G on the mesh using the optical method
+    G = _compute_front_generation(
+        k=k,
+        wavelength_nm=wavelengths,
+        z_cm=z,
+        volumetric=False,
+    )
+    return G, z
+
+def _non_uniform_mesh(
+        z_min: float,
+        z_max: float,
         wavelengths: NDArray[np.float64],
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],
@@ -21,17 +113,12 @@ def remesh_G(
 ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     Create a non-uniform mesh and (re)compute the front-illumination optical generation G
-    directly from Beer–Lambert optics using k(λ) and λ. This replaces interpolation-based
-    remeshing with a fresh optical calculation.
-
-    Why:
-        Recomputing G from k and λ ensures consistency with the optical model and avoids
-        artifacts introduced by interpolating a previously integrated G.
+    directly from Beer–Lambert optics using k(λ) and λ.
 
     Parameters
     ----------
-    z_old
-        Original mesh edges [cm], strictly increasing; only min/max are used to set bounds.
+    z_min, z_max
+        New mesh bounds [cm]
     wavelengths
         The G wavelengths [nm]
     k
@@ -56,13 +143,10 @@ def remesh_G(
     - Computes **front-illumination** G only.
     - For volumetric generation later, divide each column of G_new by Δz.
     """
-    z_old = np.asarray(z_old, dtype=np.float64)
     lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
     k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
 
-    if z_old.ndim != 1 or z_old.size < 2 or not np.all(np.diff(z_old) > 0.0):
-        raise ValueError("z_old must be 1D, length>=2, strictly increasing (cm).")
     if k.ndim != 1 or wavelengths.ndim != 1 or k.shape != wavelengths.shape:
         raise ValueError("k and wavelength_nm must be 1D arrays of the same shape.")
     if np.any(wavelengths <= 0.0):
@@ -71,9 +155,6 @@ def remesh_G(
         raise ValueError("lin_mesh_size must be positive.")
     if exp_base <= 1.0:
         raise ValueError("exp_base must be > 1.0.")
-
-    z_min = z_old[0]
-    z_max = 350e-4#z_old[-1] # TODO: quick-fx here
     if not (z_min < z_turn < z_max):
         raise ValueError("z_turn must lie strictly within [z_old[0], z_old[-1]].")
 
@@ -96,7 +177,7 @@ def remesh_G(
     z_new = np.hstack([z_lin, z_exp[1:]])  # drop duplicate z_turn
 
     # ---------- compute G on the new mesh using the optical method ----------
-    G_new = compute_front_generation(
+    G_new = _compute_front_generation(
         k=k,
         wavelength_nm=wavelengths,
         z_cm=z_new,
@@ -105,10 +186,10 @@ def remesh_G(
 
     plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
 
-    return z_new, G_new
+    return G_new, z_new
 
 
-def compute_front_generation(
+def _compute_front_generation(
         k: ArrayLike,
         wavelength_nm: ArrayLike,
         z_cm: ArrayLike,

@@ -1,0 +1,5 @@
+outs:
+- md5: 080332a4a561f8160ab6ca9f9cb2c0bc
+  size: 616441
+  hash: md5
+  path: sele_score_net_d32_100k.pt

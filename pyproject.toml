@@ -1,0 +1,17 @@
+[project]
+name = "sele-regularization"
+version = "0.1.0"
+description = "Physics-informed inverse problem solver for reconstructing SELE profiles from ELE measurements using Tikhonov regularization and score-based diffusion model priors"
+requires-python = ">=3.13"
+dependencies = [
+    "cvxpy>=1.8.1",
+    "dvc[gdrive]>=3.67.0",
+    "matplotlib>=3.10.8",
+    "mplcursors>=0.7",
+    "numpy>=2.4.3",
+    "pandas>=3.0.1",
+    "pyperclip>=1.11.0",
+    "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+    "torch>=2.10.0",
+]

@@ -8,3 +8,4 @@ cvxpy
 
 seaborn
 pandas
+dvc[gdrive]

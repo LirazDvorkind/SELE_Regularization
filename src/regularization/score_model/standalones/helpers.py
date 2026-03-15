@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from src.utils import match_length_interp
+
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
 
 def generate_synthetic_data(S_gt_profiles, G_matrix):
@@ -21,11 +25,11 @@ def load_S_B_G(points_amount: int = 32, lower_index: int=0, upper_index: int=100
     # Load pre-calculated photogeneration matrix
     # This is G from pipeline.py, before multiplying by unit_factor=photon_flux*e_charge
     suffix = "_500" if points_amount == 500 else ""
-    G = load_csv(f"Data/G_score_model{suffix}.csv")
+    G = load_csv(str(_DATA_DIR / f"G_score_model{suffix}.csv"))
 
     # Load the dataset of SELE profiles
     # Play around with the amount of S's here
-    S_profiles = load_csv(f"Data/sele_dataset{suffix}.csv")[lower_index:upper_index, :]
+    S_profiles = load_csv(str(_DATA_DIR / f"sele_dataset{suffix}.csv"))[lower_index:upper_index, :]
 
     # Prepare synthetic measurements (B) for all profiles
     print(f"Preparing synthetic dataset for {len(S_profiles)} profiles...")

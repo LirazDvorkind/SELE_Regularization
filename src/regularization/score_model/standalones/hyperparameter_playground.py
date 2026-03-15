@@ -1,5 +1,8 @@
 """Test a hyperparameter set on a curve to see how it fares"""
+from pathlib import Path
 from matplotlib import pyplot as plt
+
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
 from src.io import load_csv
 from src.regularization.score_model.standalones.helpers import load_S_B_G
@@ -21,8 +24,13 @@ config = {
 #  3. Test and see if the model got better with more data
 #  4. Increase to 500 points
 
+
+# TODO 2:
+#  Test with known SELE profile that the score grad is zero - once with old score, once with new score function
+#  Go over the existing training code
+
 if __name__ == "__main__":
-    random_sample = np.random.randint(100, 1000)
+    random_sample = 560  # np.random.randint(100, 1000)
     model_size: int = 32  # 32 or 500
     print(f"Random curve number {random_sample}")
     data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)
@@ -39,7 +47,7 @@ if __name__ == "__main__":
                 REG_WEIGHT=config['reg_weight'],
                 LR_MAX=config['lr_max'],
                 MOMENTUM=config['momentum'],
-                model_path=f"Data/sele_score_net_d{str(model_size)}.pt",
+                model_path=str(_DATA_DIR / f"sele_score_net_d{str(model_size)}_100k.pt"),
                 IS_SHOW_DEBUG_PLOT=False,
                 IS_SHOW_DEBUG_DATA=True,
                 IS_SHOW_MSE_PLOT=True

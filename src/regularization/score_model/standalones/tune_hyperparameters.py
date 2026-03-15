@@ -1,5 +1,8 @@
 """Tune hyperparameters over a large set of curves"""
+from pathlib import Path
 import numpy as np
+
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 import pandas as pd
 import itertools
 import os
@@ -46,7 +49,7 @@ def run_tuning_suite(dataset, G_matrix):
                     REG_WEIGHT=config['reg_weight'],
                     LR_MAX=config['lr_max'],
                     MOMENTUM=config['momentum'],
-                    model_path="Data/sele_score_net_d500.pt",
+                    model_path=str(_DATA_DIR / "sele_score_net_d500.pt"),
                     IS_SHOW_DEBUG_PLOT=False,
                     IS_SHOW_DEBUG_DATA=False,
                     IS_SHOW_MSE_PLOT=False,

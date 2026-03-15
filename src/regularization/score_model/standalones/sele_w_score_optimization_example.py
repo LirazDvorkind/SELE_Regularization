@@ -4,12 +4,15 @@ It is not a part of the SELE_Regularization module
 You may run it stand-alone with `Current File` PyCharm configuration
 This also generates Data/sele_score_model_curve.csv
 """
+from pathlib import Path
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
+
 # Load pretrained score network
-score_network = torch.load("../../../../Data/sele_score_net_d32.pt", weights_only=False)
+score_network = torch.load(_DATA_DIR / "sele_score_net_d32.pt", weights_only=False)
 score_network.eval()
 
 # Global grid parameters
@@ -102,6 +105,6 @@ print(f"\nFinal MSE with regularization: {error_with_reg:.6f}")
 print(f"Final MSE without regularization: {error_no_reg:.6f}")
 
 # Liraz's addition: save the learned curve
-np.savetxt("../../../../Data/sele_score_model_curve.csv", x_opt_no_reg, delimiter=',', header='', comments='')
+np.savetxt(_DATA_DIR / "sele_score_model_curve.csv", x_opt_no_reg, delimiter=',', header='', comments='')
 
 plt.show()

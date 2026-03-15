@@ -18,7 +18,11 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
+from pathlib import Path
+
 from src.regularization.score_model.model_definition import ScoreNetwork
+
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
 # Configure logging
 logging.basicConfig(
@@ -34,13 +38,13 @@ class TrainingConfig:
     batch_size: int = 32
     learning_rate: float = 3e-4
     num_epochs: int = 100
-    target_length: int = 32  # If lower than data's length, data will be downsampled.
+    target_length: int = 500  # If lower than data's length, data will be downsampled.
     # hidden_dims:
     #   for target_length 500 use (512, 1024, 2048, 2048, 1024, 512)
     #   for target_length 32 use (64, 128, 256, 256, 128, 64)
-    hidden_dims: Tuple[int, ...] = (64, 128, 256, 256, 128, 64)
-    data_path: str = 'Data/sele_simulated_100000_curves_32_long.mat'  # From a modified MATLAB code create_training_set.m with seed rng(12)
-    output_path: str = 'Data/sele_score_net_d32_100k.pt'
+    hidden_dims: Tuple[int, ...] = (512, 1024, 2048, 2048, 1024, 512)
+    data_path: str = str(_DATA_DIR / 'sele_simulated_100000_curves_500_long.mat')  # From a modified MATLAB code create_training_set.m with seed rng(12)
+    output_path: str = str(_DATA_DIR / 'sele_score_net_d500_100k.pt')
     beta_min: float = 0.1
     beta_max: float = 20.0
     time_eps: float = 1e-4

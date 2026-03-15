@@ -97,9 +97,11 @@ def plot_normalized_s_and_score(S_norm: NDArray, score_grad: NDArray,
     fig.tight_layout()
     plt.show()
 
-ALON_MODEL_PATH = './Data/alon_sele_score_net_d32.pt'
-MY_MODEL_PATH = './Data/sele_score_net_d32_100k.pt'
-T0 = 5e-2
+from pathlib import Path
+_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
+ALON_MODEL_PATH = _DATA_DIR / 'alon_sele_score_net_d32.pt'
+MY_MODEL_PATH = _DATA_DIR / 'sele_score_net_d32_100k.pt'
+T0 = 1e-1
 device = torch.device('cpu')
 
 # Set random seed for reproducibility

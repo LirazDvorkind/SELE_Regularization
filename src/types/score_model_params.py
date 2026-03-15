@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+
+_DATA_DIR = Path(__file__).resolve().parents[2] / "Data" / "score_model"
 
 
 @dataclass
@@ -12,7 +15,7 @@ class NesterovHyperparams:
     # MOMENTUM high = plow through noise but may cause overshoot, too low = slower but less overshoot
     MOMENTUM: float = 0.9
 
-    model_path: str = "Data/sele_score_net_d500.pt" # Can be d32
+    model_path: str = field(default_factory=lambda: str(_DATA_DIR / "sele_score_net_d500.pt"))  # Can be d32
 
     LR_MAX: float = 1e-2
 

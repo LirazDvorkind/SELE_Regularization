@@ -1,7 +1,7 @@
 [project]
 name = "sele-regularization"
 version = "0.1.0"
-description = "Add your description here"
+description = "Physics-informed inverse problem solver for reconstructing SELE profiles from ELE measurements using Tikhonov regularization and score-based diffusion model priors"
 requires-python = ">=3.13"
 dependencies = [
     "cvxpy>=1.8.1",

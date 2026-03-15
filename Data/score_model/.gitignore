@@ -2,3 +2,6 @@
 /sele_score_net_d500.pt
 /sele_score_net_d32_100k.pt
 /alon_sele_score_net_d32.pt
+/sele_simulated_1000_curves_500_long.mat
+/sele_simulated_100000_curves_32_long.mat
+/sele_simulated_100000_curves_500_long.mat

@@ -13,27 +13,54 @@ Reconstructs Spatial External Luminescence Efficiency (SELE) profiles from ELE m
    1. Select Module and write `src.main`.
    2. Select the project directory as the source directory (i.e. the folder one above `src`).
 7. Install all required Python packages: `pip install -r requirements.txt` or install from the IDE.
-8. Download large files (model checkpoints, training data): `dvc pull`
+8. On each new machine, run the following command to add the DVC authentication client secret locally (the full command with the secret is saved in the DVC Google Drive folder `My Drive/Thesis/DVC`):
+   ```bash
+   dvc remote modify --local myremote gdrive_client_secret <secret>
+   ```
+9. Download large files (model checkpoints, training data): `dvc pull`
 
 ## Large Files (DVC)
 
 Model checkpoints and training data live in `Data/score_model/` and are managed by [DVC](https://dvc.org) (not included in the git repo). Run `dvc pull` after cloning to download them.
 
 To add or update a large file:
+
 ```bash
 dvc add Data/score_model/<file>
 git add Data/score_model/<file>.dvc Data/score_model/.gitignore
 dvc push
 ```
 
+> **Important:** Always use the DVC CLI for any operation on tracked files. Never manually rename, move, or delete `.dvc` files — they contain content hashes that DVC uses to locate data in the remote cache.
+
+To remove a large file:
+
+```bash
+dvc remove Data/score_model/<file>.dvc
+git add Data/score_model/<file>.dvc Data/score_model/.gitignore
+```
+
+To rename a large file:
+
+```bash
+dvc move Data/score_model/<old> Data/score_model/<new>
+git add Data/score_model/<old>.dvc Data/score_model/<new>.dvc Data/score_model/.gitignore
+dvc push
+```
+
+### Authentication with Google Drive
+
+To successfully give access to DVC to Google Drive I created a [Google Cloud Project](https://console.cloud.google.com/welcome?project=thesis-dvc-project-490306) and followed the instructions
+[here](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive#using-a-custom-google-cloud-project-recommended) to create a Client and OAuth.
+
 ## Regularization Modes
 
 Set via `CONFIG.regularization_method` in `src/types/config.py`:
 
-| Mode | Description |
-|------|-------------|
-| `NON_UNIFORM_MESH` | Tikhonov with adaptive near-surface mesh |
-| `TOTAL_VARIATION` | Two-parameter Tikhonov, solved with CVXPY |
+| Mode               | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `NON_UNIFORM_MESH` | Tikhonov with adaptive near-surface mesh         |
+| `TOTAL_VARIATION`  | Two-parameter Tikhonov, solved with CVXPY        |
 | `MODEL_SCORE_GRAD` | Nesterov gradient descent with score model prior |
 
 ## Score Model Standalones

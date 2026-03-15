@@ -23,7 +23,7 @@ python src/regularization/score_model/standalones/tune_hyperparameters.py
 
 ### Install dependencies
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `seaborn`, `pandas`

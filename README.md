@@ -12,7 +12,12 @@ Reconstructs Spatial External Luminescence Efficiency (SELE) profiles from ELE m
 6. Create a new run configuration in PyCharm:
    1. Select Module and write `src.main`.
    2. Select the project directory as the source directory (i.e. the folder one above `src`).
-7. Install all required Python packages: `pip install -r requirements.txt` or install from the IDE.
+7. Install dependencies (creates `.venv` automatically):
+   ```bash
+   uv sync
+   ```
+   Then point PyCharm's interpreter at `.venv/Scripts/python.exe`.
+   > **Note:** Install `uv` first if needed: `winget install --id=astral-sh.uv` or `pip install uv`. See [uv docs](https://docs.astral.sh/uv/).
 8. On each new machine, run the following command to add the DVC authentication client secret locally (the full command with the secret is saved in the DVC Google Drive folder `My Drive/Thesis/DVC`):
    ```bash
    dvc remote modify --local myremote gdrive_client_secret <secret>

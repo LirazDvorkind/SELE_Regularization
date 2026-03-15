@@ -22,7 +22,7 @@ class NesterovHyperparams:
 
     # T0: Larger t means the model expects more noise, so it pushes toward coarser, blurrier features.
     #     Smaller t (like 1e-4) assumes the image is nearly clean, enforcing finer details.
-    T0: float = 1e-3               # Small fixed time step to sample "clean" score from the diffusion score model
+    T0: float = 5e-2               # Small fixed time step to sample "clean" score from the diffusion score model
 
     # Plot debug plots
     IS_SHOW_DEBUG_PLOT: bool = False

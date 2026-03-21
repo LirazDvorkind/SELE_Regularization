@@ -1,5 +1,0 @@
-outs:
-- md5: b67bc3c1d077f67f051ce776adea7907
-  size: 39835561
-  hash: md5
-  path: sele_score_net_d500.pt

@@ -49,7 +49,7 @@ def run_tuning_suite(dataset, G_matrix):
                     REG_WEIGHT=config['reg_weight'],
                     LR_MAX=config['lr_max'],
                     MOMENTUM=config['momentum'],
-                    model_path=str(_DATA_DIR / "sele_score_net_d500.pt"),
+                    model_path=str(_DATA_DIR / "models" / "sele_score_net_d500.pt"),
                     IS_SHOW_DEBUG_PLOT=False,
                     IS_SHOW_DEBUG_DATA=False,
                     IS_SHOW_MSE_PLOT=False,

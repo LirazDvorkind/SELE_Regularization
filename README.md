@@ -26,32 +26,35 @@ Reconstructs Spatial External Luminescence Efficiency (SELE) profiles from ELE m
 
 ## Large Files (DVC)
 
-Model checkpoints and training data live in `Data/score_model/` and are managed by [DVC](https://dvc.org) (not included in the git repo). Run `dvc pull` after cloning to download them.
+Model checkpoints and training datasets are managed by [DVC](https://dvc.org) (so they are not included in the git repo). Run `dvc pull` after cloning to download them.
 
-To add or update a large file:
+| Directory                    | Tracked by     | Contents                 |
+| ---------------------------- | -------------- | ------------------------ |
+| `Data/score_model/models/`   | `models.dvc`   | `.pt` model checkpoints  |
+| `Data/score_model/datasets/` | `datasets.dvc` | `.mat` training datasets |
+
+To add a new file to a tracked directory and push it:
 
 ```bash
-dvc add Data/score_model/<file>
-git add Data/score_model/<file>.dvc Data/score_model/.gitignore
+# Drop the new file into the appropriate directory, then:
+dvc add Data/score_model/models      # or datasets
+git add Data/score_model/models.dvc  # or datasets.dvc
+git commit -m "Add new model checkpoint"
 dvc push
 ```
 
-> **Important:** Always use the DVC CLI for any operation on tracked files. Never manually rename, move, or delete `.dvc` files — they contain content hashes that DVC uses to locate data in the remote cache.
-
-To remove a large file:
+To replace an existing file (e.g. after manually swapping a checkpoint):
 
 ```bash
-dvc remove Data/score_model/<file>.dvc
-git add Data/score_model/<file>.dvc Data/score_model/.gitignore
-```
-
-To rename a large file:
-
-```bash
-dvc move Data/score_model/<old> Data/score_model/<new>
-git add Data/score_model/<old>.dvc Data/score_model/<new>.dvc Data/score_model/.gitignore
+dvc add Data/score_model/models      # re-hashes the whole directory
+git add Data/score_model/models.dvc
+git commit -m "Update model checkpoint"
 dvc push
 ```
+
+> **Important:** Always re-run `dvc add <dir>` after manually placing files so DVC updates its content hash. Never edit `.dvc` files by hand.
+
+The project saves whole directories but it is also possible to dvc individual files.
 
 ### Authentication with Google Drive
 

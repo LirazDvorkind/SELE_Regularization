@@ -1,5 +1,0 @@
-outs:
-- md5: 4b94ddf6d24e2e3c275c9821d827dbe3
-  size: 618837
-  hash: md5
-  path: alon_sele_score_net_d32.pt

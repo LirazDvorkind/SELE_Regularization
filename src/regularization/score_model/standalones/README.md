@@ -4,4 +4,4 @@ instead of an entire module from src run configuration.
 
 This folder contains:
 1) Score model scripts for tuning and playing around with tuned hyperparameters.
-2) The model training script
+2) `model_training/` — model training scripts and Colab notebook (see its README).

@@ -47,7 +47,7 @@ if __name__ == "__main__":
                 REG_WEIGHT=config['reg_weight'],
                 LR_MAX=config['lr_max'],
                 MOMENTUM=config['momentum'],
-                model_path=str(_DATA_DIR / f"sele_score_net_d{str(model_size)}_100k.pt"),
+                model_path=str(_DATA_DIR / "models" / f"sele_score_net_d{str(model_size)}.pt"),
                 IS_SHOW_DEBUG_PLOT=False,
                 IS_SHOW_DEBUG_DATA=True,
                 IS_SHOW_MSE_PLOT=True

@@ -40,10 +40,18 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
             input_dim=model_config['target_length'] + 1,
             output_dim=model_config['target_length'],
             hidden_dims=model_config['hidden_dims'],
+            use_layer_norm=model_config.get('use_layer_norm', False),
+            use_residual=model_config.get('use_residual', False),
+            use_time_embedding=model_config.get('use_time_embedding', False),
+            time_embed_dim=model_config.get('time_embed_dim', 128),
         )
 
         # Load the state dictionary into the model
-        score_network.load_state_dict(checkpoint['model_state_dict'])
+        # Strip _orig_mod. prefix added by torch.compile() if present
+        state_dict = checkpoint['model_state_dict']
+        if any(k.startswith('_orig_mod.') for k in state_dict):
+            state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+        score_network.load_state_dict(state_dict)
         score_network.to(device)
         score_network.eval()
 

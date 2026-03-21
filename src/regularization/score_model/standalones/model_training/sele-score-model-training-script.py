@@ -22,7 +22,7 @@ from pathlib import Path
 
 from src.regularization.score_model.model_definition import ScoreNetwork
 
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
+_DATA_DIR = Path(__file__).resolve().parents[5] / "Data" / "score_model"
 
 # Configure logging
 logging.basicConfig(
@@ -35,16 +35,20 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TrainingConfig:
     """Configuration for model training."""
-    batch_size: int = 32
-    learning_rate: float = 3e-4
-    num_epochs: int = 100
+    batch_size: int = 256
+    learning_rate: float = 1e-3
+    num_epochs: int = 300
     target_length: int = 500  # If lower than data's length, data will be downsampled.
     # hidden_dims:
     #   for target_length 500 use (512, 1024, 2048, 2048, 1024, 512)
     #   for target_length 32 use (64, 128, 256, 256, 128, 64)
     hidden_dims: Tuple[int, ...] = (512, 1024, 2048, 2048, 1024, 512)
-    data_path: str = str(_DATA_DIR / 'sele_simulated_100000_curves_500_long.mat')  # From a modified MATLAB code create_training_set.m with seed rng(12)
-    output_path: str = str(_DATA_DIR / 'sele_score_net_d500_100k.pt')
+    use_layer_norm: bool = True  # Recommended True for d500; set False for d32 to match existing checkpoints
+    use_residual: bool = True  # Residual connections — critical for d500 convergence
+    use_time_embedding: bool = True  # Sinusoidal time embedding for richer time conditioning
+    time_embed_dim: int = 128
+    data_path: str = str(_DATA_DIR / 'datasets' / 'sele_simulated_100000_curves_500_long.mat')  # From a modified MATLAB code create_training_set.m with seed rng(12)
+    output_path: str = str(_DATA_DIR / 'models' / 'sele_score_net_d500_100k.pt')
     beta_min: float = 0.1
     beta_max: float = 20.0
     time_eps: float = 1e-4
@@ -255,7 +259,18 @@ def train_model(config: TrainingConfig) -> None:
         input_dim=config.target_length + 1,
         output_dim=config.target_length,
         hidden_dims=config.hidden_dims,
+        use_layer_norm=config.use_layer_norm,
+        use_residual=config.use_residual,
+        use_time_embedding=config.use_time_embedding,
+        time_embed_dim=config.time_embed_dim,
     )
+
+    # Compile for faster CPU execution (PyTorch 2.0+)
+    try:
+        score_network = torch.compile(score_network)
+        logger.info("torch.compile() enabled")
+    except Exception:
+        logger.info("torch.compile() not available, skipping")
 
     diffusion_model = DiffusionModel(score_network, config)
 
@@ -265,17 +280,24 @@ def train_model(config: TrainingConfig) -> None:
         lr=config.learning_rate
     )
 
+    # Cosine annealing: decays LR from learning_rate → 1e-5 over all epochs
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=config.num_epochs, eta_min=1e-5
+    )
+
     # Training loop
     logger.info("Starting training...")
     start_time = time.time()
 
     for epoch in tqdm(range(config.num_epochs), desc="Training"):
         epoch_loss = diffusion_model.train_epoch(data_loader, optimizer)
+        scheduler.step()
 
         elapsed_time = time.time() - start_time
         logger.info(
             f"Epoch {epoch + 1}/{config.num_epochs} | "
             f"Loss: {epoch_loss:.6f} | "
+            f"LR: {scheduler.get_last_lr()[0]:.2e} | "
             f"Time: {elapsed_time:.2f}s"
         )
 

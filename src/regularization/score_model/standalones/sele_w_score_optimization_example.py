@@ -8,11 +8,23 @@ from pathlib import Path
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from src.regularization.score_model.model_definition import ScoreNetwork
 
 _DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
-# Load pretrained score network
-score_network = torch.load(_DATA_DIR / "sele_score_net_d32.pt", weights_only=False)
+# Load pretrained score network from new checkpoint format
+_checkpoint = torch.load(_DATA_DIR / "models" / "sele_score_net_d32.pt", map_location='cpu', weights_only=False)
+_model_config = _checkpoint['config']
+score_network = ScoreNetwork(
+    input_dim=_model_config['target_length'] + 1,
+    output_dim=_model_config['target_length'],
+    hidden_dims=_model_config['hidden_dims'],
+    use_layer_norm=_model_config.get('use_layer_norm', False),
+    use_residual=_model_config.get('use_residual', False),
+    use_time_embedding=_model_config.get('use_time_embedding', False),
+    time_embed_dim=_model_config.get('time_embed_dim', 128),
+)
+score_network.load_state_dict(_checkpoint['model_state_dict'])
 score_network.eval()
 
 # Global grid parameters
@@ -54,11 +66,10 @@ def gradient_ascent_w_score(x0, obj_grad_fn, lr=1e-2, steps=100, reg_weight=0.1,
         obj_grad = obj_grad_fn(x)
         
         # Get score regularization term
-        x_with_t = np.concatenate([x, [t_val]])
-        x_tensor_score = torch.tensor(x_with_t, dtype=torch.float32).unsqueeze(0)
-        
+        x_tensor = torch.tensor(x, dtype=torch.float32).unsqueeze(0)            # (1, 32)
+        t_tensor = torch.tensor([[t_val]], dtype=torch.float32)                  # (1, 1)
         with torch.no_grad():
-            score_reg = score_network(x_tensor_score).squeeze().numpy()
+            score_reg = score_network(x_tensor, t_tensor).squeeze().numpy()
 
         # Perform gradient ascent
         x += lr * (obj_grad + reg_weight * score_reg)

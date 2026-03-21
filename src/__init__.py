@@ -16,7 +16,7 @@ CONFIG = Config(
         score_model_curve="Data/sele_score_model_curve.csv",
     ),
     L_flag=LFlag.L2,
-    regularization_method=RegularizationMethod.NON_UNIFORM_MESH,
+    regularization_method=RegularizationMethod.MODEL_SCORE_GRAD,
     is_save_plots=True,
     kappa_range=(1e3, 1e-3),
     n_kappa=40, # was 150
@@ -45,5 +45,5 @@ CONFIG = Config(
     # To tweak a single param without leaving the preset:
     #   from dataclasses import replace
     #   model_score_grad_config=replace(SCORE_MODEL_PRESETS["d500"], REG_WEIGHT=5.0)
-    model_score_grad_config=SCORE_MODEL_PRESETS["d32"],
+    model_score_grad_config=SCORE_MODEL_PRESETS["d500"],
 )

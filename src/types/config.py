@@ -154,12 +154,12 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         model_path=str(_SCORE_MODEL_DIR / "models" / "sele_score_net_d500.pt"),
         W=30e-4,
         output_mesh_resolution=500,
-        REG_WEIGHT=3.0,
-        MOMENTUM=0.85,
-        LR_MAX=3e-3,
-        LR_MIN=1e-5,
+        REG_WEIGHT=0.01,
+        MOMENTUM=0.9,
+        LR_MAX=5e-4,
+        LR_MIN=1e-7,
         MAX_STEPS=5000,
-        T0=2e-2,
+        T0=5e-2,
     ),
 }
 

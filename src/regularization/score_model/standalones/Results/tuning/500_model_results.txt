@@ -1,0 +1,20 @@
+C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\.venv\Scripts\python.exe C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\src\regularization\score_model\standalones\tune_hyperparameters.py
+Loading SELE and G for 500 points...
+Preparing synthetic dataset for 100 profiles...
+--- Starting Grid Search ---
+Testing 54 configs on 100 curves.
+Total Simulations: 5400
+Workers: 16 (model loaded once per worker)
+Grid Search:  11%|█         | 572/5400 [09:28<1:30:42,  1.13s/it]
+Grid Search: 100%|██████████| 5400/5400 [38:38<00:00,  2.33it/s]
+
+==================================================
+🏆 WINNER (Lowest SELE Data Error)
+==================================================
+Parameters: Reg=1.0 | LR=0.0005 | Mom=0.9 | T0=0.005
+Error (SELE) : 3.47e-04 (Primary)
+Error (ELE): 9.95e-09 (Sanity Check)
+==================================================
+Saved tuning results to Results/tuning/hyperparameter_tuning_results_500.csv
+
+Process finished with exit code 0

@@ -9,8 +9,46 @@ from src.utils import match_length_interp
 
 from src.regularization.score_model.model_definition import ScoreNetwork
 
+
+def load_score_model(model_path: str) -> tuple:
+    """Load a score network checkpoint from disk.
+
+    Returns (score_network, d_min, d_max, target_length).
+    Pass the returned tuple as ``preloaded_model`` to ``solve_gradient_descent``
+    to skip repeated disk I/O across many solver calls.
+    """
+    device = torch.device('cpu')
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    model_config = checkpoint['config']
+
+    score_network = ScoreNetwork(
+        input_dim=model_config['target_length'] + 1,
+        output_dim=model_config['target_length'],
+        hidden_dims=model_config['hidden_dims'],
+        use_layer_norm=model_config.get('use_layer_norm', False),
+        use_residual=model_config.get('use_residual', False),
+        use_time_embedding=model_config.get('use_time_embedding', False),
+        time_embed_dim=model_config.get('time_embed_dim', 128),
+    )
+
+    state_dict = checkpoint['model_state_dict']
+    if any(k.startswith('_orig_mod.') for k in state_dict):
+        state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+    score_network.load_state_dict(state_dict)
+    score_network.to(device)
+    score_network.eval()
+
+    return score_network, checkpoint['data_min'], checkpoint['data_max'], model_config['target_length']
+
+
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: ModelScoreGradConfig, S_gt: NDArray) -> NDArray:
+def solve_gradient_descent(
+    G: NDArray,
+    B: NDArray,
+    hyperparams: ModelScoreGradConfig,
+    S_gt: NDArray,
+    preloaded_model: tuple | None = None,
+) -> NDArray:
     """
     Solves for SELE using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
     :param G: Photogeneration matrix, NxM size
@@ -29,46 +67,49 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: ModelScoreGradCo
     np.random.seed(42)
 
     # 1. Load Model and Configuration
-    try:
-        # Load the checkpoint dictionary
-        checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
-
-        # Retrieve configuration to initialize the correct architecture
-        model_config = checkpoint['config']
-
-        score_network = ScoreNetwork(
-            input_dim=model_config['target_length'] + 1,
-            output_dim=model_config['target_length'],
-            hidden_dims=model_config['hidden_dims'],
-            use_layer_norm=model_config.get('use_layer_norm', False),
-            use_residual=model_config.get('use_residual', False),
-            use_time_embedding=model_config.get('use_time_embedding', False),
-            time_embed_dim=model_config.get('time_embed_dim', 128),
-        )
-
-        # Validate that G's spatial dimension matches the model's expected input size
-        if G.shape[1] != model_config['target_length']:
+    if preloaded_model is not None:
+        score_network, d_min, d_max, target_length = preloaded_model
+        if G.shape[1] != target_length:
             raise ValueError(
-                f"G has {G.shape[1]} spatial elements but model expects {model_config['target_length']}. "
-                f"The mesh must be built with mesh_resolution={model_config['target_length']} to match the loaded model."
+                f"G has {G.shape[1]} spatial elements but model expects {target_length}. "
+                f"The mesh must be built with mesh_resolution={target_length} to match the loaded model."
+            )
+    else:
+        try:
+            checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
+            model_config = checkpoint['config']
+
+            score_network = ScoreNetwork(
+                input_dim=model_config['target_length'] + 1,
+                output_dim=model_config['target_length'],
+                hidden_dims=model_config['hidden_dims'],
+                use_layer_norm=model_config.get('use_layer_norm', False),
+                use_residual=model_config.get('use_residual', False),
+                use_time_embedding=model_config.get('use_time_embedding', False),
+                time_embed_dim=model_config.get('time_embed_dim', 128),
             )
 
-        # Load the state dictionary into the model
-        # Strip _orig_mod. prefix added by torch.compile() if present
-        state_dict = checkpoint['model_state_dict']
-        if any(k.startswith('_orig_mod.') for k in state_dict):
-            state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
-        score_network.load_state_dict(state_dict)
-        score_network.to(device)
-        score_network.eval()
+            if G.shape[1] != model_config['target_length']:
+                raise ValueError(
+                    f"G has {G.shape[1]} spatial elements but model expects {model_config['target_length']}. "
+                    f"The mesh must be built with mesh_resolution={model_config['target_length']} to match the loaded model."
+                )
 
-    except Exception as e:
-        raise FileNotFoundError(f"Failed to load ScoreNet checkpoint: {e}")
+            state_dict = checkpoint['model_state_dict']
+            if any(k.startswith('_orig_mod.') for k in state_dict):
+                state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+            score_network.load_state_dict(state_dict)
+            score_network.to(device)
+            score_network.eval()
+
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to load ScoreNet checkpoint: {e}")
+
+        d_min = checkpoint['data_min']
+        d_max = checkpoint['data_max']
 
     # 2. Normalization Constants
     # Using the exact min/max saved during training ensures perfect data reconstruction
-    d_min = checkpoint['data_min']
-    d_max = checkpoint['data_max']
     norm_scale_factor = 2.0 / (d_max - d_min)
 
     # 3. Setup Physics

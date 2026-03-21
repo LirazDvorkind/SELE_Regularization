@@ -1,22 +1,26 @@
 """Tune hyperparameters over a large set of curves"""
-from pathlib import Path
+from dataclasses import replace
 import numpy as np
-
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 import pandas as pd
 import itertools
 import os
 
 from src.regularization.score_model.standalones.helpers import load_S_B_G
 from src.regularization.score_model.score_model_grad import solve_gradient_descent
-from src.types.score_model_params import NesterovHyperparams
+from src.types.config import SCORE_MODEL_PRESETS
+
+# Preset whose model_path and non-tuned settings are inherited by every trial.
+PRESET = "d500"  # "d32" or "d500"
 
 
 # --- CONFIGURATION ---
+# Ranges are tuned for d500: larger model → smaller safe LR, high-dim space → lower momentum,
+# sinusoidal time embedding → T0 matters more and should be explored explicitly.
 PARAM_GRID = {
-    'reg_weight': [1, 2.5, 5, 10, 20],
-    'lr_max': [0.01, 0.02, 0.04],
-    'momentum': [0.8, 0.9, 0.95]
+    'reg_weight': [1, 5, 15],               # Low / mid / high score trust
+    'lr_max':     [5e-4, 2e-3, 5e-3],       # All below d32's 1e-2; d500 needs smaller steps
+    'momentum':   [0.75, 0.9],              # Test reduced inertia vs standard
+    't0':         [5e-3, 2e-2, 1e-1],       # Fine detail → coarse; d500 sinusoidal embed is sensitive to this
 }
 
 
@@ -45,11 +49,12 @@ def run_tuning_suite(dataset, G_matrix):
             S_est = solve_gradient_descent(
                 G=G_matrix,
                 B=B_target,
-                hyperparams=NesterovHyperparams(
+                hyperparams=replace(
+                    SCORE_MODEL_PRESETS[PRESET],
                     REG_WEIGHT=config['reg_weight'],
                     LR_MAX=config['lr_max'],
                     MOMENTUM=config['momentum'],
-                    model_path=str(_DATA_DIR / "models" / "sele_score_net_d500.pt"),
+                    T0=config['t0'],
                     IS_SHOW_DEBUG_PLOT=False,
                     IS_SHOW_DEBUG_DATA=False,
                     IS_SHOW_MSE_PLOT=False,
@@ -88,7 +93,7 @@ def generate_report(df):
     print("\n" + "=" * 50)
     print(f"🏆 WINNER (Lowest SELE Data Error)")
     print("=" * 50)
-    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Mom={best_run['momentum']}")
+    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Mom={best_run['momentum']} | T0={best_run['t0']}")
     print(f"Error (SELE) : {best_run['mean_sele_error']:.2e} (Primary)")
     print(f"Error (ELE): {best_run['mean_ele_error']:.2e} (Sanity Check)")
     print("=" * 50)
@@ -101,7 +106,8 @@ def generate_report(df):
 
 # --- MAIN EXECUTION BLOCK ---
 if __name__ == "__main__":
-    data, G = load_S_B_G(points_amount=500)
+    points_amount = 32 if PRESET == "d32" else 500
+    data, G = load_S_B_G(points_amount=points_amount)
 
     # Run Tuning
     results_df = run_tuning_suite(data, G)

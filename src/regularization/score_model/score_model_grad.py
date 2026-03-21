@@ -4,18 +4,18 @@ import torch
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug plots
 
-from src.types.score_model_params import NesterovHyperparams
+from src.types.config import ModelScoreGradConfig
 from src.utils import match_length_interp
 
 from src.regularization.score_model.model_definition import ScoreNetwork
 
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperparams, S_gt: NDArray) -> NDArray:
+def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: ModelScoreGradConfig, S_gt: NDArray) -> NDArray:
     """
     Solves for SELE using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
     :param G: Photogeneration matrix, NxM size
     :param B: ELE vector, B = GS, Nx1 size
-    :param hyperparams: NesterovHyperparams dataclass
+    :param hyperparams: ModelScoreGradConfig dataclass
     :param S_gt: SELE ground truth vector to plot difference and calculate metrics
     :return: S the SELE we found, Mx1 size
     """
@@ -45,6 +45,13 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
             use_time_embedding=model_config.get('use_time_embedding', False),
             time_embed_dim=model_config.get('time_embed_dim', 128),
         )
+
+        # Validate that G's spatial dimension matches the model's expected input size
+        if G.shape[1] != model_config['target_length']:
+            raise ValueError(
+                f"G has {G.shape[1]} spatial elements but model expects {model_config['target_length']}. "
+                f"The mesh must be built with mesh_resolution={model_config['target_length']} to match the loaded model."
+            )
 
         # Load the state dictionary into the model
         # Strip _orig_mod. prefix added by torch.compile() if present

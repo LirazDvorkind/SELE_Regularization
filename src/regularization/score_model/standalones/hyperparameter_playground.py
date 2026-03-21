@@ -1,21 +1,25 @@
 """Test a hyperparameter set on a curve to see how it fares"""
-from pathlib import Path
+from dataclasses import replace
 from matplotlib import pyplot as plt
-
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
 from src.io import load_csv
 from src.regularization.score_model.standalones.helpers import load_S_B_G
 from src.regularization.score_model.score_model_grad import solve_gradient_descent
-from src.types.score_model_params import NesterovHyperparams
+from src.types.config import SCORE_MODEL_PRESETS
 
 import numpy as np
 
-config = {
-    'reg_weight': 5.0,
-    'lr_max': 0.01,
-    'momentum': 0.9
-}
+# Pick a preset, then override only the fields you want to experiment with.
+# All other fields keep the preset's tuned values.
+PRESET = "d32"  # "d32" or "d500"
+hyperparams = replace(
+    SCORE_MODEL_PRESETS[PRESET],
+    REG_WEIGHT=5.0,
+    LR_MAX=0.01,
+    MOMENTUM=0.9,
+    IS_SHOW_DEBUG_DATA=True,
+    IS_SHOW_MSE_PLOT=True,
+)
 
 # TODO:
 #  1. Read and understand the training script loss - you may write a summary too
@@ -31,7 +35,7 @@ config = {
 
 if __name__ == "__main__":
     random_sample = 560  # np.random.randint(100, 1000)
-    model_size: int = 32  # 32 or 500
+    model_size: int = 32 if PRESET == "d32" else 500
     print(f"Random curve number {random_sample}")
     data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)
 
@@ -43,15 +47,7 @@ if __name__ == "__main__":
         S_est = solve_gradient_descent(
             G=G,
             B=B_target,
-            hyperparams=NesterovHyperparams(
-                REG_WEIGHT=config['reg_weight'],
-                LR_MAX=config['lr_max'],
-                MOMENTUM=config['momentum'],
-                model_path=str(_DATA_DIR / "models" / f"sele_score_net_d{str(model_size)}.pt"),
-                IS_SHOW_DEBUG_PLOT=False,
-                IS_SHOW_DEBUG_DATA=True,
-                IS_SHOW_MSE_PLOT=True
-            ),
+            hyperparams=hyperparams,
             S_gt=S_gt,
         )
 

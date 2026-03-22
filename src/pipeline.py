@@ -240,7 +240,7 @@ def run_regularization():
             save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
 
-        # generate_run_report("results", kappa1_knee=0, kappa2_knee=0) # TODO: Update report for this method
+        generate_run_report("results")
 
         # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)

@@ -157,19 +157,23 @@ def solve_gradient_descent(
         with torch.no_grad():
             score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
 
-        # --- D. Adaptive Weighting & Update ---
-        # Calculate norms for adaptive scaling
+        # --- D. Per-Element Adaptive Weighting & Update ---
+        # Global factor (original approach): single scalar matching overall magnitudes.
         grad_mag = np.linalg.norm(grad_fidelity_norm)
-        score_mag = np.linalg.norm(score_model) + 1e-12 # avoid div by zero
+        score_mag = np.linalg.norm(score_model) + 1e-12
+        global_factor = (grad_mag / score_mag) * hyperparams.REG_WEIGHT
 
-        # Adaptive weight: scales score to match data gradient magnitude
-        # alpha = ||g|| / ||s||. We also apply REG_WEIGHT here.
-        adaptive_factor = (grad_mag / score_mag) * hyperparams.REG_WEIGHT
+        # Per-element factors: |grad[j]| / |score[j]| * REG_WEIGHT.
+        # Near-surface elements where G has huge leverage get large per-element
+        # factors, boosting the score to compete with the data gradient locally.
+        # Deep elements where |grad| ≈ 0 would get near-zero factors, so we
+        # floor at the global factor to preserve the score's influence there.
+        grad_abs = np.abs(grad_fidelity_norm)
+        score_abs = np.abs(score_model) + 1e-12
+        per_element_factors = (grad_abs / score_abs) * hyperparams.REG_WEIGHT
+        adaptive_factors = np.maximum(per_element_factors, global_factor)
 
-        # The 'force' is: -Gradient + Weighted_Score
-        # We subtract the gradient (descent) and add the score (ascent on prior probability)
-        # Equivalently: update_direction = - (Gradient - Weighted_Score)
-        score_weighted = score_model * adaptive_factor
+        score_weighted = score_model * adaptive_factors
         total_update = grad_fidelity_norm - score_weighted
 
         # --- E. Momentum Update ---
@@ -216,7 +220,9 @@ def solve_gradient_descent(
         # --- Monitoring & Plotting ---
         if hyperparams.IS_SHOW_DEBUG_DATA and i % (hyperparams.MAX_STEPS // 20) == 0:
             mse_str = f" | MSE={current_mse:.2e}" if S_gt is not None else ""
-            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor={adaptive_factor:.2e}{mse_str}")
+            grad_mag = np.linalg.norm(grad_fidelity_norm)
+            score_mag = np.linalg.norm(score_model) + 1e-12
+            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor median={np.median(adaptive_factors):.2e} max={np.max(adaptive_factors):.2e}{mse_str}")
 
             # Debug Plotting
             if hyperparams.IS_SHOW_DEBUG_PLOT:

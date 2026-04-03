@@ -100,7 +100,7 @@ def plot_normalized_s_and_score(S_norm: NDArray, score_grad: NDArray,
 from pathlib import Path
 _DATA_DIR = Path(__file__).resolve().parents[5] / "Data" / "score_model"
 ALON_MODEL_PATH = _DATA_DIR / 'models' / 'alon_sele_score_net_d32.pt'
-MY_MODEL_PATH_D32 = _DATA_DIR / 'models' / 'sele_score_net_d32_100k.pt'
+MY_MODEL_PATH_D32 = _DATA_DIR / 'models' / 'sele_score_net_d32.pt'
 MY_MODEL_PATH_D500 = _DATA_DIR / 'models' / 'sele_score_net_d500.pt'
 T0 = 0.06
 device = torch.device('cpu')

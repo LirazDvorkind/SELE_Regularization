@@ -120,10 +120,11 @@ def generate_report(df):
     print(f"Error (ELE): {best_run['mean_ele_error']:.2e} (Sanity Check)")
     print("=" * 50)
 
-    # Check for Overfitting Warning
-    # If ELE error is low but SELE error is high compared to other runs, we are overfitting noise.
+    # Check for prior-dominated warning:
+    # If the best-SELE run has above-median ELE error, the score prior dominated the solution
+    # at the cost of data fidelity — the reconstruction fits the prior well but not the measurements.
     if best_run['mean_ele_error'] > df['mean_ele_error'].median():
-        print("⚠️ WARNING: The selected parameters have low Reconstruction Error but HIGH Data Error.")
+        print("WARNING: The selected parameters have HIGH Reconstruction Error — the score prior may be dominating the solution at the cost of data fidelity.")
 
 
 # --- MAIN EXECUTION BLOCK ---
@@ -143,47 +144,18 @@ if __name__ == "__main__":
     print("Saved tuning results to Results/tuning/hyperparameter_tuning_results_500.csv")
 
 
-# TODO: I asked: go over the @src/regularization/score_model/standalones/tune_hyperparameters.py code and tell me if you feel it implemented the tuning correctly
-"""
-Overall the tuning is **well-structured**, but there are a few real issues worth flagging:
-
----
-
-## What's Correct
-
-- **Worker efficiency**: model is loaded once per worker via `_worker_init`, not once per simulation — correct use of `ProcessPoolExecutor`.
-- **Config inheritance**: `replace(SCORE_MODEL_PRESETS[PRESET], ...)` properly inherits all non-tuned settings (LR_MIN, MAX_STEPS, STOP_CHANGE, etc.) from the preset.
-- **Shape safety**: `S_gt` in the dataset is always interpolated to `G_matrix.shape[1]` points in `generate_synthetic_data`, so `np.mean((S_est - S_gt) ** 2)` won't mismatch.
-- **Dual metrics**: `sele_error` as primary (direct quality), `ele_error` as sanity check (data fidelity) is the right design.
-- **Aggregation**: groupby + mean/max per config is correct.
-
----
-
-## Real Issues
-
-**1. Overfitting warning is inverted** (`generate_report`, line 125)
-
-```python
-if best_run['mean_ele_error'] > df['mean_ele_error'].median():
-    print("⚠️ WARNING: ... low Reconstruction Error but HIGH Data Error.")
-```
-
-The condition fires when the best-SELE-error run has *above-median* `ele_error` (i.e., **high** reconstruction error). But the warning message says "low Reconstruction Error" — the opposite. The scenario being detected is "prior dominated the solution at the cost of data fidelity," not overfitting. The comment above it describes the opposite case (low ELE error, high SELE error), which isn't what the code checks.
-
-**2. Early stopping creates unequal comparison budgets**
-
-The solver stops when `|MSE[i] - MSE[i-1]| < STOP_CHANGE` for 20 consecutive steps. Configs that converge quickly run far fewer than `MAX_STEPS=5000` iterations. This is fine conceptually (you want the converged value), but configs that are slow to converge might be cut short by `MSE > 1 → break` at step 51, making the comparison unfair between configs that diverge vs. converge slowly.
-
-**3. `LR_MIN` is not co-tuned with `LR_MAX`**
-
-The cosine schedule goes `LR_MAX → LR_MIN = 1e-5`. When `LR_MAX = 5e-4`, the ratio is 50×; when `LR_MAX = 5e-3`, it's 500×. These are structurally different schedules, so comparing them conflates schedule shape with peak LR.
-
----
-
-## Minor Points
-
-- **No incremental save** — if the run crashes after 90% of simulations, everything is lost.
-- **`TODO` in helpers.py (line 14)**: "Something seems off here when we run with the 500 long one" — this unresolved comment suggests the B generation for d500 may have a known uncertainty that could affect all tuning results.
-
-The biggest actionable fix is the overfitting warning logic — it currently detects the wrong scenario and prints a misleading message. The rest are design trade-offs rather than bugs.
-"""
+# TODO: Remaining known issues (unhandled):
+#
+# 1. Early stopping creates unequal comparison budgets
+#    The solver stops when |MSE[i] - MSE[i-1]| < STOP_CHANGE for 20 consecutive steps, and also
+#    hard-exits if MSE > 1 at step 51. Configs that diverge get cut short while slow-converging
+#    configs run to MAX_STEPS — making cross-config comparison unfair.
+#
+# 2. LR_MIN is not co-tuned with LR_MAX
+#    The cosine schedule runs LR_MAX → LR_MIN=1e-5 (fixed). At LR_MAX=5e-4 the ratio is 50x;
+#    at LR_MAX=5e-3 it is 500x. These are structurally different schedules, so tuning LR_MAX
+#    alone conflates schedule shape with peak LR. Either tune LR_MIN jointly or fix the ratio.
+#
+# 3. No incremental save
+#    If the run crashes after 90% of simulations, all results are lost. Consider checkpointing
+#    partial results to CSV after each config completes.

@@ -11,8 +11,6 @@ def generate_synthetic_data(S_gt_profiles, G_matrix):
         S_interp = match_length_interp(S, G_matrix.shape[1])
         # B = G * S (Physical measurement)
         B = G_matrix @ S_interp
-        # TODO: Something seems off here when we run with the 500 long one.
-        #  Test with same index curve so should not be different B for 32 or 500
         dataset.append({'S_gt': S_interp, 'B': B})
     return dataset
 

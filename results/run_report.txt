@@ -1,6 +1,5 @@
-Run report - 2026-03-21T22:13:18
-regularization_method                             : NON_UNIFORM_MESH
-κ_knee                                            : 2.424e+00
+Run report - 2026-04-03T13:31:39
+regularization_method                             : MODEL_SCORE_GRAD
 non_uniform_mesh_config.z_range.0                 : 0.035
 non_uniform_mesh_config.z_range.1                 : 1.462e-06
 non_uniform_mesh_config.z_turn                    : 0.0001
@@ -11,15 +10,15 @@ total_variation_template_config.mesh_resolution   : 500
 total_variation_template_config.kappa2_range.0    : 0.01
 total_variation_template_config.kappa2_range.1    : 1e-06
 total_variation_template_config.n_kappa2          : 30
-model_score_grad_config.model_path                : C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\Data\score_model\models\sele_score_net_d32.pt
+model_score_grad_config.model_path                : C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\Data\score_model\models\sele_score_net_d500.pt
 model_score_grad_config.W                         : 0.003
-model_score_grad_config.output_mesh_resolution    : 500
-model_score_grad_config.REG_WEIGHT                : 1.0
-model_score_grad_config.MOMENTUM                  : 0.85
-model_score_grad_config.LR_MAX                    : 0.01
-model_score_grad_config.LR_MIN                    : 1e-05
+model_score_grad_config.output_mesh_resolution    : 10000
+model_score_grad_config.REG_WEIGHT                : 200
+model_score_grad_config.MOMENTUM                  : 0.9
+model_score_grad_config.LR_MAX                    : 1e-06
+model_score_grad_config.LR_MIN                    : 1e-08
 model_score_grad_config.MAX_STEPS                 : 5000
-model_score_grad_config.T0                        : 0.1
+model_score_grad_config.T0                        : 0.05
 model_score_grad_config.STOP_CHANGE               : 1e-08
 model_score_grad_config.STOP_STEPS                : 20
 model_score_grad_config.MIN_STEPS                 : 50

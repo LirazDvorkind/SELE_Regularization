@@ -55,4 +55,3 @@ A2=A0-1-Ln*alpha_matrix.*(A0+1);
 Sp=K_matrix.*(A1.*exp(-alpha_matrix.*x_matrix)+A2.*exp(-x_matrix/Ln));
 
 end
-

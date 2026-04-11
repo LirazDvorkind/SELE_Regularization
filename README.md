@@ -54,6 +54,8 @@ dvc push
 
 > **Important:** Always re-run `dvc add <dir>` after manually placing files so DVC updates its content hash. Never edit `.dvc` files by hand.
 
+> **Note:** DVC is content-addressed, so replacing a file (even with the same name) uploads a new blob and leaves the old one orphaned in the remote. To purge unreferenced blobs from Google Drive, run `dvc gc --cloud -w` — only do this when you're sure no other branch/commit still references the old hash.
+
 The project saves whole directories but it is also possible to dvc individual files.
 
 ### Authentication with Google Drive

@@ -15,10 +15,10 @@ import numpy as np
 PRESET = "d500"  # "d32" or "d500"
 hyperparams = replace(
     SCORE_MODEL_PRESETS[PRESET],
-    REG_WEIGHT=10.0,
-    LR_MAX=1e-6,
-    LR_MIN=1e-8,
-    MOMENTUM=0.9,
+    REG_WEIGHT=1.5,
+    LR_MAX=1e-2,
+    LR_MIN=1e-5,
+    MOMENTUM=0.1,
     MAX_STEPS=5000,
     T0=5e-2,
     IS_SHOW_DEBUG_DATA=True,
@@ -26,7 +26,7 @@ hyperparams = replace(
 )
 
 if __name__ == "__main__":
-    random_sample = 282 # np.random.randint(100, 1000)
+    random_sample = 931 # np.random.randint(100, 1000)
     model_size: int = 32 if PRESET == "d32" else 500
     print(f"Random curve number {random_sample}")
     data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)

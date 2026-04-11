@@ -27,7 +27,7 @@ def load_S_B_G(points_amount: int = 32, lower_index: int=0, upper_index: int=100
 
     # Load the dataset of SELE profiles
     # Play around with the amount of S's here
-    S_profiles = load_csv(str(_DATA_DIR / f"sele_dataset{suffix}.csv"))[lower_index:upper_index, :]
+    S_profiles = load_csv(str(_DATA_DIR / "datasets" / "sele_simulated_1000_curves_500_long_more_dip.csv"))[lower_index:upper_index, :]
 
     # Prepare synthetic measurements (B) for all profiles
     print(f"Preparing synthetic dataset for {len(S_profiles)} profiles...")

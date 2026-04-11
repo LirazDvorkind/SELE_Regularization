@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 from src.__init__ import CONFIG
 from src.io import load_eta, load_csv, save_csv, generate_run_report
@@ -13,7 +14,6 @@ from src.regularization import tikhonov_non_uniform, tikhonov_total_variation
 from src.regularization.score_model import score_model_grad
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod, LFlag
-from src.types.score_model_params import NesterovHyperparams
 from src.utils import expand_sele
 
 
@@ -175,7 +175,12 @@ def run_regularization():
         # Store values related to calculating G in an easy-to-access object :)
         G_values = GInputData(k=k, lambda_for_alpha=lambda_for_alpha, wavelengths=wavelengths, z=z)
 
-        G, z = calc_mesh_and_G(regularization_method, G_values)
+        # Derive mesh dimension from the model checkpoint so G always matches the model's expected input.
+        _ckpt = torch.load(CONFIG.model_score_grad_config.model_path, map_location='cpu', weights_only=False)
+        _target_length = _ckpt['config']['target_length']
+        del _ckpt
+
+        G, z = calc_mesh_and_G(regularization_method, G_values, mesh_resolution=_target_length)
         # np.savetxt('src/regularization/score_model/standalones/Data/G_score_model_500.csv', G, delimiter=',')
 
         # 2. Unit normalization
@@ -191,12 +196,12 @@ def run_regularization():
         if override_with_ground_truth:
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
                                               CONFIG.model_score_grad_config.W,
-                                              CONFIG.model_score_grad_config.longer_points_amount)
+                                              CONFIG.model_score_grad_config.output_mesh_resolution)
             z_centres = 0.5 * (z[:-1] + z[1:])
             temp_mask = np.searchsorted(z_gt, z_centres, side='right')
             S_rec = sele_gt[temp_mask]
-            # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.longer_points_amount,
+            # Upsample to output_mesh_resolution points, strongly weighted near the surface
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.output_mesh_resolution,
                                            front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
@@ -213,15 +218,15 @@ def run_regularization():
             S_rec = score_model_grad.solve_gradient_descent(
                 G,
                 B,
-                hyperparams=NesterovHyperparams(),
+                hyperparams=CONFIG.model_score_grad_config,
                 S_gt=sele_gt,
             )
             z_centres = 0.5 * (z[:-1] + z[1:])
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
                                               CONFIG.model_score_grad_config.W,
-                                              CONFIG.model_score_grad_config.longer_points_amount)
-            # Upsample to longer_points_amount points, strongly weighted near the surface
-            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.longer_points_amount,
+                                              CONFIG.model_score_grad_config.output_mesh_resolution)
+            # Upsample to output_mesh_resolution points, strongly weighted near the surface
+            z_centres, S_rec = expand_sele(S_rec, points_amount=CONFIG.model_score_grad_config.output_mesh_resolution,
                                            front_weight=1.0, z_original=z_centres)
             S_mean = S_rec
             S_std = np.zeros_like(S_rec)  # No statistical mean in this method yet
@@ -235,7 +240,7 @@ def run_regularization():
             save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
 
-        # generate_run_report("results", kappa1_knee=0, kappa2_knee=0) # TODO: Update report for this method
+        generate_run_report("results")
 
         # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)

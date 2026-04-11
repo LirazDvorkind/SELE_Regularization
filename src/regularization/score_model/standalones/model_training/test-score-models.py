@@ -98,10 +98,11 @@ def plot_normalized_s_and_score(S_norm: NDArray, score_grad: NDArray,
     plt.show()
 
 from pathlib import Path
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
-ALON_MODEL_PATH = _DATA_DIR / 'alon_sele_score_net_d32.pt'
-MY_MODEL_PATH = _DATA_DIR / 'sele_score_net_d32_100k.pt'
-T0 = 1e-1
+_DATA_DIR = Path(__file__).resolve().parents[5] / "Data" / "score_model"
+ALON_MODEL_PATH = _DATA_DIR / 'models' / 'alon_sele_score_net_d32.pt'
+MY_MODEL_PATH_D32 = _DATA_DIR / 'models' / 'sele_score_net_d32.pt'
+MY_MODEL_PATH_D500 = _DATA_DIR / 'models' / 'sele_score_net_d500.pt'
+T0 = 0.06
 device = torch.device('cpu')
 
 # Set random seed for reproducibility
@@ -140,10 +141,18 @@ def get_my_trained_model_grad(S, model_path: str):
             input_dim=model_config['target_length'] + 1,
             output_dim=model_config['target_length'],
             hidden_dims=model_config['hidden_dims'],
+            use_layer_norm=model_config.get('use_layer_norm', False),
+            use_residual=model_config.get('use_residual', False),
+            use_time_embedding=model_config.get('use_time_embedding', False),
+            time_embed_dim=model_config.get('time_embed_dim', 128),
         )
 
         # Load the state dictionary into the model
-        score_network.load_state_dict(checkpoint['model_state_dict'])
+        # Strip _orig_mod. prefix added by torch.compile() if present
+        state_dict = checkpoint['model_state_dict']
+        if any(k.startswith('_orig_mod.') for k in state_dict):
+            state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+        score_network.load_state_dict(state_dict)
         score_network.to(device)
         score_network.eval()
 
@@ -164,18 +173,20 @@ def get_my_trained_model_grad(S, model_path: str):
 
 if __name__ == '__main__':
     random_sample = np.random.randint(100, 1000)
-    model_size: int = 32  # 32 or 500
+    model_size: int = 500  # 32 or 500
+    my_model_path = MY_MODEL_PATH_D500 if model_size == 500 else MY_MODEL_PATH_D32
     print(f"Random curve number {random_sample}")
     data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)
 
     for item in data:
         S_gt = item['S_gt']
-        # 1. Alon model
-        plot_sele_profile(S_gt)
-        S_normalized, alon_model_grad = get_alon_model_grad(S_gt)
-        plot_normalized_s_and_score(S_normalized, alon_model_grad)
+        # 1. Alon model (d32 only)
+        if model_size == 32:
+            plot_sele_profile(S_gt)
+            S_normalized, alon_model_grad = get_alon_model_grad(S_gt)
+            plot_normalized_s_and_score(S_normalized, alon_model_grad)
 
         # 2. My model
         plot_sele_profile(S_gt)
-        S_norm, my_grad = get_my_trained_model_grad(S_gt, MY_MODEL_PATH)
+        S_norm, my_grad = get_my_trained_model_grad(S_gt, my_model_path)
         plot_normalized_s_and_score(S_norm, my_grad)

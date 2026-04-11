@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Start for AI
+
+**Read `AI/CONTEXT.md` first** -- it contains full domain knowledge (physics, math, architecture, hyperparameters) distilled from the papers and codebase. This avoids re-reading the papers every session.
+
 ## Project Overview
 
 This is a physics-informed inverse problem solver for reconstructing **Spatial External Luminescence Efficiency (SELE)** profiles from External Luminescence Efficiency (ELE) measurements. It combines Tikhonov regularization with a score-based diffusion model prior.

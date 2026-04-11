@@ -4,18 +4,56 @@ import torch
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug plots
 
-from src.types.score_model_params import NesterovHyperparams
+from src.types.config import ModelScoreGradConfig
 from src.utils import match_length_interp
 
 from src.regularization.score_model.model_definition import ScoreNetwork
 
+
+def load_score_model(model_path: str) -> tuple:
+    """Load a score network checkpoint from disk.
+
+    Returns (score_network, d_min, d_max, target_length).
+    Pass the returned tuple as ``preloaded_model`` to ``solve_gradient_descent``
+    to skip repeated disk I/O across many solver calls.
+    """
+    device = torch.device('cpu')
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    model_config = checkpoint['config']
+
+    score_network = ScoreNetwork(
+        input_dim=model_config['target_length'] + 1,
+        output_dim=model_config['target_length'],
+        hidden_dims=model_config['hidden_dims'],
+        use_layer_norm=model_config.get('use_layer_norm', False),
+        use_residual=model_config.get('use_residual', False),
+        use_time_embedding=model_config.get('use_time_embedding', False),
+        time_embed_dim=model_config.get('time_embed_dim', 128),
+    )
+
+    state_dict = checkpoint['model_state_dict']
+    if any(k.startswith('_orig_mod.') for k in state_dict):
+        state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+    score_network.load_state_dict(state_dict)
+    score_network.to(device)
+    score_network.eval()
+
+    return score_network, checkpoint['data_min'], checkpoint['data_max'], model_config['target_length']
+
+
 # --- Solver Implementation ---
-def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperparams, S_gt: NDArray) -> NDArray:
+def solve_gradient_descent(
+    G: NDArray,
+    B: NDArray,
+    hyperparams: ModelScoreGradConfig,
+    S_gt: NDArray,
+    preloaded_model: tuple | None = None,
+) -> NDArray:
     """
     Solves for SELE using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
     :param G: Photogeneration matrix, NxM size
     :param B: ELE vector, B = GS, Nx1 size
-    :param hyperparams: NesterovHyperparams dataclass
+    :param hyperparams: ModelScoreGradConfig dataclass
     :param S_gt: SELE ground truth vector to plot difference and calculate metrics
     :return: S the SELE we found, Mx1 size
     """
@@ -29,31 +67,49 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
     np.random.seed(42)
 
     # 1. Load Model and Configuration
-    try:
-        # Load the checkpoint dictionary
-        checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
+    if preloaded_model is not None:
+        score_network, d_min, d_max, target_length = preloaded_model
+        if G.shape[1] != target_length:
+            raise ValueError(
+                f"G has {G.shape[1]} spatial elements but model expects {target_length}. "
+                f"The mesh must be built with mesh_resolution={target_length} to match the loaded model."
+            )
+    else:
+        try:
+            checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
+            model_config = checkpoint['config']
 
-        # Retrieve configuration to initialize the correct architecture
-        model_config = checkpoint['config']
+            score_network = ScoreNetwork(
+                input_dim=model_config['target_length'] + 1,
+                output_dim=model_config['target_length'],
+                hidden_dims=model_config['hidden_dims'],
+                use_layer_norm=model_config.get('use_layer_norm', False),
+                use_residual=model_config.get('use_residual', False),
+                use_time_embedding=model_config.get('use_time_embedding', False),
+                time_embed_dim=model_config.get('time_embed_dim', 128),
+            )
 
-        score_network = ScoreNetwork(
-            input_dim=model_config['target_length'] + 1,
-            output_dim=model_config['target_length'],
-            hidden_dims=model_config['hidden_dims'],
-        )
+            if G.shape[1] != model_config['target_length']:
+                raise ValueError(
+                    f"G has {G.shape[1]} spatial elements but model expects {model_config['target_length']}. "
+                    f"The mesh must be built with mesh_resolution={model_config['target_length']} to match the loaded model."
+                )
 
-        # Load the state dictionary into the model
-        score_network.load_state_dict(checkpoint['model_state_dict'])
-        score_network.to(device)
-        score_network.eval()
+            state_dict = checkpoint['model_state_dict']
+            if any(k.startswith('_orig_mod.') for k in state_dict):
+                state_dict = {k.removeprefix('_orig_mod.'): v for k, v in state_dict.items()}
+            score_network.load_state_dict(state_dict)
+            score_network.to(device)
+            score_network.eval()
 
-    except Exception as e:
-        raise FileNotFoundError(f"Failed to load ScoreNet checkpoint: {e}")
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to load ScoreNet checkpoint: {e}")
+
+        d_min = checkpoint['data_min']
+        d_max = checkpoint['data_max']
 
     # 2. Normalization Constants
     # Using the exact min/max saved during training ensures perfect data reconstruction
-    d_min = checkpoint['data_min']
-    d_max = checkpoint['data_max']
     norm_scale_factor = 2.0 / (d_max - d_min)
 
     # 3. Setup Physics
@@ -65,9 +121,18 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
     G_norm = G * g_scale
     B_norm = B * g_scale
 
+    # Precompute full Hessian of data fidelity: H = 2 * G_norm^T G_norm / norm_scale_factor^2.
+    # The Beer-Lambert G matrix has strongly correlated adjacent columns (they share
+    # boundary terms exp(-α·z_j)), so off-diagonals are NOT negligible — a diagonal
+    # approximation causes neighbor-to-neighbor oscillations near the surface.
+    # We precompute H^{-1} (regularized) once and apply it as a full preconditioner.
+    H = 2.0 * (G_norm.T @ G_norm) / (norm_scale_factor ** 2)
+    H_reg = H + 1e-10 * np.trace(H) / N * np.eye(N)  # Tikhonov-regularized for invertibility
+    H_inv = np.linalg.inv(H_reg)
+
     # 4. Initialization
-    # Initialize x (S_norm) and velocity (v)
-    S_norm = np.random.randn(N)
+    # Initialize at center of normalized range (avoids starting outside training distribution)
+    S_norm = np.zeros(N)
     velocity = np.zeros_like(S_norm) # Initialize momentum buffer v^(0) = 0
 
     # Trackers
@@ -101,20 +166,16 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
         with torch.no_grad():
             score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
 
-        # --- D. Adaptive Weighting & Update ---
-        # Calculate norms for adaptive scaling
-        grad_mag = np.linalg.norm(grad_fidelity_norm)
-        score_mag = np.linalg.norm(score_model) + 1e-12 # avoid div by zero
+        # --- D. Preconditioned Gradient + Global Score Weighting ---
+        # Apply H^{-1} to the data gradient (quasi-Newton step).  This accounts for
+        # the full column-coupling structure of G^T G, eliminating the neighbor-to-
+        # neighbor oscillations that a diagonal preconditioner would cause.
+        preconditioned_grad = H_inv @ grad_fidelity_norm
 
-        # Adaptive weight: scales score to match data gradient magnitude
-        # alpha = ||g|| / ||s||. We also apply REG_WEIGHT here.
-        adaptive_factor = (grad_mag / score_mag) * hyperparams.REG_WEIGHT
-
-        # The 'force' is: -Gradient + Weighted_Score
-        # We subtract the gradient (descent) and add the score (ascent on prior probability)
-        # Equivalently: update_direction = - (Gradient - Weighted_Score)
-        score_weighted = score_model * adaptive_factor
-        total_update = grad_fidelity_norm - score_weighted
+        # Global scalar weighting preserves the MAP objective structure:
+        #   total_update = ∇_data_preconditioned - REG_WEIGHT * score
+        score_weighted = score_model * hyperparams.REG_WEIGHT
+        total_update = preconditioned_grad - score_weighted
 
         # --- E. Momentum Update ---
         # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
@@ -160,7 +221,9 @@ def solve_gradient_descent(G: NDArray, B: NDArray, hyperparams: NesterovHyperpar
         # --- Monitoring & Plotting ---
         if hyperparams.IS_SHOW_DEBUG_DATA and i % (hyperparams.MAX_STEPS // 20) == 0:
             mse_str = f" | MSE={current_mse:.2e}" if S_gt is not None else ""
-            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_mag:.2e} | AdaptFactor={adaptive_factor:.2e}{mse_str}")
+            precond_grad_mag = np.linalg.norm(preconditioned_grad)
+            score_mag = np.linalg.norm(score_model) + 1e-12
+            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | PrecondGradMag={precond_grad_mag:.2e} | ScoreWeight={hyperparams.REG_WEIGHT:.2e}{mse_str}")
 
             # Debug Plotting
             if hyperparams.IS_SHOW_DEBUG_PLOT:

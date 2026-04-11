@@ -1,37 +1,33 @@
 """Test a hyperparameter set on a curve to see how it fares"""
+from dataclasses import replace
 from pathlib import Path
 from matplotlib import pyplot as plt
-
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 
 from src.io import load_csv
 from src.regularization.score_model.standalones.helpers import load_S_B_G
 from src.regularization.score_model.score_model_grad import solve_gradient_descent
-from src.types.score_model_params import NesterovHyperparams
+from src.types.config import SCORE_MODEL_PRESETS
 
 import numpy as np
 
-config = {
-    'reg_weight': 5.0,
-    'lr_max': 0.01,
-    'momentum': 0.9
-}
-
-# TODO:
-#  1. Read and understand the training script loss - you may write a summary too
-#  1.1. Read chat's log idea and see if it fits our case. Is log the way to go when normalizing? In general, data science.
-#  2. Retrain with more data
-#  3. Test and see if the model got better with more data
-#  4. Increase to 500 points
-
-
-# TODO 2:
-#  Test with known SELE profile that the score grad is zero - once with old score, once with new score function
-#  Go over the existing training code
+# Pick a preset, then override only the fields you want to experiment with.
+# All other fields keep the preset's tuned values.
+PRESET = "d500"  # "d32" or "d500"
+hyperparams = replace(
+    SCORE_MODEL_PRESETS[PRESET],
+    REG_WEIGHT=1.5,
+    LR_MAX=1e-2,
+    LR_MIN=1e-5,
+    MOMENTUM=0.1,
+    MAX_STEPS=5000,
+    T0=5e-2,
+    IS_SHOW_DEBUG_DATA=True,
+    IS_SHOW_MSE_PLOT=True,
+)
 
 if __name__ == "__main__":
-    random_sample = 560  # np.random.randint(100, 1000)
-    model_size: int = 32  # 32 or 500
+    random_sample = 931 # np.random.randint(100, 1000)
+    model_size: int = 32 if PRESET == "d32" else 500
     print(f"Random curve number {random_sample}")
     data, G = load_S_B_G(points_amount=model_size, lower_index=random_sample, upper_index=random_sample + 1)
 
@@ -43,15 +39,7 @@ if __name__ == "__main__":
         S_est = solve_gradient_descent(
             G=G,
             B=B_target,
-            hyperparams=NesterovHyperparams(
-                REG_WEIGHT=config['reg_weight'],
-                LR_MAX=config['lr_max'],
-                MOMENTUM=config['momentum'],
-                model_path=str(_DATA_DIR / f"sele_score_net_d{str(model_size)}_100k.pt"),
-                IS_SHOW_DEBUG_PLOT=False,
-                IS_SHOW_DEBUG_DATA=True,
-                IS_SHOW_MSE_PLOT=True
-            ),
+            hyperparams=hyperparams,
             S_gt=S_gt,
         )
 
@@ -78,7 +66,8 @@ if __name__ == "__main__":
         plt.show(block=False)
 
         fig2, ax = plt.subplots()
-        wavelengths = load_csv("Data/wavelength_nm.csv").ravel()  # wavelengths of G [nm]
+        wavelengths = load_csv(
+            str(Path(__file__).resolve().parents[4] / "Data" / "wavelength_nm.csv")).ravel()  # wavelengths of G [nm]
         ax.plot(wavelengths, B_target, label='Measured')
         ax.plot(wavelengths, B_est, '--', label='Reconstructed')
         ax.set_xlabel('Wavelength [nm]')

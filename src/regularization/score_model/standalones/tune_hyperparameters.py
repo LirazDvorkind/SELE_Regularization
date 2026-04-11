@@ -1,23 +1,73 @@
 """Tune hyperparameters over a large set of curves"""
-from pathlib import Path
+from dataclasses import replace
 import numpy as np
-
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data" / "score_model"
 import pandas as pd
 import itertools
 import os
+from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
 
 from src.regularization.score_model.standalones.helpers import load_S_B_G
-from src.regularization.score_model.score_model_grad import solve_gradient_descent
-from src.types.score_model_params import NesterovHyperparams
+from src.regularization.score_model.score_model_grad import solve_gradient_descent, load_score_model
+from src.types.config import SCORE_MODEL_PRESETS
 
+# Preset whose model_path and non-tuned settings are inherited by every trial.
+PRESET = "d500"  # "d32" or "d500"
+
+# Number of parallel worker processes.
+# -1 = use all available CPU cores; 1 = single-process (no parallelism).
+N_WORKERS = -1
 
 # --- CONFIGURATION ---
+# Ranges are tuned for d500: larger model → smaller safe LR, high-dim space → lower momentum,
+# sinusoidal time embedding → T0 matters more and should be explored explicitly.
 PARAM_GRID = {
-    'reg_weight': [1, 2.5, 5, 10, 20],
-    'lr_max': [0.01, 0.02, 0.04],
-    'momentum': [0.8, 0.9, 0.95]
+    'reg_weight': [1, 5, 15],               # Low / mid / high score trust
+    'lr_max':     [5e-4, 2e-3, 5e-3],       # All below d32's 1e-2; d500 needs smaller steps
+    'momentum':   [0.75, 0.9],              # Test reduced inertia vs standard
+    't0':         [5e-3, 2e-2, 1e-1],       # Fine detail → coarse; d500 sinusoidal embed is sensitive to this
 }
+
+
+# --- Module-level globals used inside worker processes ---
+_worker_model = None  # Set once per worker via _worker_init
+
+
+def _worker_init(model_path: str) -> None:
+    """Called once per worker process to load the score model into a global."""
+    global _worker_model
+    _worker_model = load_score_model(model_path)
+
+
+def _run_single_simulation(args: tuple) -> dict:
+    """Run one (config, curve) simulation. Executed inside a worker."""
+    config, item, G_matrix = args
+    B_target = item['B']
+    S_gt = item['S_gt']
+
+    S_est = solve_gradient_descent(
+        G=G_matrix,
+        B=B_target,
+        hyperparams=replace(
+            SCORE_MODEL_PRESETS[PRESET],
+            REG_WEIGHT=config['reg_weight'],
+            LR_MAX=config['lr_max'],
+            MOMENTUM=config['momentum'],
+            T0=config['t0'],
+            IS_SHOW_DEBUG_PLOT=False,
+            IS_SHOW_DEBUG_DATA=False,
+            IS_SHOW_MSE_PLOT=False,
+        ),
+        S_gt=S_gt,
+        preloaded_model=_worker_model,
+    )
+
+    B_est = G_matrix @ S_est
+    return {
+        **config,
+        'ele_error': np.mean((B_est - B_target) ** 2),
+        'sele_error': np.mean((S_est - S_gt) ** 2),
+    }
 
 
 def run_tuning_suite(dataset, G_matrix):
@@ -25,59 +75,36 @@ def run_tuning_suite(dataset, G_matrix):
     keys, values = zip(*PARAM_GRID.items())
     combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    total_runs = len(combinations) * len(dataset)
+    n_workers = os.cpu_count() if N_WORKERS == -1 else N_WORKERS
+    model_path = SCORE_MODEL_PRESETS[PRESET].model_path
+
+    total_simulations = len(combinations) * len(dataset)
     print(f"--- Starting Grid Search ---")
     print(f"Testing {len(combinations)} configs on {len(dataset)} curves.")
-    print(f"Total Simulations: {total_runs}")
+    print(f"Total Simulations: {total_simulations}")
+    print(f"Workers: {n_workers} (model loaded once per worker)")
 
-    results = []
-    run_count = 0
+    args_list = [(config, item, G_matrix) for config in combinations for item in dataset]
 
-    for config in combinations:
-        ele_errors = []  # Data Misfit (G*S - B)
-        sele_errors = []  # Reconstruction Error (S - S_gt)
+    with ProcessPoolExecutor(
+        max_workers=n_workers,
+        initializer=_worker_init,
+        initargs=(model_path,),
+    ) as executor:
+        raw = list(tqdm(executor.map(_run_single_simulation, args_list), total=total_simulations, desc="Grid Search"))
 
-        for item in dataset:
-            B_target = item['B']
-            S_gt = item['S_gt']
-
-            # --- RUN SOLVER ---
-            S_est = solve_gradient_descent(
-                G=G_matrix,
-                B=B_target,
-                hyperparams=NesterovHyperparams(
-                    REG_WEIGHT=config['reg_weight'],
-                    LR_MAX=config['lr_max'],
-                    MOMENTUM=config['momentum'],
-                    model_path=str(_DATA_DIR / "sele_score_net_d500.pt"),
-                    IS_SHOW_DEBUG_PLOT=False,
-                    IS_SHOW_DEBUG_DATA=False,
-                    IS_SHOW_MSE_PLOT=False,
-                ),
-                S_gt=S_gt,
-            )
-
-            # 1. Calculate ELE Error (Data Misfit) - [USER REQUESTED METRIC]
-            B_est = G_matrix @ S_est
-            mse_ele = np.mean((B_est - B_target) ** 2)
-            ele_errors.append(mse_ele)
-
-            # 2. Calculate SELE Error (Ground Truth Misfit) - [FOR SAFETY CHECK]
-            mse_sele = np.mean((S_est - S_gt) ** 2)
-            sele_errors.append(mse_sele)
-
-            run_count += 1
-            if run_count % (total_runs // 10) == 0:
-                print(f"Progress: {100 * run_count / total_runs:.2f}%... ({run_count}/{total_runs})")
-
-        results.append({
-            **config,
-            'mean_ele_error': np.mean(ele_errors),  # The primary metric
-            'mean_sele_error': np.mean(sele_errors),  # The sanity check
-            'max_ele_error': np.max(ele_errors)
-        })
-
-    return pd.DataFrame(results)
+    # Aggregate per-config: mean/max over all curves
+    config_keys = list(PARAM_GRID.keys())
+    df = pd.DataFrame(raw)
+    return (
+        df.groupby(config_keys)
+        .agg(
+            mean_ele_error=('ele_error', 'mean'),
+            mean_sele_error=('sele_error', 'mean'),
+            max_ele_error=('ele_error', 'max'),
+        )
+        .reset_index()
+    )
 
 
 def generate_report(df):
@@ -88,20 +115,22 @@ def generate_report(df):
     print("\n" + "=" * 50)
     print(f"🏆 WINNER (Lowest SELE Data Error)")
     print("=" * 50)
-    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Mom={best_run['momentum']}")
+    print(f"Parameters: Reg={best_run['reg_weight']} | LR={best_run['lr_max']} | Mom={best_run['momentum']} | T0={best_run['t0']}")
     print(f"Error (SELE) : {best_run['mean_sele_error']:.2e} (Primary)")
     print(f"Error (ELE): {best_run['mean_ele_error']:.2e} (Sanity Check)")
     print("=" * 50)
 
-    # Check for Overfitting Warning
-    # If ELE error is low but SELE error is high compared to other runs, we are overfitting noise.
+    # Check for prior-dominated warning:
+    # If the best-SELE run has above-median ELE error, the score prior dominated the solution
+    # at the cost of data fidelity — the reconstruction fits the prior well but not the measurements.
     if best_run['mean_ele_error'] > df['mean_ele_error'].median():
-        print("⚠️ WARNING: The selected parameters have low Reconstruction Error but HIGH Data Error.")
+        print("WARNING: The selected parameters have HIGH Reconstruction Error — the score prior may be dominating the solution at the cost of data fidelity.")
 
 
 # --- MAIN EXECUTION BLOCK ---
 if __name__ == "__main__":
-    data, G = load_S_B_G(points_amount=500)
+    points_amount = 32 if PRESET == "d32" else 500
+    data, G = load_S_B_G(points_amount=points_amount)
 
     # Run Tuning
     results_df = run_tuning_suite(data, G)
@@ -113,3 +142,20 @@ if __name__ == "__main__":
     os.makedirs("Results/tuning", exist_ok=True)
     results_df.to_csv("Results/tuning/hyperparameter_tuning_results_500.csv", index=False)
     print("Saved tuning results to Results/tuning/hyperparameter_tuning_results_500.csv")
+
+
+# TODO: Remaining known issues (unhandled):
+#
+# 1. Early stopping creates unequal comparison budgets
+#    The solver stops when |MSE[i] - MSE[i-1]| < STOP_CHANGE for 20 consecutive steps, and also
+#    hard-exits if MSE > 1 at step 51. Configs that diverge get cut short while slow-converging
+#    configs run to MAX_STEPS — making cross-config comparison unfair.
+#
+# 2. LR_MIN is not co-tuned with LR_MAX
+#    The cosine schedule runs LR_MAX → LR_MIN=1e-5 (fixed). At LR_MAX=5e-4 the ratio is 50x;
+#    at LR_MAX=5e-3 it is 500x. These are structurally different schedules, so tuning LR_MAX
+#    alone conflates schedule shape with peak LR. Either tune LR_MIN jointly or fix the ratio.
+#
+# 3. No incremental save
+#    If the run crashes after 90% of simulations, all results are lost. Consider checkpointing
+#    partial results to CSV after each config completes.

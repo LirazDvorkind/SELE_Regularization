@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -13,7 +13,8 @@ from src.types.enums import RegularizationMethod
 from src.__init__ import CONFIG
 
 
-def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInputData) \
+def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInputData,
+                    mesh_resolution: Optional[int] = None) \
         -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     A driver function that returns the mesh and corresponding optical generation matrix G, given the desired
@@ -24,11 +25,15 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
     regularization_method
         The chosen regularization method (an enum value)
 
-    config
-        The app's config
-
     G_values
         The optical parameters vectors needed to calculate G
+
+    mesh_resolution
+        Number of spatial elements in the discretization (solver hyperparameter, not a device property).
+        Required for MODEL_SCORE_GRAD — must equal the score model's target_length so G's column count
+        aligns with the model's expected input dimension. Derive it from the model checkpoint before
+        calling this function. Has no effect for NON_UNIFORM_MESH (which determines resolution from
+        physical mesh parameters) or TOTAL_VARIATION.
 
     Returns
     -------
@@ -57,13 +62,15 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         G, z = G_new, z_new
         return G, z
     elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_config.W, CONFIG.total_variation_template_config.points_amount)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_config.W, CONFIG.total_variation_template_config.mesh_resolution)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
         return G, z
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_config.W, CONFIG.model_score_grad_config.points_amount)
+        if mesh_resolution is None:
+            raise ValueError("mesh_resolution must be provided for MODEL_SCORE_GRAD — derive it from the model checkpoint's target_length.")
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_config.W, mesh_resolution)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)

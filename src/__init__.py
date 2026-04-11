@@ -1,8 +1,7 @@
 """SELE toolbox with non‑uniform mesh support."""
-from src.types.config import DataPaths, Config
-from src.types.config import NonUniformMeshConfig, TotalVariationTemplateConfig, ModelScoreGradConfig
+from src.types.config import DataPaths, Config, SCORE_MODEL_PRESETS
+from src.types.config import NonUniformMeshConfig, TotalVariationTemplateConfig
 from src.types.enums import RegularizationMethod, LFlag
-from src.types.score_model_params import NesterovHyperparams
 
 # Config defined here so all .py files can import it safely without circular imports (global parameter!)
 CONFIG = Config(
@@ -36,14 +35,15 @@ CONFIG = Config(
         # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
         # Don't touch these!
         W=30e-4,  # cm
-        points_amount=500,
+        mesh_resolution=500,
         kappa2_range=(1e-2, 1e-6),
         n_kappa2=30
     ),
-    model_score_grad_config=ModelScoreGradConfig(
-        W=30e-4,  # cm
-        points_amount=500,
-        longer_points_amount=500,
-        num_steps=200
-    )
+    # Presets are defined in src/types/config.py — one entry per trained checkpoint,
+    # each with tuned Nesterov hyperparameters (REG_WEIGHT, MOMENTUM, LR_MAX, T0, …).
+    # To switch models: change "d500" → "d32" (or any key in SCORE_MODEL_PRESETS).
+    # To tweak a single param without leaving the preset:
+    #   from dataclasses import replace
+    #   model_score_grad_config=replace(SCORE_MODEL_PRESETS["d500"], REG_WEIGHT=5.0)
+    model_score_grad_config=SCORE_MODEL_PRESETS["d500"],
 )

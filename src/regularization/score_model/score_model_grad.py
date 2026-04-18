@@ -129,6 +129,7 @@ def solve_gradient_descent(
 
     # Trackers
     mse_history = []
+    score_mag_history = []
     small_error_steps_amount = 0
 
     # 5. Nesterov Optimization Loop
@@ -162,13 +163,15 @@ def solve_gradient_descent(
         # Adaptive scalar weighting: REG_WEIGHT controls ratio of data fidelity vs prior, independent of their absolute magnitudes.
         grad_norm_mag = np.linalg.norm(grad_fidelity_norm)
         score_mag = np.linalg.norm(score_model) + 1e-12
-        adaptive_factor = (grad_norm_mag / score_mag) * hyperparams.REG_WEIGHT
+        score_mag_history.append(score_mag)
+        adaptive_factor = (grad_norm_mag / score_mag)
         score_weighted = score_model * adaptive_factor
-        total_update = grad_fidelity_norm - score_weighted
-
         # --- E. Momentum Update ---
         # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
         current_lr = hyperparams.LR_MIN + 0.5 * (hyperparams.LR_MAX - hyperparams.LR_MIN) * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
+        # Cosine anneal REG_WEIGHT from its initial value to 0
+        current_reg_weight = hyperparams.REG_WEIGHT * 0.5 * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
+        total_update = grad_fidelity_norm - (score_model *  hyperparams.REG_WEIGHT )
         # v^(t+1) = mu * v^(t) - eta * (grad - score_weighted)
         velocity = hyperparams.MOMENTUM * velocity - current_lr * total_update
 
@@ -224,17 +227,32 @@ def solve_gradient_descent(
                 plt.grid(True, alpha=0.3)
                 plt.show()
 
-    # Plot MSE History
-    if hyperparams.IS_SHOW_MSE_PLOT and S_gt is not None and len(mse_history) > 0:
-        plt.figure(figsize=(8, 4))
-        plt.plot(mse_history, label="SELE Reconstruction error vs GT")
-        plt.yscale('log')  # Log scale is usually better for convergence plots
-        plt.xlabel("Optimization Step")
-        plt.ylabel("Mean Squared Error (Physical Units)")
-        plt.title("Convergence of SELE Reconstruction")
-        plt.grid(True, which="both", linestyle='--', alpha=0.5)
-        plt.legend()
-        plt.show()
+    # Plot MSE and Score Magnitude History
+    if hyperparams.IS_SHOW_MSE_PLOT:
+        fig, axes = plt.subplots(1, 2, figsize=(14, 4))
+
+        if S_gt is not None and len(mse_history) > 0:
+            axes[0].plot(mse_history, label="SELE Reconstruction MSE vs GT")
+            axes[0].set_yscale('log')
+            axes[0].set_xlabel("Optimization Step")
+            axes[0].set_ylabel("Mean Squared Error (Physical Units)")
+            axes[0].set_title("SELE Reconstruction Error Convergence")
+            axes[0].grid(True, which="both", linestyle='--', alpha=0.5)
+            axes[0].legend()
+        else:
+            axes[0].set_visible(False)
+
+        if len(score_mag_history) > 0:
+            axes[1].plot(score_mag_history, color='orange', label="Score Magnitude (L2 Norm)")
+            axes[1].set_yscale('log')
+            axes[1].set_xlabel("Optimization Step")
+            axes[1].set_ylabel("Score Magnitude (L2 Norm)")
+            axes[1].set_title("Score Network Output Magnitude")
+            axes[1].grid(True, which="both", linestyle='--', alpha=0.5)
+            axes[1].legend()
+
+        plt.tight_layout()
+        plt.show(block=False)
 
     # 6. Final Un-normalization
     S_final = (S_norm + 1.0) / norm_scale_factor + d_min

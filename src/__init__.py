@@ -1,6 +1,6 @@
 """SELE toolbox with non‑uniform mesh support."""
 from src.types.config import DataPaths, Config, SCORE_MODEL_PRESETS
-from src.types.config import NonUniformMeshConfig, TotalVariationTemplateConfig
+from src.types.config import NonUniformMeshConfig, TotalVariationConfig
 from src.types.enums import RegularizationMethod, LFlag
 
 # Config defined here so all .py files can import it safely without circular imports (global parameter!)
@@ -16,9 +16,9 @@ CONFIG = Config(
         score_model_curve="Data/sele_score_model_curve.csv",
     ),
     L_flag=LFlag.L2,
-    regularization_method=RegularizationMethod.MODEL_SCORE_GRAD,
+    regularization_method=RegularizationMethod.TOTAL_VARIATION,
     is_save_plots=True,
-    kappa_range=(1e3, 1e-3),
+    kappa_range=(1e-3, 1e-7),
     n_kappa=40, # was 150
     conf_window=10 ** 0.5,
     e_charge=1.60217657e-19,
@@ -31,13 +31,9 @@ CONFIG = Config(
         lin_mesh_size=1e-5,
         exp_base=400.0,
     ),
-    total_variation_template_config=TotalVariationTemplateConfig(
-        # Grid parameters used by Alon in `sele_w_score_optimization_example.py`
-        # Don't touch these!
-        W=30e-4,  # cm
+    total_variation_config=TotalVariationConfig(
+        W=30e-4,
         mesh_resolution=500,
-        kappa2_range=(1e-2, 1e-6),
-        n_kappa2=30
     ),
     # Presets are defined in src/types/config.py — one entry per trained checkpoint,
     # each with tuned Nesterov hyperparameters (REG_WEIGHT, MOMENTUM, LR_MAX, T0, …).

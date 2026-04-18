@@ -60,19 +60,10 @@ class NonUniformMeshConfig:
     exp_base: float
 
 @dataclass
-class TotalVariationTemplateConfig:
-    """For when regularization method is TOTAL_VARIATION_TEMPLATE"""
+class TotalVariationConfig:
+    """For when regularization method is TOTAL_VARIATION"""
     W: float           # Device width [cm]
     mesh_resolution: int  # Spatial elements in the discretisation; more → finer resolution, slower solve
-
-    # Sweep range for κ₂ [max, min], the weight on the template term ||S - S_model||.
-    # κ₂ controls how strongly the solution is pulled toward the score-model template.
-    # Too high → solution matches template regardless of data; too low → template is ignored.
-    kappa2_range: Tuple[float, float]
-
-    # Number of κ₂ samples (log-spaced between kappa2_range).
-    # More samples → finer L-surface resolution, slower sweep.
-    n_kappa2: int
 
 @dataclass
 class ModelScoreGradConfig:
@@ -169,7 +160,7 @@ class Config:
     data_paths: DataPaths
 
     non_uniform_mesh_config: NonUniformMeshConfig
-    total_variation_template_config: TotalVariationTemplateConfig
+    total_variation_config: TotalVariationConfig
     model_score_grad_config: ModelScoreGradConfig
 
     # Which regularization mode to run — selects the solver branch in pipeline.py.

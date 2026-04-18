@@ -62,7 +62,7 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         G, z = G_new, z_new
         return G, z
     elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_template_config.W, CONFIG.total_variation_template_config.mesh_resolution)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_config.W, CONFIG.total_variation_config.mesh_resolution)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)

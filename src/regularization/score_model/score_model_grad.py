@@ -121,18 +121,10 @@ def solve_gradient_descent(
     G_norm = G * g_scale
     B_norm = B * g_scale
 
-    # Precompute full Hessian of data fidelity: H = 2 * G_norm^T G_norm / norm_scale_factor^2.
-    # The Beer-Lambert G matrix has strongly correlated adjacent columns (they share
-    # boundary terms exp(-α·z_j)), so off-diagonals are NOT negligible — a diagonal
-    # approximation causes neighbor-to-neighbor oscillations near the surface.
-    # We precompute H^{-1} (regularized) once and apply it as a full preconditioner.
-    H = 2.0 * (G_norm.T @ G_norm) / (norm_scale_factor ** 2)
-    H_reg = H + 1e-10 * np.trace(H) / N * np.eye(N)  # Tikhonov-regularized for invertibility
-    H_inv = np.linalg.inv(H_reg)
 
     # 4. Initialization
-    # Initialize at center of normalized range (avoids starting outside training distribution)
-    S_norm = np.zeros(N)
+    # Initialize x (S_norm) and velocity (v)
+    S_norm = np.random.randn(N)
     velocity = np.zeros_like(S_norm) # Initialize momentum buffer v^(0) = 0
 
     # Trackers
@@ -166,16 +158,13 @@ def solve_gradient_descent(
         with torch.no_grad():
             score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
 
-        # --- D. Preconditioned Gradient + Global Score Weighting ---
-        # Apply H^{-1} to the data gradient (quasi-Newton step).  This accounts for
-        # the full column-coupling structure of G^T G, eliminating the neighbor-to-
-        # neighbor oscillations that a diagonal preconditioner would cause.
-        preconditioned_grad = H_inv @ grad_fidelity_norm
-
-        # Global scalar weighting preserves the MAP objective structure:
-        #   total_update = ∇_data_preconditioned - REG_WEIGHT * score
-        score_weighted = score_model * hyperparams.REG_WEIGHT
-        total_update = preconditioned_grad - score_weighted
+        # --- D. Adaptive Scalar Weighting ---
+        # Adaptive scalar weighting: REG_WEIGHT controls ratio of data fidelity vs prior, independent of their absolute magnitudes.
+        grad_norm_mag = np.linalg.norm(grad_fidelity_norm)
+        score_mag = np.linalg.norm(score_model) + 1e-12
+        adaptive_factor = (grad_norm_mag / score_mag) * hyperparams.REG_WEIGHT
+        score_weighted = score_model * adaptive_factor
+        total_update = grad_fidelity_norm - score_weighted
 
         # --- E. Momentum Update ---
         # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
@@ -221,9 +210,7 @@ def solve_gradient_descent(
         # --- Monitoring & Plotting ---
         if hyperparams.IS_SHOW_DEBUG_DATA and i % (hyperparams.MAX_STEPS // 20) == 0:
             mse_str = f" | MSE={current_mse:.2e}" if S_gt is not None else ""
-            precond_grad_mag = np.linalg.norm(preconditioned_grad)
-            score_mag = np.linalg.norm(score_model) + 1e-12
-            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | PrecondGradMag={precond_grad_mag:.2e} | ScoreWeight={hyperparams.REG_WEIGHT:.2e}{mse_str}")
+            print(f"Iter={i:04d} | ScoreMag={score_mag:.2e} | DataGradMag={grad_norm_mag:.2e} | AdaptFactor={adaptive_factor:.2e}{mse_str}")
 
             # Debug Plotting
             if hyperparams.IS_SHOW_DEBUG_PLOT:

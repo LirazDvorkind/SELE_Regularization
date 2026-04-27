@@ -130,6 +130,7 @@ def solve_gradient_descent(
     # Trackers
     mse_history = []
     score_mag_history = []
+    residual_norm_history = []
     small_error_steps_amount = 0
 
     # 5. Nesterov Optimization Loop
@@ -164,6 +165,7 @@ def solve_gradient_descent(
         grad_norm_mag = np.linalg.norm(grad_fidelity_norm)
         score_mag = np.linalg.norm(score_model) + 1e-12
         score_mag_history.append(score_mag)
+        residual_norm_history.append(np.linalg.norm(residual))
         adaptive_factor = (grad_norm_mag / score_mag)
         score_weighted = score_model * adaptive_factor
         # --- E. Momentum Update ---
@@ -227,29 +229,25 @@ def solve_gradient_descent(
                 plt.grid(True, alpha=0.3)
                 plt.show()
 
-    # Plot MSE and Score Magnitude History
+    # Plot Data Gradient Norm and Score Magnitude History
     if hyperparams.IS_SHOW_MSE_PLOT:
         fig, axes = plt.subplots(1, 2, figsize=(14, 4))
 
-        if S_gt is not None and len(mse_history) > 0:
-            axes[0].plot(mse_history, label="SELE Reconstruction MSE vs GT")
-            axes[0].set_yscale('log')
-            axes[0].set_xlabel("Optimization Step")
-            axes[0].set_ylabel("Mean Squared Error (Physical Units)")
-            axes[0].set_title("SELE Reconstruction Error Convergence")
-            axes[0].grid(True, which="both", linestyle='--', alpha=0.5)
-            axes[0].legend()
-        else:
-            axes[0].set_visible(False)
+        axes[0].plot(residual_norm_history, label="||G_norm @ S_phys - B_norm|| (L2)")
+        axes[0].set_yscale('log')
+        axes[0].set_xlabel("Optimization Step")
+        axes[0].set_ylabel("||G_norm @ S_phys - B_norm|| (L2)")
+        axes[0].set_title("Data Residual Convergence")
+        axes[0].grid(True, which="both", linestyle='--', alpha=0.5)
+        axes[0].legend()
 
-        if len(score_mag_history) > 0:
-            axes[1].plot(score_mag_history, color='orange', label="Score Magnitude (L2 Norm)")
-            axes[1].set_yscale('log')
-            axes[1].set_xlabel("Optimization Step")
-            axes[1].set_ylabel("Score Magnitude (L2 Norm)")
-            axes[1].set_title("Score Network Output Magnitude")
-            axes[1].grid(True, which="both", linestyle='--', alpha=0.5)
-            axes[1].legend()
+        axes[1].plot(score_mag_history, color='orange', label="Score Magnitude (L2 Norm)")
+        axes[1].set_yscale('log')
+        axes[1].set_xlabel("Optimization Step")
+        axes[1].set_ylabel("Score Magnitude (L2 Norm)")
+        axes[1].set_title("Score Network Output Magnitude")
+        axes[1].grid(True, which="both", linestyle='--', alpha=0.5)
+        axes[1].legend()
 
         plt.tight_layout()
         plt.show(block=False)

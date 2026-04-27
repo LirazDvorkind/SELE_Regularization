@@ -27,8 +27,7 @@ Expected shape for a p-type GaAs wafer (paper Figure 2b):
 
 - **Near surface (z ~ 0)**: LOW (~0.05-0.1) due to surface recombination suppressing radiative recombination
 - **Rises to peak** (~0.3-0.45) at ~0.5-1 µm; peak position correlates with minority carrier diffusion length
-- **Slowly decays** deeper (self-absorption); sub-bandgap photons are hardly reabsorbed so decay is gradual
-- **Nonzero throughout** the entire 350 µm wafer (confirmed by transmission-mode PL)
+- **Decays toward 0** deeper (self-absorption); the profile approaches ~0 at the back of the 350 µm wafer
 
 | Physical Parameter | Effect on SELE |
 |--------------------|----------------|

@@ -197,11 +197,27 @@ def run_regularization():
             save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
             save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
         else:
+            # Optional TV warm-start: solve TV on the same G/B and feed the result
+            # in as the NAG initial point instead of random noise.
+            S_init = None
+            if CONFIG.model_score_grad_config.warm_start_with_tv:
+                kappa_override = CONFIG.model_score_grad_config.warm_start_tv_kappa
+                if kappa_override is not None:
+                    S_init, _ = total_variation.solve_tv(G, B, kappa_override)
+                    print(f"[TV warm-start] solved at κ={kappa_override:.3e}")
+                else:
+                    kappa_vals_ws = np.logspace(np.log10(kappa_max), np.log10(kappa_min), n_kappa)
+                    residuals_ws, tv_norms_ws, S_list_ws = total_variation.sweep_kappa_tv(G, B, kappa_vals_ws)
+                    kappa_knee_ws, knee_idx_ws = tikhonov_non_uniform.find_knee(residuals_ws, tv_norms_ws, kappa_vals_ws)
+                    S_init = S_list_ws[knee_idx_ws]
+                    print(f"[TV warm-start] κ_knee={kappa_knee_ws:.3e}, using S_knee as score-grad init")
+
             S_rec = score_model_grad.solve_gradient_descent(
                 G,
                 B,
                 hyperparams=CONFIG.model_score_grad_config,
                 S_gt=sele_gt,
+                S_init=S_init,
             )
             z_centres = 0.5 * (z[:-1] + z[1:])
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,

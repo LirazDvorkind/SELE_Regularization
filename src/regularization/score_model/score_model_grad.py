@@ -71,6 +71,7 @@ def _plot_step_debug(
     reg_weight: float,
     cos_sim: float,
     S_gt: NDArray | None = None,
+    save_path: str | None = None,
 ) -> None:
     """Single-step debug plot (3x2):
       - Row 1: physical S before/after (with optional GT) | normalized S before/after
@@ -177,6 +178,10 @@ def _plot_step_debug(
     ax.legend(loc="best")
 
     fig.tight_layout()
+    if save_path:
+        from pathlib import Path
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=100, bbox_inches='tight')
     plt.show()
 
 
@@ -187,6 +192,7 @@ def solve_gradient_descent(
     hyperparams: ModelScoreGradConfig,
     S_gt: NDArray,
     preloaded_model: tuple | None = None,
+    S_init: NDArray | None = None,
 ) -> NDArray:
     """
     Solves for SELE using Nesterov Accelerated Gradient (NAG) with Score-Based Priors.
@@ -194,6 +200,7 @@ def solve_gradient_descent(
     :param B: ELE vector, B = GS, Nx1 size
     :param hyperparams: ModelScoreGradConfig dataclass
     :param S_gt: SELE ground truth vector to plot difference and calculate metrics
+    :param S_init: Optional warm-start in physical units (length M). If None, random init.
     :return: S the SELE we found, Mx1 size
     """
     if hyperparams.IS_SHOW_DEBUG_DATA:
@@ -263,7 +270,14 @@ def solve_gradient_descent(
 
     # 4. Initialization
     # Initialize x (S_norm) and velocity (v)
-    S_norm = np.clip(np.random.randn(N) * 0.5, -1.0, 1.0)
+    if S_init is not None:
+        if len(S_init) != N:
+            raise ValueError(f"S_init has length {len(S_init)} but G has {N} columns.")
+        S_norm = np.clip((np.asarray(S_init, dtype=float) - d_min) * norm_scale_factor - 1.0, -1.0, 1.0)
+        if hyperparams.IS_SHOW_DEBUG_DATA:
+            print(f"[NAG] Warm-starting from provided S_init (||S_norm||={np.linalg.norm(S_norm):.3e})")
+    else:
+        S_norm = np.clip(np.random.randn(N) * 0.5, -1.0, 1.0)
     velocity = np.zeros_like(S_norm) # Initialize momentum buffer v^(0) = 0
 
     # Trackers
@@ -391,6 +405,7 @@ def solve_gradient_descent(
                 eta_fit_before = G_norm @ S_phys_before
                 eta_fit_after = G_norm @ S_phys_after
 
+                save_debug_path = f"results/debug/step_{i:05d}.png" if hyperparams.IS_SHOW_DEBUG_PLOT else None
                 _plot_step_debug(
                     step=i,
                     S_norm_before=S_norm_before,
@@ -412,6 +427,7 @@ def solve_gradient_descent(
                     reg_weight=hyperparams.REG_WEIGHT,
                     cos_sim=cos_sim,
                     S_gt=S_gt,
+                    save_path=save_debug_path,
                 )
 
     # Plot convergence history -- 2x3 grid of diagnostics
@@ -500,6 +516,10 @@ def solve_gradient_descent(
         ax.legend(lines + lines_r, labels + labels_r, loc="best")
 
         plt.tight_layout()
+        if hyperparams.IS_SHOW_MSE_PLOT:
+            from pathlib import Path
+            Path("results/debug").mkdir(parents=True, exist_ok=True)
+            plt.savefig("results/debug/convergence_diagnostics.png", dpi=100, bbox_inches='tight')
         plt.show(block=False)
 
     # 6. Final Un-normalization

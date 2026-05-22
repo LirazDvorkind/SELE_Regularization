@@ -121,6 +121,15 @@ class ModelScoreGradConfig:
     IS_SHOW_MSE_PLOT: bool = True
     IS_SHOW_DEBUG_DATA: bool = True
 
+    # --- TV warm-start ---
+    # If True, solve TV regularization on the same G/B first and use its result as
+    # the NAG initialization instead of random noise. Gives the score-grad solver a
+    # physically plausible starting point with no extra hyperparameter tuning.
+    warm_start_with_tv: bool = False
+    # If None, run a full κ-sweep + L-curve knee detection for the warm-start TV solve.
+    # If a float, solve TV at that single κ (much faster; skip the sweep).
+    warm_start_tv_kappa: float | None = None
+
 
 # ---------------------------------------------------------------------------
 # Named presets — one per trained model checkpoint.
@@ -151,6 +160,7 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         LR_MIN=1e-8,
         MAX_STEPS=5000,
         T0=5e-2,
+        warm_start_with_tv=True,
     ),
 }
 

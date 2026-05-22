@@ -117,7 +117,7 @@ class ModelScoreGradConfig:
     MIN_STEPS: int = 50  # Never stop before this many steps, regardless of convergence
 
     # --- Display flags ---
-    IS_SHOW_DEBUG_PLOT: bool = False
+    IS_SHOW_DEBUG_PLOT: bool = True
     IS_SHOW_MSE_PLOT: bool = True
     IS_SHOW_DEBUG_DATA: bool = True
 
@@ -143,9 +143,9 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
     # 500-point model: residual MLP + LayerNorm + sinusoidal time embedding.
     "d500": ModelScoreGradConfig(
         model_path=str(_SCORE_MODEL_DIR / "models" / "sele_score_net_d500.pt"),
-        W=30e-4,
+        W=30e-4, # Larger = more bias towards score
         output_mesh_resolution=10000,
-        REG_WEIGHT=200,
+        REG_WEIGHT=300,
         MOMENTUM=0.9,
         LR_MAX=1e-6,
         LR_MIN=1e-8,

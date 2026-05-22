@@ -42,6 +42,7 @@ class TestMode(Enum):
     INCREASING_EXP = "increasing_exp"
     PIECEWISE_LINEAR = "piecewise_linear"
     STRAIGHT_LINE = "straight_line"
+    FLAT_ZERO = "flat_zero"
 
 
 class ModelChoice(Enum):
@@ -60,7 +61,7 @@ T0 = 0.1
 device = torch.device('cpu')
 
 # ---- Change these to select what to test ----
-TEST_MODE = TestMode.PIECEWISE_LINEAR
+TEST_MODE = TestMode.FLAT_ZERO
 ACTIVE_MODEL = ModelChoice.MY_D500
 
 
@@ -86,6 +87,10 @@ def make_piecewise_linear(S_gt: NDArray) -> NDArray:
     knot_indices = np.linspace(0, n - 1, 10, dtype=int)
     knot_values = S_gt[knot_indices]
     return np.interp(np.arange(n), knot_indices, knot_values)
+
+
+def make_flat_zero(S_ref: NDArray) -> NDArray:
+    return np.zeros(len(S_ref))
 
 
 def make_straight_line(S_ref: NDArray) -> NDArray:
@@ -269,6 +274,8 @@ if __name__ == '__main__':
         S_gt = make_piecewise_linear(S_ref)
     elif TEST_MODE == TestMode.STRAIGHT_LINE:
         S_gt = make_straight_line(S_ref)
+    elif TEST_MODE == TestMode.FLAT_ZERO:
+        S_gt = make_flat_zero(S_ref)
     else:
         raise ValueError(f"Unknown TEST_MODE: {TEST_MODE}")
 

@@ -43,6 +43,7 @@ class TestMode(Enum):
     PIECEWISE_LINEAR = "piecewise_linear"
     STRAIGHT_LINE = "straight_line"
     FLAT_ZERO = "flat_zero"
+    PIPELINE_GT = "pipeline_gt"
 
 
 class ModelChoice(Enum):
@@ -52,16 +53,19 @@ class ModelChoice(Enum):
 
 
 _DATA_DIR = Path(__file__).resolve().parents[5] / "Data" / "score_model"
+_ROOT_DATA_DIR = Path(__file__).resolve().parents[5] / "Data"
 ALON_MODEL_PATH = _DATA_DIR / 'models' / 'alon_sele_score_net_d32.pt'
 MY_MODEL_PATH_D32 = _DATA_DIR / 'models' / 'sele_score_net_d32.pt'
 MY_MODEL_PATH_D500 = _DATA_DIR / 'models' / 'sele_score_net_d500.pt'
 DATASET_PATH = _DATA_DIR / 'datasets' / 'sele_simulated_1000_curves_500_long_more_dip.csv'
+PIPELINE_GT_PATH = _ROOT_DATA_DIR / 'SELE_ground_truth.csv'
+PIPELINE_Z_GT_PATH = _ROOT_DATA_DIR / 'z_mesh.csv'
 
 T0 = 0.1
 device = torch.device('cpu')
 
 # ---- Change these to select what to test ----
-TEST_MODE = TestMode.FLAT_ZERO
+TEST_MODE = TestMode.PIPELINE_GT
 ACTIVE_MODEL = ModelChoice.MY_D500
 
 
@@ -91,6 +95,15 @@ def make_piecewise_linear(S_gt: NDArray) -> NDArray:
 
 def make_flat_zero(S_ref: NDArray) -> NDArray:
     return np.zeros(len(S_ref))
+
+
+def load_pipeline_gt(target_length: int) -> tuple[NDArray, NDArray]:
+    """Load the pipeline ground truth SELE and interpolate to target_length points."""
+    sele_gt = np.loadtxt(PIPELINE_GT_PATH, delimiter=',').ravel()
+    z_gt = np.loadtxt(PIPELINE_Z_GT_PATH, delimiter=',').ravel()
+    z_uniform = np.linspace(z_gt[0], z_gt[-1], target_length)
+    sele_interp = np.interp(z_uniform, z_gt, sele_gt)
+    return sele_interp, z_uniform
 
 
 def make_straight_line(S_ref: NDArray) -> NDArray:
@@ -264,7 +277,22 @@ if __name__ == '__main__':
     else:
         my_model_path = MY_MODEL_PATH_D500
 
-    S_ref = load_correct_curve()
+    if TEST_MODE == TestMode.PIPELINE_GT:
+        # Determine target_length from model checkpoint before loading dataset
+        if ACTIVE_MODEL == ModelChoice.ALON_D32:
+            _target_len = 32
+        elif ACTIVE_MODEL == ModelChoice.MY_D32:
+            _ckpt = torch.load(MY_MODEL_PATH_D32, map_location=device, weights_only=False)
+            _target_len = _ckpt['config']['target_length']
+        else:
+            _ckpt = torch.load(MY_MODEL_PATH_D500, map_location=device, weights_only=False)
+            _target_len = _ckpt['config']['target_length']
+        S_gt, _z_gt_interp = load_pipeline_gt(_target_len)
+        S_ref = S_gt
+        z_axis_override = _z_gt_interp * 1e4  # cm -> µm (z_mesh.csv is in cm)
+    else:
+        S_ref = load_correct_curve()
+        z_axis_override = None
 
     if TEST_MODE == TestMode.CORRECT:
         S_gt = S_ref
@@ -276,6 +304,8 @@ if __name__ == '__main__':
         S_gt = make_straight_line(S_ref)
     elif TEST_MODE == TestMode.FLAT_ZERO:
         S_gt = make_flat_zero(S_ref)
+    elif TEST_MODE == TestMode.PIPELINE_GT:
+        pass  # S_gt already set above
     else:
         raise ValueError(f"Unknown TEST_MODE: {TEST_MODE}")
 
@@ -314,7 +344,7 @@ if __name__ == '__main__':
     S_norm_applied = S_norm + score_unit
     S_phys_applied = (S_norm_applied + 1.0) / norm_scale + d_min
 
-    z_axis = np.linspace(0, 30, len(S_gt))
+    z_axis = z_axis_override if z_axis_override is not None else np.linspace(0, 30, len(S_gt))
     S_original = S_ref if TEST_MODE == TestMode.PIECEWISE_LINEAR else None
 
     S_norm_100, S_phys_100 = run_iterative_score_steps(S_norm, score_network, d_min, d_max, n_steps=100, infer_fn=infer)

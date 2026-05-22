@@ -13,7 +13,9 @@ def _ensure_results_dir():
 
 
 def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_vals,
-                knee_idx: int, mask: Sequence[bool], *, save: bool = False):
+                knee_idx: int, mask: Sequence[bool], *,
+                seminorm_label: str = r'$||\,L S\,||_2$',
+                save: bool = False):
     seminorms = np.asarray(seminorms)
     residuals = np.asarray(residuals)
     mask = np.asarray(mask, dtype=bool)
@@ -58,7 +60,7 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
         sel.annotation.set_text(f"κ = {kappa_vals[i_global]:.2e}")
 
     ax.set_xlabel(r'$\varepsilon = ||\,G S - \eta_{\mathrm{ext}}\,||_2$')
-    ax.set_ylabel(r'$||\,L S\,||_2$')
+    ax.set_ylabel(seminorm_label)
     plt.title("Regularization Loss Curve")
     ax.legend()
 

@@ -60,19 +60,10 @@ class NonUniformMeshConfig:
     exp_base: float
 
 @dataclass
-class TotalVariationTemplateConfig:
-    """For when regularization method is TOTAL_VARIATION_TEMPLATE"""
+class TotalVariationConfig:
+    """For when regularization method is TOTAL_VARIATION"""
     W: float           # Device width [cm]
     mesh_resolution: int  # Spatial elements in the discretisation; more → finer resolution, slower solve
-
-    # Sweep range for κ₂ [max, min], the weight on the template term ||S - S_model||.
-    # κ₂ controls how strongly the solution is pulled toward the score-model template.
-    # Too high → solution matches template regardless of data; too low → template is ignored.
-    kappa2_range: Tuple[float, float]
-
-    # Number of κ₂ samples (log-spaced between kappa2_range).
-    # More samples → finer L-surface resolution, slower sweep.
-    n_kappa2: int
 
 @dataclass
 class ModelScoreGradConfig:
@@ -126,9 +117,18 @@ class ModelScoreGradConfig:
     MIN_STEPS: int = 50  # Never stop before this many steps, regardless of convergence
 
     # --- Display flags ---
-    IS_SHOW_DEBUG_PLOT: bool = False
+    IS_SHOW_DEBUG_PLOT: bool = True
     IS_SHOW_MSE_PLOT: bool = True
     IS_SHOW_DEBUG_DATA: bool = True
+
+    # --- TV warm-start ---
+    # If True, solve TV regularization on the same G/B first and use its result as
+    # the NAG initialization instead of random noise. Gives the score-grad solver a
+    # physically plausible starting point with no extra hyperparameter tuning.
+    warm_start_with_tv: bool = False
+    # If None, run a full κ-sweep + L-curve knee detection for the warm-start TV solve.
+    # If a float, solve TV at that single κ (much faster; skip the sweep).
+    warm_start_tv_kappa: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -152,14 +152,15 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
     # 500-point model: residual MLP + LayerNorm + sinusoidal time embedding.
     "d500": ModelScoreGradConfig(
         model_path=str(_SCORE_MODEL_DIR / "models" / "sele_score_net_d500.pt"),
-        W=30e-4,
+        W=30e-4, # Larger = more bias towards score
         output_mesh_resolution=10000,
-        REG_WEIGHT=200,
+        REG_WEIGHT=300,
         MOMENTUM=0.9,
         LR_MAX=1e-6,
         LR_MIN=1e-8,
         MAX_STEPS=5000,
         T0=5e-2,
+        warm_start_with_tv=True,
     ),
 }
 
@@ -169,7 +170,7 @@ class Config:
     data_paths: DataPaths
 
     non_uniform_mesh_config: NonUniformMeshConfig
-    total_variation_template_config: TotalVariationTemplateConfig
+    total_variation_config: TotalVariationConfig
     model_score_grad_config: ModelScoreGradConfig
 
     # Which regularization mode to run — selects the solver branch in pipeline.py.

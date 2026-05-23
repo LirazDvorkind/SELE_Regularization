@@ -1,4 +1,4 @@
-Run report - 2026-05-22T20:03:21
+Run report - 2026-05-23T16:04:55
 regularization_method                             : MODEL_SCORE_GRAD
 non_uniform_mesh_config.z_range.0                 : 0.035
 non_uniform_mesh_config.z_range.1                 : 1.462e-06
@@ -7,7 +7,7 @@ non_uniform_mesh_config.lin_mesh_size             : 1e-05
 non_uniform_mesh_config.exp_base                  : 400.0
 total_variation_config.W                          : 0.003
 total_variation_config.mesh_resolution            : 500
-model_score_grad_config.model_path                : C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\Data\score_model\models\sele_score_net_d500.pt
+model_score_grad_config.model_path                : C:\Users\Liraz\Documents\Dev\SELE_Regularization\Data\score_model\models\sele_score_net_d500.pt
 model_score_grad_config.W                         : 0.003
 model_score_grad_config.output_mesh_resolution    : 10000
 model_score_grad_config.REG_WEIGHT                : 300
@@ -22,7 +22,7 @@ model_score_grad_config.MIN_STEPS                 : 50
 model_score_grad_config.IS_SHOW_DEBUG_PLOT        : True
 model_score_grad_config.IS_SHOW_MSE_PLOT          : True
 model_score_grad_config.IS_SHOW_DEBUG_DATA        : True
-model_score_grad_config.warm_start_with_tv        : True
+model_score_grad_config.warm_start_with_tv        : False
 model_score_grad_config.warm_start_tv_kappa       : None
 L_flag                                            : L2
 kappa_range.0                                     : 0.001

@@ -160,7 +160,7 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         LR_MIN=1e-8,
         MAX_STEPS=5000,
         T0=5e-2,
-        warm_start_with_tv=False,
+        warm_start_with_tv=True,
     ),
 }
 

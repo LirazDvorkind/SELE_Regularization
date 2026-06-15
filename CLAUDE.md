@@ -31,7 +31,7 @@ Expected shape for a p-type GaAs wafer (paper Figure 2b):
 
 | Physical Parameter | Effect on SELE |
 |--------------------|----------------|
-| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE. Sensitive above 10⁴ cm/s. |
+| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE. |
 | SRH lifetime (tau_SRH) | Controls bulk SELE magnitude. Longer lifetime = higher bulk SELE. |
 | Diffusion length | Peak position ~ diffusion length when surface recomb dominates. |
 | Photon recycling | Increases quasi-Fermi level separation deep in material; keeps SELE nonzero far from surface. |

@@ -17,29 +17,6 @@ hbar = 6.582119569e-16;    % eV·s
 TK   = 299;                % K
 c0   = 2.998e10;           % cm/s
 
-%% Semiconductor parameters
-p0 = 1e19;
-
-NC = 8.63e13 * TK^(3/2);
-NV = 1.83e15 * TK^(3/2);
-
-dEg = ( ...
-    9.71  * (p0/1e18)^(1/3) + ...
-    12.19 * (p0/1e18)^(1/4) + ...
-    3.88  * (p0/1e18)^(1/2) ) / 1000;
-
-Eg = 1.519 ...
-   - 5.405e-4 * TK^2 / (TK + 204) ...
-   - 0.8 * dEg;
-
-ni = sqrt(NC * NV) * exp(-Eg / (2 * Kb * TK));
-
-%% Recombination parameters
-C_auger = 15e-30;
-B0      = 2.5e-10;
-
-tau_auger = 1 / (p0^2 * C_auger);
-tau_rad   = 1 / (p0 * B0);
 
 %% Emission-energy grid (used to integrate Sp(λ_emit, x) → SELE(x))
 % calc_Sp2 internally overrides alpha at index 153 with the random alpha_153.
@@ -51,8 +28,31 @@ n_samples = 1e4;
 data = zeros(n_samples, x_res);
 
 for i = 1:n_samples
+    %% Semiconductor parameters
+    p0 = 10^(log10(1e16) + (log10(1e19) - log10(1e16)) * rand); %1e19;
+    
+    NC = 8.63e13 * TK^(3/2);
+    NV = 1.83e15 * TK^(3/2);
+    
+    dEg = ( ...
+        9.71  * (p0/1e18)^(1/3) + ...
+        12.19 * (p0/1e18)^(1/4) + ...
+        3.88  * (p0/1e18)^(1/2) ) / 1000;
+    
+    Eg = 1.519 ...
+       - 5.405e-4 * TK^2 / (TK + 204) ...
+       - 0.8 * dEg;
+    
+    ni = sqrt(NC * NV) * exp(-Eg / (2 * Kb * TK));
+    
+    %% Recombination parameters
+    C_auger = 15e-30;
+    B0      = 2.5e-10;
+    
+    tau_auger = 1 / (p0^2 * C_auger);
+    tau_rad   = 1 / (p0 * B0);
 
-    % Randomized parameters (log-uniform)
+    %% Randomized parameters (log-uniform)
     D = 10^(log10(50) + (log10(200) - log10(50)) * rand);
     S = 10^(log10(1)  + (log10(1e7) - log10(1))  * rand);
     tau = 10^(log10(1e-10) + (log10(1e-6) - log10(1e-10)) * rand);
@@ -73,11 +73,11 @@ for i = 1:n_samples
 
     data(i, :) = SELE;
     figure()
-    plot(SELE,YDataSource = 'data(i,:)');d
+    plot(SELE,YDataSource = 'data(i,:)');
     ylabel("data(i,:)");
     title("data(i,:)");
     legend("show");
-    pause;
+    % pause;
     close all;
 end
 

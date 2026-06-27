@@ -212,14 +212,20 @@ def run_regularization():
                     S_init = S_list_ws[knee_idx_ws]
                     print(f"[TV warm-start] κ_knee={kappa_knee_ws:.3e}, using S_knee as score-grad init")
 
+            # Sample the ground-truth SELE onto the solver's physical mesh centres so the
+            # in-solver MSE/diagnostics compare like-for-like. The GT lives on z_gt (a ~294 µm
+            # axis) while the solver mesh spans W (~30 µm); index-based resampling would compress
+            # the GT ~10× onto the wrong depths and corrupt every GT-based metric.
+            z_centres = 0.5 * (z[:-1] + z[1:])
+            sele_gt_on_mesh = np.interp(z_centres, z_gt, sele_gt)
+
             S_rec = score_model_grad.solve_gradient_descent(
                 G,
                 B,
                 hyperparams=CONFIG.model_score_grad_config,
-                S_gt=sele_gt,
+                S_gt=sele_gt_on_mesh,
                 S_init=S_init,
             )
-            z_centres = 0.5 * (z[:-1] + z[1:])
             G_longer, z_longer = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
                                               CONFIG.model_score_grad_config.W,
                                               CONFIG.model_score_grad_config.output_mesh_resolution)

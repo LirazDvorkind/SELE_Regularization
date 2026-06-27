@@ -19,7 +19,7 @@ c0   = 2.998e10;           % cm/s
 
 
 %% Emission-energy grid (used to integrate Sp(λ_emit, x) → SELE(x))
-% calc_Sp2 internally overrides alpha at index 153 with the random alpha_153.
+% calc_Sp2 scales the whole emission-band alpha by the random alpha_scale.
 E_emit = 1240 ./ wavelength_PL;            % eV
 [E_sorted, sort_idx] = sort(E_emit(:));    % ascending (required by trapz)
 
@@ -57,7 +57,8 @@ for i = 1:n_samples
     S = 10^(log10(1)  + (log10(1e7) - log10(1))  * rand);
     tau = 10^(log10(1e-10) + (log10(1e-6) - log10(1e-10)) * rand);
 
-    alpha_153 = 150 + (15000 - 150) * rand;
+    % Emission-band absorption is hard to measure; vary it so the prior stays agnostic to it
+    alpha_scale = 10^(log10(0.1) + (log10(10) - log10(0.1)) * rand);
 
     % Effective lifetime
     tau_eff = 1 / (1/tau + 1/tau_rad + 1/tau_auger);
@@ -66,7 +67,7 @@ for i = 1:n_samples
     Sp_2d = calc_Sp2( ...
         x, wavelength_PL, p0, ni, tau_eff, S, D, ...
         n_k_wavelength, n_w_drude, k_w_drude, k_no_drude, ...
-        alpha_153);
+        alpha_scale);
 
     % Integrate over emission energy → true SELE(x)
     SELE = trapz(E_sorted, Sp_2d(sort_idx, :), 1);

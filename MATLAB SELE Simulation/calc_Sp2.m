@@ -1,4 +1,4 @@
-function [Sp] = calc_Sp2(x,wavelength,p0,ni,tau_eff,S, D,n_k_wavelength,n,k_w_drude,k_no_drude, alpha_153);
+function [Sp] = calc_Sp2(x,wavelength,p0,ni,tau_eff,S, D,n_k_wavelength,n,k_w_drude,k_no_drude, alpha_scale);
 % This function claculates the photon energy dependent probability to emit
 % a photon after a photogeneration event at point x. The inputs are:
 %  x: the points in space where Sp is calculated (cm)
@@ -32,7 +32,7 @@ Ln=sqrt(D*tau_eff);
 n_interp=interp1(n_k_wavelength,n,wavelength);
 k_interp=interp1(n_k_wavelength,k_w_drude,wavelength);
 alpha=4*pi.*k_interp./(wavelength*1e-7);  %in 1/cm
-alpha(153)=alpha_153;
+alpha=alpha.*alpha_scale;  % emission-band absorption is unknown; learn it as a free scale
 alpha_matrix=repmat(alpha',1,length(x));
 theta_c=asin(1./n_interp);
 [ ~,T,~ ] = Fresnel( n_interp,1,0 );

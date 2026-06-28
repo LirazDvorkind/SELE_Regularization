@@ -28,7 +28,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 MODELS: dict[str, str] = {
     "Alon's d32": str(_REPO_ROOT / "Data" / "score_model" / "models" / "alon_sele_score_net_d32.pt"),
     "My d32":     str(_REPO_ROOT / "Data" / "score_model" / "models" / "sele_score_net_d32.pt"),
-    "My d500":    str(_REPO_ROOT / "Data" / "score_model" / "models" / "sele_score_net_d500_sele_optimized.pt"),
+    "My d500":    str(_REPO_ROOT / "Data" / "score_model" / "models" / "sele_score_net_d500.pt"),
 }
 
 N_SAMPLES = 5

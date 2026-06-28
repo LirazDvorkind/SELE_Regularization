@@ -1,4 +1,4 @@
-Run report - 2026-06-28T18:50:33
+Run report - 2026-06-28T19:03:25
 regularization_method                             : MODEL_SCORE_GRAD
 non_uniform_mesh_config.z_range.0                 : 0.035
 non_uniform_mesh_config.z_range.1                 : 1.462e-06
@@ -7,12 +7,12 @@ non_uniform_mesh_config.lin_mesh_size             : 1e-05
 non_uniform_mesh_config.exp_base                  : 400.0
 total_variation_config.W                          : 0.003
 total_variation_config.mesh_resolution            : 500
-model_score_grad_config.model_path                : C:\Users\dvorkind\Dev\SELE_Regularization\Data\score_model\models\sele_score_net_d500_sele_optimized.pt
+model_score_grad_config.model_path                : C:\Users\dvorkind\Dev\SELE_Regularization\Data\score_model\models\sele_score_net_d500.pt
 model_score_grad_config.W                         : 0.003
 model_score_grad_config.output_mesh_resolution    : 10000
 model_score_grad_config.REG_WEIGHT                : 5.0
 model_score_grad_config.MOMENTUM                  : 0.9
-model_score_grad_config.LR_MAX                    : 0.005
+model_score_grad_config.LR_MAX                    : 0.0005
 model_score_grad_config.LR_MIN                    : 1e-08
 model_score_grad_config.MAX_STEPS                 : 50000
 model_score_grad_config.T0                        : 0.05

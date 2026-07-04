@@ -161,8 +161,8 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         # multiplier on an un-rescaled O(1) score and made the prior overpower the data).
         REG_WEIGHT=5.0,
         MOMENTUM=0.9,
-        LR_MAX=5e-4,
-        LR_MIN=1e-8,
+        LR_MAX=2.067e-4,
+        LR_MIN=2.067e-7,
         MAX_STEPS=50000,
         T0=5e-2,
         warm_start_with_tv=False,

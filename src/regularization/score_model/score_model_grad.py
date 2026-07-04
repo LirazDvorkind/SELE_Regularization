@@ -50,6 +50,92 @@ def load_score_model(model_path: str) -> tuple:
     return score_network, checkpoint['data_min'], checkpoint['data_max'], model_config['target_length']
 
 
+def compute_init_diagnostics(
+    G: NDArray,
+    B: NDArray,
+    preloaded_model: tuple,
+    hyperparams: ModelScoreGradConfig,
+    S_init: NDArray | None = None,
+) -> dict:
+    """Reproduce the solver's step-0 math without running the optimization loop.
+
+    This mirrors the setup + first-iteration computations of
+    ``solve_gradient_descent`` (normalization, data gradient, one score-net
+    forward pass, adaptive weighting) so a tuner can read the model's actual
+    gradient/score scale *before* committing to a full solve. Purely additive
+    and read-only -- it does not modify solver state and is import-only.
+
+    :param G: Photogeneration matrix (already in the physical units handed to
+        the solver, i.e. after ``unit_factor``), shape (L, M).
+    :param B: ELE vector, shape (L,).
+    :param preloaded_model: ``(score_network, d_min, d_max, target_length)``
+        from :func:`load_score_model`.
+    :param hyperparams: config supplying MOMENTUM/REG_WEIGHT (REG_WEIGHT at
+        step 0 equals its full value; T0 unused since step 0 queries SCORE_T_MAX).
+    :param S_init: optional warm-start in physical units (length M). If None,
+        uses the solver's deterministic random init.
+    :return: dict with grad_norm_mag, score_mag, adaptive_factor, cos_sim,
+        total_update_norm, norm_scale_factor, mean_G.
+    """
+    torch.manual_seed(42)
+    np.random.seed(42)
+    device = torch.device('cpu')
+
+    score_network, d_min, d_max, target_length = preloaded_model
+    if G.shape[1] != target_length:
+        raise ValueError(
+            f"G has {G.shape[1]} spatial elements but model expects {target_length}."
+        )
+
+    # --- Normalization (mirrors solve_gradient_descent section 2-3) ---
+    norm_scale_factor = 2.0 / (d_max - d_min)
+    N = G.shape[1]
+    mean_G = float(np.mean(np.abs(G)))
+    g_scale = 1.0 / (mean_G + 1e-12)
+    G_norm = G * g_scale
+    B_norm = B * g_scale
+
+    # --- Initialization (mirrors section 4). velocity=0 -> lookahead == S_norm ---
+    if S_init is not None:
+        S_norm = np.clip((np.asarray(S_init, dtype=float) - d_min) * norm_scale_factor - 1.0, -1.0, 1.0)
+    else:
+        S_norm = np.clip(np.random.randn(N) * 0.5, -1.0, 1.0)
+    S_lookahead = S_norm  # velocity is zero at step 0
+
+    # --- Data gradient at lookahead (section B) ---
+    S_phys_lookahead = (S_lookahead + 1.0) / norm_scale_factor + d_min
+    residual = G_norm @ S_phys_lookahead - B_norm
+    grad_fidelity = 2 * G_norm.T @ residual
+    grad_fidelity_norm = grad_fidelity * (1.0 / norm_scale_factor)
+
+    # --- Score network at step-0 diffusion time (== SCORE_T_MAX) ---
+    x_tensor = torch.tensor(S_lookahead, dtype=torch.float32, device=device).unsqueeze(0)
+    t_tensor = torch.tensor(np.array([SCORE_T_MAX]), dtype=torch.float32, device=device).unsqueeze(0)
+    with torch.no_grad():
+        score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
+
+    # --- Adaptive weighting (section D) ---
+    grad_norm_mag = float(np.linalg.norm(grad_fidelity_norm))
+    score_mag = float(np.linalg.norm(score_model) + 1e-12)
+    adaptive_factor = grad_norm_mag / score_mag
+    cos_sim = float(-np.dot(grad_fidelity_norm, score_model) / (grad_norm_mag * score_mag + 1e-12))
+    score_weighted = score_model * adaptive_factor
+
+    # At step 0 the cosine schedule gives current_reg_weight == REG_WEIGHT.
+    total_update = grad_fidelity_norm - (score_weighted * hyperparams.REG_WEIGHT)
+    total_update_norm = float(np.linalg.norm(total_update))
+
+    return {
+        'grad_norm_mag': grad_norm_mag,
+        'score_mag': score_mag,
+        'adaptive_factor': adaptive_factor,
+        'cos_sim': cos_sim,
+        'total_update_norm': total_update_norm,
+        'norm_scale_factor': norm_scale_factor,
+        'mean_G': mean_G,
+    }
+
+
 def _plot_step_debug(
     step: int,
     S_norm_before: NDArray,

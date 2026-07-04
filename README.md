@@ -80,3 +80,16 @@ Scripts in `src/regularization/score_model/standalones/` are run independently (
 ```bash
 python -m src.regularization.score_model.standalones.hyperparameter_playground
 ```
+
+| Script | Purpose |
+| ------ | ------- |
+| `hyperparameter_playground.py` | Quick test of one config on a random synthetic curve (prints MSE_ELE/MSE_SELE). |
+| `tune_hyperparameters.py` | Brute-force grid search over LR_MAX/REG_WEIGHT/MOMENTUM/T0 (thousands of full solves). |
+| `new_model_toolkit/` | One-stop toolkit for a freshly trained checkpoint: generates SELE curves from the model and recommends LR_MAX/REG_WEIGHT. Set `MODEL_PATH`/`CURVES_PATH` in its `main.py` (see its README for the full new-model workflow), then run: |
+
+```bash
+python -m src.regularization.score_model.standalones.new_model_toolkit.main
+```
+
+The tuner and diffusion-generation utilities also run standalone as
+`...new_model_toolkit.auto_tune_hyperparameters` / `...new_model_toolkit.test_diffusion_generation`.

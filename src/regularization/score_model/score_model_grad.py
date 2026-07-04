@@ -50,6 +50,92 @@ def load_score_model(model_path: str) -> tuple:
     return score_network, checkpoint['data_min'], checkpoint['data_max'], model_config['target_length']
 
 
+def compute_init_diagnostics(
+    G: NDArray,
+    B: NDArray,
+    preloaded_model: tuple,
+    hyperparams: ModelScoreGradConfig,
+    S_init: NDArray | None = None,
+) -> dict:
+    """Reproduce the solver's step-0 math without running the optimization loop.
+
+    This mirrors the setup + first-iteration computations of
+    ``solve_gradient_descent`` (normalization, data gradient, one score-net
+    forward pass, adaptive weighting) so a tuner can read the model's actual
+    gradient/score scale *before* committing to a full solve. Purely additive
+    and read-only -- it does not modify solver state and is import-only.
+
+    :param G: Photogeneration matrix (already in the physical units handed to
+        the solver, i.e. after ``unit_factor``), shape (L, M).
+    :param B: ELE vector, shape (L,).
+    :param preloaded_model: ``(score_network, d_min, d_max, target_length)``
+        from :func:`load_score_model`.
+    :param hyperparams: config supplying MOMENTUM/REG_WEIGHT (REG_WEIGHT at
+        step 0 equals its full value; T0 unused since step 0 queries SCORE_T_MAX).
+    :param S_init: optional warm-start in physical units (length M). If None,
+        uses the solver's deterministic random init.
+    :return: dict with grad_norm_mag, score_mag, adaptive_factor, cos_sim,
+        total_update_norm, norm_scale_factor, mean_G.
+    """
+    torch.manual_seed(42)
+    np.random.seed(42)
+    device = torch.device('cpu')
+
+    score_network, d_min, d_max, target_length = preloaded_model
+    if G.shape[1] != target_length:
+        raise ValueError(
+            f"G has {G.shape[1]} spatial elements but model expects {target_length}."
+        )
+
+    # --- Normalization (mirrors solve_gradient_descent section 2-3) ---
+    norm_scale_factor = 2.0 / (d_max - d_min)
+    N = G.shape[1]
+    mean_G = float(np.mean(np.abs(G)))
+    g_scale = 1.0 / (mean_G + 1e-12)
+    G_norm = G * g_scale
+    B_norm = B * g_scale
+
+    # --- Initialization (mirrors section 4). velocity=0 -> lookahead == S_norm ---
+    if S_init is not None:
+        S_norm = np.clip((np.asarray(S_init, dtype=float) - d_min) * norm_scale_factor - 1.0, -1.0, 1.0)
+    else:
+        S_norm = np.clip(np.random.randn(N) * 0.5, -1.0, 1.0)
+    S_lookahead = S_norm  # velocity is zero at step 0
+
+    # --- Data gradient at lookahead (section B) ---
+    S_phys_lookahead = (S_lookahead + 1.0) / norm_scale_factor + d_min
+    residual = G_norm @ S_phys_lookahead - B_norm
+    grad_fidelity = 2 * G_norm.T @ residual
+    grad_fidelity_norm = grad_fidelity * (1.0 / norm_scale_factor)
+
+    # --- Score network at step-0 diffusion time (== SCORE_T_MAX) ---
+    x_tensor = torch.tensor(S_lookahead, dtype=torch.float32, device=device).unsqueeze(0)
+    t_tensor = torch.tensor(np.array([SCORE_T_MAX]), dtype=torch.float32, device=device).unsqueeze(0)
+    with torch.no_grad():
+        score_model = score_network(x_tensor, t_tensor).squeeze().numpy()
+
+    # --- Adaptive weighting (section D) ---
+    grad_norm_mag = float(np.linalg.norm(grad_fidelity_norm))
+    score_mag = float(np.linalg.norm(score_model) + 1e-12)
+    adaptive_factor = grad_norm_mag / score_mag
+    cos_sim = float(-np.dot(grad_fidelity_norm, score_model) / (grad_norm_mag * score_mag + 1e-12))
+    score_weighted = score_model * adaptive_factor
+
+    # At step 0 the cosine schedule gives current_reg_weight == REG_WEIGHT.
+    total_update = grad_fidelity_norm - (score_weighted * hyperparams.REG_WEIGHT)
+    total_update_norm = float(np.linalg.norm(total_update))
+
+    return {
+        'grad_norm_mag': grad_norm_mag,
+        'score_mag': score_mag,
+        'adaptive_factor': adaptive_factor,
+        'cos_sim': cos_sim,
+        'total_update_norm': total_update_norm,
+        'norm_scale_factor': norm_scale_factor,
+        'mean_G': mean_G,
+    }
+
+
 def _plot_step_debug(
     step: int,
     S_norm_before: NDArray,
@@ -289,6 +375,7 @@ def solve_gradient_descent(
     adaptive_factor_history = []
     cos_sim_history = []
     small_error_steps_amount = 0
+    current_mse = float('nan')  # diagnostic only; stays NaN when no ground truth is supplied
 
     # 5. Nesterov Optimization Loop
     for i in range(hyperparams.MAX_STEPS):
@@ -338,9 +425,13 @@ def solve_gradient_descent(
         # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
         current_lr = hyperparams.LR_MIN + 0.5 * (hyperparams.LR_MAX - hyperparams.LR_MIN) * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
         lr_history.append(current_lr)
-        # Cosine anneal REG_WEIGHT from its initial value to 0
+        # Cosine anneal REG_WEIGHT from its initial value to 0.
         current_reg_weight = hyperparams.REG_WEIGHT * 0.5 * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
-        total_update = grad_fidelity_norm - (score_model *  hyperparams.REG_WEIGHT )
+        # Adaptive weighting ON: score_weighted is the score rescaled to the data-gradient
+        # magnitude, so REG_WEIGHT is a true prior:data ratio (single-digit values, not ~300).
+        # Using raw score_model * REG_WEIGHT instead lets the prior overpower the data ~680x,
+        # which relaxes onto the prior's broad mean shape and never reaches the true peak.
+        total_update = grad_fidelity_norm - (score_weighted * current_reg_weight)
         # Save pre-update velocity so the debug plot can show the momentum carry-over.
         velocity_prev = velocity.copy()
         # v^(t+1) = mu * v^(t) - eta * (grad - score_weighted)
@@ -350,37 +441,40 @@ def solve_gradient_descent(
         # x^(t+1) = x^(t) + v^(t+1)
         S_norm = S_norm + velocity
 
-        # --- F. MSE Tracking ---
+        # --- F. MSE Tracking (diagnostic only; requires ground truth) ---
+        # S_gt is expected on the SAME mesh as the solver (the caller resamples it onto the
+        # physical depth grid). The length-mismatch branch is a defensive fallback only --
+        # index-based resampling across different depth domains is not physically meaningful.
         if S_gt is not None:
-            # 1. Un-normalize current estimate to physical space
             S_current_phys = (S_norm + 1.0) / norm_scale_factor + d_min
-
-            # 2. Interpolate S_current to match S_gt length if needed
             if len(S_current_phys) != len(S_gt):
-                S_interp = match_length_interp(S_current_phys, len(S_gt))
-                diff = S_interp - S_gt
+                diff = match_length_interp(S_current_phys, len(S_gt)) - S_gt
             else:
                 diff = S_current_phys - S_gt
-
-            # 3. Calculate MSE
             current_mse = np.mean(diff ** 2)
             mse_history.append(current_mse)
 
-            # --- G. STOPPING CONDITION CHECK ---
-            if i > hyperparams.MIN_STEPS:
-                if mse_history[-1] > 1 or np.isnan(mse_history[-1]):
+        # --- G. STOPPING CONDITION CHECK ---
+        # Convergence is judged on the *data residual* ||G·S - B||: scale-free, and available
+        # even without ground truth. The old criterion used the absolute change in physical
+        # MSE-vs-GT, whose ~1e-6 magnitude made the fixed threshold trip ~20 steps after
+        # MIN_STEPS -- stopping on un-converged noise (the "ends at ~72 iters, all noisy" bug).
+        if i > hyperparams.MIN_STEPS:
+            r_now, r_prev = residual_norm_history[-1], residual_norm_history[-2]
+            diverged = (not np.isfinite(r_now)) or (S_gt is not None and (np.isnan(current_mse) or current_mse > 1))
+            if diverged:
+                if hyperparams.IS_SHOW_DEBUG_DATA:
+                    print(f"Stopping Early: diverged at step {i}")
+                break
+            rel_change = abs(r_now - r_prev) / (r_prev + 1e-30)
+            if rel_change < hyperparams.STOP_CHANGE:
+                small_error_steps_amount += 1
+                if small_error_steps_amount > hyperparams.STOP_STEPS:
                     if hyperparams.IS_SHOW_DEBUG_DATA:
-                        print(f"Stopping Early: MSE > 1 at step {i}")
+                        print(f"Stopping Early: data-residual plateau (rel-change < {hyperparams.STOP_CHANGE}) at step {i}")
                     break
-                if np.abs(mse_history[-1] - mse_history[-2]) < hyperparams.STOP_CHANGE:
-                    if small_error_steps_amount > hyperparams.STOP_STEPS:
-                        if hyperparams.IS_SHOW_DEBUG_DATA:
-                            print(f"Stopping Early: MSE diff < {hyperparams.STOP_CHANGE} at step {i}")
-                        break
-                    else:
-                        small_error_steps_amount += 1
-                else:
-                    small_error_steps_amount = 0
+            else:
+                small_error_steps_amount = 0
 
         # --- Monitoring & Plotting ---
         if hyperparams.IS_SHOW_DEBUG_DATA and i % (hyperparams.MAX_STEPS // 20) == 0:

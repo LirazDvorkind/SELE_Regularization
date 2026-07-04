@@ -1,6 +1,21 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It contains full domain knowledge (physics, math, architecture, hyperparameters) distilled from the papers and codebase.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It contains durable domain knowledge (physics, math, architecture) distilled from the papers and codebase. It intentionally points to source files for values that change often (hyperparameters, dataset paths, exact solver steps) rather than duplicating them.
+
+This principle applies to every README in this repo too: prefer describing concepts and pointing to
+where specifics live in code over restating specifics that will drift.
+
+### Comments
+
+Don't overdo comments. Write them only where the WHY is genuinely non-obvious (a physics
+convention, a workaround, a non-obvious ordering requirement) -- never to restate WHAT a
+self-explanatory line already says. This applies to MATLAB and Python code alike.
+
+### Maintaining this file
+
+Keep CLAUDE.md a generic rulebook. When adding or editing a rule here, don't illustrate it
+with an example drawn from the task you were just doing -- write the rule so it stands on
+its own for any future task. Task-specific detail belongs in the PR/commit, not here.
 
 ---
 
@@ -31,7 +46,7 @@ Expected shape for a p-type GaAs wafer (paper Figure 2b):
 
 | Physical Parameter | Effect on SELE |
 |--------------------|----------------|
-| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE. Sensitive above 10⁴ cm/s. |
+| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE. |
 | SRH lifetime (tau_SRH) | Controls bulk SELE magnitude. Longer lifetime = higher bulk SELE. |
 | Diffusion length | Peak position ~ diffusion length when surface recomb dominates. |
 | Photon recycling | Increases quasi-Fermi level separation deep in material; keeps SELE nonzero far from surface. |
@@ -48,10 +63,10 @@ python -m src.main
 ### Run standalone scripts (from repo root)
 ```bash
 # Run as scripts:
-python src/regularization/score_model/standalones/sele-score-model-training-script.py
 python src/regularization/score_model/standalones/hyperparameter_playground.py
-python src/regularization/score_model/standalones/test-score-models.py
 python src/regularization/score_model/standalones/tune_hyperparameters.py
+python src/regularization/score_model/standalones/model_training/sele-score-model-training-script.py
+python src/regularization/score_model/standalones/model_training/test-score-models.py
 
 # Or as modules:
 python -m src.regularization.score_model.standalones.hyperparameter_playground
@@ -59,8 +74,9 @@ python -m src.regularization.score_model.standalones.tune_hyperparameters
 ```
 
 - **hyperparameter_playground.py**: Quick test of one config on a random synthetic curve. Shows MSE_ELE (data fit) and MSE_SELE (ground truth error). Good for interactive debugging.
-- **tune_hyperparameters.py**: Automated grid search with multiprocessing. Tests combinations of REG_WEIGHT, LR_MAX, MOMENTUM, T0 across many curves.
-- **test-score-models.py**: Visualizes score gradients from trained checkpoints.
+- **tune_hyperparameters.py**: Automated grid search with multiprocessing over the hyperparameter space.
+- **model_training/sele-score-model-training-script.py**: Trains a score checkpoint from a synthetic SELE dataset.
+- **model_training/test-score-models.py**: Visualizes score gradients from trained checkpoints.
 
 ### Install dependencies
 ```bash
@@ -81,7 +97,7 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 | Mode | Solver | Key file |
 |------|--------|---------|
 | `NON_UNIFORM_MESH` | Classical Tikhonov with adaptive mesh | `tikhonov_non_uniform.py` |
-| `TOTAL_VARIATION` | Two-parameter Tikhonov (CVXPY) | `tikhonov_total_variation.py` |
+| `TOTAL_VARIATION` | Two-parameter Tikhonov (CVXPY) | `total_variation.py` |
 | `MODEL_SCORE_GRAD` | Nesterov gradient + score prior | `score_model_grad.py` |
 
 **NON_UNIFORM_MESH**: `min ||G@S - B||² + κ²||L@S||²`, L = second-derivative operator. Sweeps κ, finds L-curve knee, averages solutions in confidence window. Non-uniform mesh: fine linear spacing near surface, logarithmic deeper. This is the original paper's method.
@@ -101,12 +117,12 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 6. Confidence window around κ_knee → extract S_mean, S_std
 7. Save CSV results + generate plots
 
-**MODEL_SCORE_GRAD** (`pipeline.py` ~lines 162-248):
+**MODEL_SCORE_GRAD** (`pipeline.py`, MODEL_SCORE_GRAD branch of `run_regularization()`):
 1. Load ELE data (`ELE_sim.csv`), optical params (k, wavelengths, z)
 2. Load score model checkpoint → get `target_length` (32 or 500)
 3. Build G matrix on linear mesh with `target_length` elements
 4. Normalize: multiply G, B by `photon_flux * e_charge` (unit factor)
-5. Call `solve_gradient_descent(G, B, hyperparams, S_gt)`
+5. Call `solve_gradient_descent(G, B, hyperparams, S_gt)` (optionally warm-started from a TV solve instead of random init; see `warm_start_with_tv` in `ModelScoreGradConfig`)
 6. Upsample SELE from M points to `output_mesh_resolution` via `expand_sele()`
 7. Reconstruct: `eta_fit = G_longer @ S_rec / unit_factor`
 8. Save CSVs + generate plots
@@ -129,17 +145,17 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 
 ### Data files
 
-| File | Contents |
-|------|----------|
-| `Data/ELE_sim.csv` | Simulated ELE measurement (the "observation") |
-| `Data/SELE_ground_truth.csv` | Ground truth SELE for comparison |
-| `Data/z.csv`, `k.csv`, `wavelength_nm.csv` | Optical inputs |
-| `Data/score_model/G_score_model.csv` | Precomputed G matrix (28 × 32) |
-| `Data/score_model/G_score_model_500.csv` | Precomputed G matrix (28 × 500) |
-| `Data/score_model/sele_dataset.csv` | Training SELE profiles (32-point) |
-| `Data/score_model/sele_dataset_500.csv` | Training SELE profiles (500-point) |
-| `Data/score_model/models/sele_score_net_d32.pt` | Trained d32 checkpoint |
-| `Data/score_model/models/sele_score_net_d500.pt` | Trained d500 checkpoint |
+| Category | Location | Contents |
+|----------|----------|----------|
+| Measurement | `Data/ELE_sim.csv` | Simulated ELE measurement (the "observation") |
+| Ground truth | `Data/SELE_ground_truth.csv` | Ground truth SELE for comparison |
+| Optical inputs | `Data/z.csv`, `k.csv`, `wavelength_nm.csv` | z-mesh, extinction coefficient, wavelengths |
+| Precomputed G matrices | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length) |
+| Score model checkpoints | `Data/score_model/models/` | `.pt` files, one per trained score net (see checkpoint format below) |
+| Score model training datasets | `Data/score_model/datasets/` | Synthetic SELE curve sets used to train checkpoints |
+
+`Data/score_model/models/` and `Data/score_model/datasets/` are gitignored and tracked via DVC
+(`.dvc` files) rather than committed directly — pull them with DVC, not git, if missing.
 
 ---
 
@@ -165,26 +181,17 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 
 ### Solver Algorithm
 
-`solve_gradient_descent()` in `score_model_grad.py`:
-
-```
-Initialize S_norm randomly in [-1, 1]^M
-velocity = 0
-
-For step i = 0 to MAX_STEPS:
-    1. Nesterov lookahead:  S_look = S_norm + MOMENTUM * velocity
-    2. Denormalize:         S_phys = (S_look + 1) / norm_scale + d_min
-    3. Data gradient:       grad_data = 2 * G_norm.T @ (G_norm @ S_phys - B_norm)
-       Chain rule:          grad_data_norm = grad_data / norm_scale
-    4. Score prediction:    score = ScoreNetwork(S_look, T0)
-    5. Adaptive weighting:  factor = (||grad_data_norm|| / ||score|| + eps) * REG_WEIGHT
-                            score_weighted = score * factor
-    6. Combined update:     total = grad_data_norm - score_weighted
-    7. Cosine LR schedule:  lr = LR_MIN + 0.5*(LR_MAX - LR_MIN)*(1 + cos(i/MAX_STEPS * pi))
-    8. Momentum update:     velocity = MOMENTUM * velocity - lr * total
-                            S_norm += velocity
-    9. Early stopping if MSE vs ground truth > 1 or stagnates
-```
+`solve_gradient_descent()` in `score_model_grad.py` runs Nesterov Accelerated Gradient
+descent in normalized space (`S_norm ∈ [-1, 1]^M`). At each step it evaluates gradients at
+the NAG lookahead point, combining a data-fidelity gradient (`2*G_norm.T @ (G_norm@S_phys -
+B_norm)`, chain-ruled into normalized space) with an adaptively-weighted score-network
+prediction (see Adaptive Weighting below) into one update, applied via momentum. The
+diffusion time fed to the score network and the LR/REG_WEIGHT magnitudes are annealed over
+the run (schedules are implementation details — see the function for the current form).
+Optimization can start from random noise or from an optional warm start (e.g. a TV
+solution). Stopping is early-exit on data-residual convergence or divergence, capped by
+`MAX_STEPS`. Read the function directly for exact step order and constants — it changes
+as the solver is tuned.
 
 ### Normalization
 
@@ -199,21 +206,29 @@ The score network outputs O(1) vectors (normalized data), while the data gradien
 
 ### Hyperparameters
 
-| Param | d32 preset | d500 preset | What it controls |
-|-------|-----------|------------|-----------------|
-| REG_WEIGHT | 1.0 | 200 | Prior vs data trust ratio. Higher = trust prior more. |
-| MOMENTUM | 0.85 | 0.9 | Velocity inertia. Higher = smoother trajectory but may overshoot. |
-| LR_MAX | 1e-2 | 1e-6 | Peak learning rate (start of cosine schedule). |
-| LR_MIN | 1e-5 | 1e-8 | Final learning rate (end of cosine schedule). |
-| MAX_STEPS | 5000 | 5000 | Hard iteration cap. |
-| T0 | 0.1 | 0.05 | Diffusion time for score network. Larger = blurrier/smoother prior. |
-| output_mesh_resolution | 500 | 10000 | Upsampled output points. |
-
-Presets are defined in `src/types/config.py` as `SCORE_MODEL_PRESETS["d32"]` and `SCORE_MODEL_PRESETS["d500"]`.
+Every field of `ModelScoreGradConfig` (REG_WEIGHT, MOMENTUM, LR_MAX/MIN, MAX_STEPS, T0,
+output_mesh_resolution, early-stopping and warm-start controls, ...) is documented inline
+with its meaning and tuning direction in `src/types/config.py`. Current tuned values live in
+`SCORE_MODEL_PRESETS["d32"]` and `SCORE_MODEL_PRESETS["d500"]` in that same file — read them
+there rather than here, since they change as the models are retrained/tuned.
 
 ### Training Data Generation
 
-Template curve stored in `Data/score_model/sele_score_model_curve.csv`. Training script generates ~1000 (d32) or ~100,000 (d500) variations by perturbing this template. The model learns the distribution of plausible SELE shapes to serve as a prior during reconstruction.
+Training SELE curves are generated in MATLAB (`MATLAB SELE Simulation/create_training_set.m`)
+rather than in Python, and loaded from a `.mat` file by the training script in
+`src/regularization/score_model/standalones/model_training/` (downsampled to the checkpoint's
+`target_length`). The model learns the distribution of plausible SELE shapes from this dataset
+to serve as a prior during reconstruction. Exact dataset size/path are tuned per training run —
+check the training script's config for current values.
+
+---
+
+## Plotting Conventions
+
+All plots (`src/plotting.py` and elsewhere) must be colorblind-accessible: use a colorblind-safe
+categorical palette (e.g. Okabe-Ito) instead of default/arbitrary colors for distinct series, and
+perceptually-uniform colorblind-safe sequential/diverging colormaps (e.g. `viridis`) for continuous data.
+Don't rely on hue alone to distinguish series if avoidable — vary marker/line style too.
 
 ---
 

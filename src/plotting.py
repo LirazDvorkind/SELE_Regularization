@@ -71,23 +71,35 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
     plt.show(block=False)
 
 
-def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, save: bool = False):
+def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, zoom_microns: float = 5.0, save: bool = False):
     mask = z_gt <= np.max(z_centres)
     sele_gt = sele_gt[mask]
     z_gt = z_gt[mask]
-    fig, ax = plt.subplots()
-    ax.plot(z_centres * 1e4, S_mean, label='SELE (reconstructed)')
-    ax.fill_between(z_centres * 1e4,
-                    np.asarray(S_mean) - S_std,
-                    np.asarray(S_mean) + S_std,
-                    alpha=0.3, label=r'$\pm 1\,\sigma$')
 
-    ax.plot(z_gt * 1e4, sele_gt, 'k--', label='SELE ground truth')
+    z_centres_um = np.asarray(z_centres) * 1e4
+    z_gt_um = z_gt * 1e4
+    S_mean = np.asarray(S_mean)
 
-    ax.set_xlabel('z $[\\mu m]$')
-    ax.set_ylabel('SELE')
-    plt.title("SELE vs Ground Truth")
+    fig, (ax, ax_zoom) = plt.subplots(1, 2, figsize=(12, 5))
+
+    for a in (ax, ax_zoom):
+        a.plot(z_centres_um, S_mean, label='SELE (reconstructed)')
+        a.fill_between(z_centres_um,
+                        S_mean - S_std,
+                        S_mean + S_std,
+                        alpha=0.3, label=r'$\pm 1\,\sigma$')
+        a.plot(z_gt_um, sele_gt, 'k--', label='SELE ground truth')
+        a.set_xlabel('z $[\\mu m]$')
+        a.set_ylabel('SELE')
+
+    ax.set_title("SELE vs Ground Truth")
     ax.legend()
+
+    ax_zoom.set_xlim(0, zoom_microns)
+    ax_zoom.set_title(f"Zoom: first {zoom_microns:g} µm")
+    ax_zoom.legend()
+
+    fig.tight_layout()
     if save:
         _ensure_results_dir()
         fig.savefig('results/sele_profile.png', dpi=300)

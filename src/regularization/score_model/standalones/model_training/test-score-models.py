@@ -57,7 +57,7 @@ _ROOT_DATA_DIR = Path(__file__).resolve().parents[5] / "Data"
 ALON_MODEL_PATH = _DATA_DIR / 'models' / 'alon_sele_score_net_d32.pt'
 MY_MODEL_PATH_D32 = _DATA_DIR / 'models' / 'sele_score_net_d32.pt'
 MY_MODEL_PATH_D500 = _DATA_DIR / 'models' / 'sele_score_net_d500.pt'
-DATASET_PATH = _DATA_DIR / 'datasets' / 'sele_simulated_1000_curves_500_long_more_dip.csv'
+DATASET_PATH = _DATA_DIR / 'datasets' / 'sele_simulated_1000_curves_500_long.csv'
 PIPELINE_GT_PATH = _ROOT_DATA_DIR / 'SELE_ground_truth.csv'
 PIPELINE_Z_GT_PATH = _ROOT_DATA_DIR / 'z_mesh.csv'
 

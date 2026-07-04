@@ -10,7 +10,7 @@ For each of the 3 models (Alon's d32, my d32, my d500):
   3. Display all 5 generated curves in a figure
 
 Run from repo root:
-    python src/regularization/score_model/standalones/test_diffusion_generation.py
+    python -m src.regularization.score_model.standalones.new_model_toolkit.test_diffusion_generation
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import torch.nn as nn
 
 from src.regularization.score_model.score_model_grad import load_score_model
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[5]
 
 MODELS: dict[str, str] = {
     "Alon's d32": str(_REPO_ROOT / "Data" / "score_model" / "models" / "alon_sele_score_net_d32.pt"),
@@ -149,35 +149,40 @@ def _load_model(model_name: str, model_path: str):
     return model, d_min, d_max, target_length, beta_min, beta_max, time_eps
 
 
+def run(model_path: str, model_name: str = "New model") -> None:
+    """Generate and plot reverse-diffusion samples for a single checkpoint."""
+    print(f"\n--- Loading: {model_name} ---")
+    print(f"    {model_path}")
+
+    model, d_min, d_max, target_length, beta_min, beta_max, time_eps = _load_model(model_name, model_path)
+
+    print(f"    target_length={target_length}, beta=[{beta_min}, {beta_max}], time_eps={time_eps}")
+    print(f"    data range: [{d_min:.4f}, {d_max:.4f}]")
+    print(f"    Generating {N_SAMPLES} samples with {N_STEPS} reverse steps...")
+
+    samples = reverse_diffusion_sample(
+        model=model,
+        d_min=d_min,
+        d_max=d_max,
+        target_length=target_length,
+        beta_min=beta_min,
+        beta_max=beta_max,
+        time_eps=time_eps,
+        n_samples=N_SAMPLES,
+        n_steps=N_STEPS,
+    )
+
+    print(f"    Generated sample range: [{samples.min():.4f}, {samples.max():.4f}]")
+    plot_generated_samples(model_name, samples)
+
+
 def main() -> None:
     for model_name, model_path in MODELS.items():
-        print(f"\n--- Loading: {model_name} ---")
-        print(f"    {model_path}")
-
         try:
-            model, d_min, d_max, target_length, beta_min, beta_max, time_eps = _load_model(model_name, model_path)
+            run(model_path, model_name)
         except Exception as e:
             print(f"    ERROR loading model: {e}")
             continue
-
-        print(f"    target_length={target_length}, beta=[{beta_min}, {beta_max}], time_eps={time_eps}")
-        print(f"    data range: [{d_min:.4f}, {d_max:.4f}]")
-        print(f"    Generating {N_SAMPLES} samples with {N_STEPS} reverse steps...")
-
-        samples = reverse_diffusion_sample(
-            model=model,
-            d_min=d_min,
-            d_max=d_max,
-            target_length=target_length,
-            beta_min=beta_min,
-            beta_max=beta_max,
-            time_eps=time_eps,
-            n_samples=N_SAMPLES,
-            n_steps=N_STEPS,
-        )
-
-        print(f"    Generated sample range: [{samples.min():.4f}, {samples.max():.4f}]")
-        plot_generated_samples(model_name, samples)
 
     plt.show(block=True)
 

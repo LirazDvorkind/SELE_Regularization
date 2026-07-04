@@ -110,13 +110,18 @@ if __name__ == "__main__":
         x_res = G.shape[1]
         z_centres = np.linspace(0, W, x_res) * 1e4  # µm
 
-        fig2, ax2 = plt.subplots()
-        ax2.plot(z_centres, S_knee, label=f'SELE reconstructed  (REG_WEIGHT={reg_weight_knee:.2f})')
-        ax2.plot(z_centres, S_gt, 'k--', label='SELE ground truth')
-        ax2.set_xlabel('z [µm]')
-        ax2.set_ylabel('SELE')
+        fig2, (ax2, ax2_zoom) = plt.subplots(1, 2, figsize=(12, 5))
+        for a in (ax2, ax2_zoom):
+            a.plot(z_centres, S_knee, label=f'SELE reconstructed  (REG_WEIGHT={reg_weight_knee:.2f})')
+            a.plot(z_centres, S_gt, 'k--', label='SELE ground truth')
+            a.set_xlabel('z [µm]')
+            a.set_ylabel('SELE')
         ax2.set_title('SELE vs Ground Truth (Knee Solution)')
         ax2.legend()
+        ax2_zoom.set_xlim(0, 5)
+        ax2_zoom.set_title('Zoom: first 5 µm')
+        ax2_zoom.legend()
+        fig2.tight_layout()
         plt.show(block=False)
 
         wavelengths = load_csv(

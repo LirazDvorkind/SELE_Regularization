@@ -55,14 +55,18 @@ if __name__ == "__main__":
         W = 30e-4  # cm
         x_res = G.shape[1]
         z_centres = np.linspace(0, W, x_res) * 1e4  # µm
-        fig, ax = plt.subplots()
-        ax.plot(z_centres, S_est, label='SELE (reconstructed)')
-        ax.plot(z_centres, S_gt, 'k--', label='SELE ground truth')
-
-        ax.set_xlabel('z $[\\mu m]$')
-        ax.set_ylabel('SELE')
-        plt.title("SELE vs Ground Truth")
+        fig, (ax, ax_zoom) = plt.subplots(1, 2, figsize=(12, 5))
+        for a in (ax, ax_zoom):
+            a.plot(z_centres, S_est, label='SELE (reconstructed)')
+            a.plot(z_centres, S_gt, 'k--', label='SELE ground truth')
+            a.set_xlabel('z $[\\mu m]$')
+            a.set_ylabel('SELE')
+        ax.set_title("SELE vs Ground Truth")
         ax.legend()
+        ax_zoom.set_xlim(0, 5)
+        ax_zoom.set_title("Zoom: first 5 µm")
+        ax_zoom.legend()
+        fig.tight_layout()
         plt.show(block=False)
 
         fig2, ax = plt.subplots()

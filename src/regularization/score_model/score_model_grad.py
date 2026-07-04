@@ -289,6 +289,7 @@ def solve_gradient_descent(
     adaptive_factor_history = []
     cos_sim_history = []
     small_error_steps_amount = 0
+    current_mse = float('nan')  # diagnostic only; stays NaN when no ground truth is supplied
 
     # 5. Nesterov Optimization Loop
     for i in range(hyperparams.MAX_STEPS):
@@ -338,9 +339,13 @@ def solve_gradient_descent(
         # Smoothly decays LR from LR_MAX to LR_MIN over the course of MAX_STEPS
         current_lr = hyperparams.LR_MIN + 0.5 * (hyperparams.LR_MAX - hyperparams.LR_MIN) * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
         lr_history.append(current_lr)
-        # Cosine anneal REG_WEIGHT from its initial value to 0
+        # Cosine anneal REG_WEIGHT from its initial value to 0.
         current_reg_weight = hyperparams.REG_WEIGHT * 0.5 * (1 + np.cos(i / hyperparams.MAX_STEPS * np.pi))
-        total_update = grad_fidelity_norm - (score_model *  hyperparams.REG_WEIGHT )
+        # Adaptive weighting ON: score_weighted is the score rescaled to the data-gradient
+        # magnitude, so REG_WEIGHT is a true prior:data ratio (single-digit values, not ~300).
+        # Using raw score_model * REG_WEIGHT instead lets the prior overpower the data ~680x,
+        # which relaxes onto the prior's broad mean shape and never reaches the true peak.
+        total_update = grad_fidelity_norm - (score_weighted * current_reg_weight)
         # Save pre-update velocity so the debug plot can show the momentum carry-over.
         velocity_prev = velocity.copy()
         # v^(t+1) = mu * v^(t) - eta * (grad - score_weighted)
@@ -350,37 +355,40 @@ def solve_gradient_descent(
         # x^(t+1) = x^(t) + v^(t+1)
         S_norm = S_norm + velocity
 
-        # --- F. MSE Tracking ---
+        # --- F. MSE Tracking (diagnostic only; requires ground truth) ---
+        # S_gt is expected on the SAME mesh as the solver (the caller resamples it onto the
+        # physical depth grid). The length-mismatch branch is a defensive fallback only --
+        # index-based resampling across different depth domains is not physically meaningful.
         if S_gt is not None:
-            # 1. Un-normalize current estimate to physical space
             S_current_phys = (S_norm + 1.0) / norm_scale_factor + d_min
-
-            # 2. Interpolate S_current to match S_gt length if needed
             if len(S_current_phys) != len(S_gt):
-                S_interp = match_length_interp(S_current_phys, len(S_gt))
-                diff = S_interp - S_gt
+                diff = match_length_interp(S_current_phys, len(S_gt)) - S_gt
             else:
                 diff = S_current_phys - S_gt
-
-            # 3. Calculate MSE
             current_mse = np.mean(diff ** 2)
             mse_history.append(current_mse)
 
-            # --- G. STOPPING CONDITION CHECK ---
-            if i > hyperparams.MIN_STEPS:
-                if mse_history[-1] > 1 or np.isnan(mse_history[-1]):
+        # --- G. STOPPING CONDITION CHECK ---
+        # Convergence is judged on the *data residual* ||G·S - B||: scale-free, and available
+        # even without ground truth. The old criterion used the absolute change in physical
+        # MSE-vs-GT, whose ~1e-6 magnitude made the fixed threshold trip ~20 steps after
+        # MIN_STEPS -- stopping on un-converged noise (the "ends at ~72 iters, all noisy" bug).
+        if i > hyperparams.MIN_STEPS:
+            r_now, r_prev = residual_norm_history[-1], residual_norm_history[-2]
+            diverged = (not np.isfinite(r_now)) or (S_gt is not None and (np.isnan(current_mse) or current_mse > 1))
+            if diverged:
+                if hyperparams.IS_SHOW_DEBUG_DATA:
+                    print(f"Stopping Early: diverged at step {i}")
+                break
+            rel_change = abs(r_now - r_prev) / (r_prev + 1e-30)
+            if rel_change < hyperparams.STOP_CHANGE:
+                small_error_steps_amount += 1
+                if small_error_steps_amount > hyperparams.STOP_STEPS:
                     if hyperparams.IS_SHOW_DEBUG_DATA:
-                        print(f"Stopping Early: MSE > 1 at step {i}")
+                        print(f"Stopping Early: data-residual plateau (rel-change < {hyperparams.STOP_CHANGE}) at step {i}")
                     break
-                if np.abs(mse_history[-1] - mse_history[-2]) < hyperparams.STOP_CHANGE:
-                    if small_error_steps_amount > hyperparams.STOP_STEPS:
-                        if hyperparams.IS_SHOW_DEBUG_DATA:
-                            print(f"Stopping Early: MSE diff < {hyperparams.STOP_CHANGE} at step {i}")
-                        break
-                    else:
-                        small_error_steps_amount += 1
-                else:
-                    small_error_steps_amount = 0
+            else:
+                small_error_steps_amount = 0
 
         # --- Monitoring & Plotting ---
         if hyperparams.IS_SHOW_DEBUG_DATA and i % (hyperparams.MAX_STEPS // 20) == 0:

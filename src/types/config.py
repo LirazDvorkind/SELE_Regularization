@@ -111,13 +111,15 @@ class ModelScoreGradConfig:
     T0: float
 
     # --- Early stopping ---
-    # Stops when |MSE[i] - MSE[i-1]| < STOP_CHANGE for STOP_STEPS consecutive steps.
-    STOP_CHANGE: float = 1e-8
+    # Stops when the *relative* change in the data residual ||G·S - B|| stays below
+    # STOP_CHANGE for STOP_STEPS consecutive steps. Residual-based (not GT-MSE-based) so it
+    # is scale-free and also works on real measurements with no ground truth.
+    STOP_CHANGE: float = 1e-5
     STOP_STEPS: int = 20
     MIN_STEPS: int = 50  # Never stop before this many steps, regardless of convergence
 
     # --- Display flags ---
-    IS_SHOW_DEBUG_PLOT: bool = True
+    IS_SHOW_DEBUG_PLOT: bool = False
     IS_SHOW_MSE_PLOT: bool = True
     IS_SHOW_DEBUG_DATA: bool = True
 
@@ -154,13 +156,16 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         model_path=str(_SCORE_MODEL_DIR / "models" / "sele_score_net_d500.pt"),
         W=30e-4, # Larger = more bias towards score
         output_mesh_resolution=10000,
-        REG_WEIGHT=300,
+        # Adaptive weighting is now ON in score_model_grad.py, so REG_WEIGHT is a true
+        # prior:data ratio — single-digit values, not ~300 (which only "worked" as a
+        # multiplier on an un-rescaled O(1) score and made the prior overpower the data).
+        REG_WEIGHT=5.0,
         MOMENTUM=0.9,
-        LR_MAX=1e-6,
+        LR_MAX=5e-4,
         LR_MIN=1e-8,
-        MAX_STEPS=5000,
+        MAX_STEPS=50000,
         T0=5e-2,
-        warm_start_with_tv=True,
+        warm_start_with_tv=False,
     ),
 }
 

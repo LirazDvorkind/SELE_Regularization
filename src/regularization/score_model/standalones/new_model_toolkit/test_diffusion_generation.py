@@ -98,6 +98,10 @@ def reverse_diffusion_sample(
             noise = torch.randn_like(x)
 
             x = x + drift * h + diffusion_coef * noise
+            # Clip back into training support [-1, 1]: the reverse SDE has no
+            # boundary constraint, so unclamped steps can overshoot past the data
+            # range and denormalize to physically implausible (e.g. negative) SELE.
+            x = x.clamp(-1.0, 1.0)
 
     # Denormalize: S_norm ∈ [-1, 1] → physical units
     x_np = x.numpy()

@@ -156,9 +156,6 @@ SCORE_MODEL_PRESETS: dict[str, "ModelScoreGradConfig"] = {
         model_path=str(_SCORE_MODEL_DIR / "models" / "sele_score_net_d500.pt"),
         W=30e-4, # Larger = more bias towards score
         output_mesh_resolution=10000,
-        # Adaptive weighting is now ON in score_model_grad.py, so REG_WEIGHT is a true
-        # prior:data ratio — single-digit values, not ~300 (which only "worked" as a
-        # multiplier on an un-rescaled O(1) score and made the prior overpower the data).
         REG_WEIGHT=5.0,
         MOMENTUM=0.9,
         LR_MAX=2.067e-4,

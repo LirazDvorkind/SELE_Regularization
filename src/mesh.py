@@ -50,6 +50,7 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
             wavelengths=G_values.wavelengths,
             k=G_values.k,
             lambda_for_alpha=G_values.lambda_for_alpha,
+            k_bulk=G_values.k_bulk,
             z_turn=CONFIG.non_uniform_mesh_config.z_turn,
             lin_mesh_size=CONFIG.non_uniform_mesh_config.lin_mesh_size,
             exp_base=CONFIG.non_uniform_mesh_config.exp_base
@@ -62,7 +63,9 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
         G, z = G_new, z_new
         return G, z
     elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.total_variation_config.W, CONFIG.total_variation_config.mesh_resolution)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
+                           CONFIG.total_variation_config.W, CONFIG.total_variation_config.mesh_resolution,
+                           k_bulk=G_values.k_bulk)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
@@ -70,7 +73,9 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
         if mesh_resolution is None:
             raise ValueError("mesh_resolution must be provided for MODEL_SCORE_GRAD — derive it from the model checkpoint's target_length.")
-        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha, CONFIG.model_score_grad_config.W, mesh_resolution)
+        G,z = _linear_mesh(G_values.wavelengths, G_values.k, G_values.lambda_for_alpha,
+                           CONFIG.model_score_grad_config.W, mesh_resolution,
+                           k_bulk=G_values.k_bulk)
         # Persist the newly created values, including mesh element sizes
         save_csv("results/raw/scoring_model_method/z.csv", z)
         save_csv("results/raw/scoring_model_method/G.csv", G)
@@ -85,7 +90,8 @@ def _linear_mesh(
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],
         W: float,
-        points_amount: int
+        points_amount: int,
+        k_bulk: Optional[NDArray[np.float64]] = None,
         ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     Use the z vector Alon used, calculate its G and return both.
@@ -93,17 +99,20 @@ def _linear_mesh(
     # Interpolate the k values
     lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
-    k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
+    k_at_wavelengths = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
+    if k_bulk is not None:
+        k_bulk = np.interp(wavelengths, lambda_for_alpha, np.asarray(k_bulk, dtype=np.float64))
 
     z = np.linspace(0, W, points_amount+1)
     # z is in [cm] units.
     # We add 1 to the points amount because the optical generation matrix returns of size smaller by one.
     # Compute G on the mesh using the optical method
     G = _compute_front_generation(
-        k=k,
+        k=k_at_wavelengths,
         wavelength_nm=wavelengths,
         z_cm=z,
         volumetric=False,
+        k_bulk=k_bulk,
     )
     return G, z
 
@@ -114,6 +123,7 @@ def _non_uniform_mesh(
         k: NDArray[np.float64],
         lambda_for_alpha: NDArray[np.float64],
         *,
+        k_bulk: NDArray[np.float64] | None = None,
         z_turn: float = 1e-4,
         lin_mesh_size: float = 3e-6,
         exp_base: float = 10.0
@@ -132,6 +142,8 @@ def _non_uniform_mesh(
         Extinction coefficient spectrum (unitless), shape (L,).
     lambda_for_alpha
         Wavelengths corresponding to k (nm), shape (L,), strictly positive.
+    k_bulk
+        Extinction coefficient excluding free-carrier absorption; see _compute_front_generation.
     z_turn
         Depth [cm] where the mesh transitions from linear to exponentially stretched spacing.
     lin_mesh_size
@@ -153,6 +165,8 @@ def _non_uniform_mesh(
     lambda_for_alpha = np.asarray(lambda_for_alpha, dtype=np.float64)
     wavelengths = np.asarray(wavelengths, dtype=np.float64)
     k = np.interp(wavelengths, lambda_for_alpha, np.asarray(k, dtype=np.float64))
+    if k_bulk is not None:
+        k_bulk = np.interp(wavelengths, lambda_for_alpha, np.asarray(k_bulk, dtype=np.float64))
 
     if k.ndim != 1 or wavelengths.ndim != 1 or k.shape != wavelengths.shape:
         raise ValueError("k and wavelength_nm must be 1D arrays of the same shape.")
@@ -189,6 +203,7 @@ def _non_uniform_mesh(
         wavelength_nm=wavelengths,
         z_cm=z_new,
         volumetric=False,
+        k_bulk=k_bulk,
     )
 
     plot_mesh_elements_position_and_size(z_new, z_turn, save=True)
@@ -201,6 +216,7 @@ def _compute_front_generation(
         wavelength_nm: ArrayLike,
         z_cm: ArrayLike,
         volumetric: bool = False,
+        k_bulk: Optional[ArrayLike] = None,
 ) -> NDArray[np.float64]:
     """
     Compute the front-illumination optical generation matrix G for an arbitrary mesh.
@@ -216,7 +232,8 @@ def _compute_front_generation(
     Parameters
     ----------
     k
-        Extinction coefficient array (unitless). Shape (L,).
+        Extinction coefficient array (unitless), including free-carrier absorption. Sets how
+        fast the beam is attenuated. Shape (L,).
     wavelength_nm
         Wavelengths (nm) corresponding to k. Shape (L,). Values must be > 0.
     z_cm
@@ -225,6 +242,11 @@ def _compute_front_generation(
         If True, divides each element’s absorbed flux by its thickness Δz to return
         volumetric generation [photons·cm^-3·s^-1]. If False, returns area-based absorbed
         flux per element [photons·cm^-2·s^-1].
+    k_bulk
+        Extinction coefficient *excluding* free-carrier absorption, same shape as k. FCA
+        attenuates the beam but frees no carrier, so only the fraction α_b/α of the absorbed
+        photons generates: each row is scaled by it (paper SI eq. S4.1). Omit only to model
+        absorption alone, without regard to what it generates.
 
     Returns
     -------
@@ -244,6 +266,10 @@ def _compute_front_generation(
         raise ValueError("k and wavelength_nm must be 1D arrays.")
     if k.shape != wavelength_nm.shape:
         raise ValueError("k and wavelength_nm must have the same length.")
+    if k_bulk is not None:
+        k_bulk = np.asarray(k_bulk, dtype=np.float64)
+        if k_bulk.shape != k.shape:
+            raise ValueError("k_bulk must have the same shape as k.")
     if np.any(wavelength_nm <= 0.0):
         raise ValueError("wavelength_nm must be strictly positive.")
     if z_cm.ndim != 1 or z_cm.size < 2:
@@ -261,6 +287,10 @@ def _compute_front_generation(
     # Integrated absorption over element i: e^{-α z_i} - e^{-α z_{i+1}} -> (L, M-1)
     delta_exp = exp_edges[:, :-1] - exp_edges[:, 1:]
     G = delta_exp
+
+    if k_bulk is not None:
+        # α_b/α, the carrier-generating share of the absorption. The 4π/λ factors cancel.
+        G = (k_bulk / k)[:, None] * G
 
     if volumetric:
         dz = np.diff(z_cm)  # (M-1,)

@@ -7,8 +7,12 @@ from numpy.typing import NDArray
 @dataclass
 class GInputData:
     """Optical Generation Matrix (G) Input Data"""
-    # Extinction coefficient vector k(λ), from MATLAB code
+    # Extinction coefficient vector k(λ) including free-carrier absorption -- sets attenuation
     k: NDArray[np.float64]
+
+    # Extinction coefficient excluding free-carrier absorption. FCA attenuates the beam but
+    # frees no carrier, so generation carries the factor α_b/α; None models absorption only.
+    k_bulk: NDArray[np.float64] | None
 
     # Wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
     lambda_for_alpha: NDArray[np.float64]

@@ -15,13 +15,6 @@ class DataPaths:
     # path to Tamir's depth vector
     z: str
 
-    # Path to extinction coefficient k(λ), from MATLAB code
-    k: str
-
-    # Wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
-    # Reminder α(λ) = 4πk(λ)/λ [cm⁻¹]
-    lambda_for_alpha: str
-
     # eta_ext (J) CSV, this is the experiment simulation results, in MATLAB it is called PLQY_sim
     eta_ext: str
 

@@ -19,6 +19,7 @@ from PIL import Image
 
 from src.io import load_csv
 from src.mesh import _linear_mesh
+from src.optical_constants import load_optical_constants
 from src.utils import match_length_interp
 
 # ── Paths & constants ─────────────────────────────────────────────────────────
@@ -36,8 +37,9 @@ COLORS      = ["#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 LINESTYLES  = ["solid", "dashed", "dotted", "dashdot", (0,(3,1,1,1)), "dashed", "dotted"]
 
 # ── Load optical constants ────────────────────────────────────────────────────
-k                = load_csv(str(_DATA_DIR / "k.csv")).ravel()
-lambda_for_alpha = load_csv(str(_DATA_DIR / "n_k_wavelength_nm.csv")).ravel()
+_optics          = load_optical_constants()
+k, k_bulk        = _optics.k, _optics.k_bulk
+lambda_for_alpha = _optics.wavelength_nm
 wavelengths      = load_csv(str(_DATA_DIR / "wavelength_nm.csv")).ravel()
 
 # ── Load ground-truth SELE profiles at 500 pts ───────────────────────────────
@@ -45,7 +47,7 @@ S_all = load_csv(str(_SM_DATA_DIR / "datasets" / "sele_simulated_100_curves_1000
 print(f"Loaded SELE dataset: {S_all.shape}  (curves × spatial pts)")
 
 # ── Build G_1000 and reference B once ────────────────────────────────────────
-G_10000, _ = _linear_mesh(wavelengths, k, lambda_for_alpha, W, 10000)
+G_10000, _ = _linear_mesh(wavelengths, k, lambda_for_alpha, W, 10000, k_bulk=k_bulk)
 
 ref_B = {idx: G_10000 @ S_all[idx] for idx in CURVE_INDICES}
 
@@ -53,7 +55,7 @@ ref_B = {idx: G_10000 @ S_all[idx] for idx in CURVE_INDICES}
 B_at_res = {idx: {} for idx in CURVE_INDICES}  # curve_idx -> {R: B_R}
 
 for R in RESOLUTIONS:
-    G_R, _ = _linear_mesh(wavelengths, k, lambda_for_alpha, W, R)
+    G_R, _ = _linear_mesh(wavelengths, k, lambda_for_alpha, W, R, k_bulk=k_bulk)
     for idx in CURVE_INDICES:
         S_R = match_length_interp(S_all[idx], R)
         B_at_res[idx][R] = G_R @ S_R

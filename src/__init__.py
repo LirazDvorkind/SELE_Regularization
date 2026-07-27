@@ -7,8 +7,6 @@ from src.types.enums import RegularizationMethod, LFlag
 CONFIG = Config(
     data_paths=DataPaths(
         z="Data/z.csv",
-        k="Data/k.csv",
-        lambda_for_alpha="Data/n_k_wavelength_nm.csv",
         eta_ext="Data/ELE_sim.csv",
         z_gt="Data/z_mesh.csv",
         sele_gt="Data/SELE_ground_truth.csv",

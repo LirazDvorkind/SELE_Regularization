@@ -36,6 +36,23 @@ eta_ext(lambda_in) = (1 / phi_abs(lambda_in)) * integral_0^d  DeltaG(lambda_in, 
 
 Discretized: `eta_ext = (1/phi_abs) * G @ S`, where G is (L wavelengths × M depth elements), S is (M,). The system is ill-posed -- small noise causes wild oscillations in naive least-squares solutions. Regularization is required.
 
+Because `phi_abs = phi_0 * A` already normalizes by the absorbed fraction, front-surface
+reflectance cancels out of the discretized system and must not be applied to G a second time.
+
+### Two Absorption Coefficients
+
+The paper distinguishes `alpha`, which includes free-carrier absorption (the Drude term),
+from `alpha_b`, which excludes it. FCA attenuates the beam but is an intra-band transition
+that frees no carrier, so attenuation follows `alpha` while generation and emission follow
+`alpha_b` -- optical generation carries the prefactor `alpha_b / alpha` (SI eq. S4.1). This is
+what makes G a *generation* matrix rather than an absorption matrix; a row of G sums to
+`alpha_b/alpha`, not to 1.
+
+`src/optical_constants.py` is the single source of optics for the project — it reads the
+paper's own ellipsometry constants from `Data/Tamir_paper_SELE_figs/`, and every G, in the
+solver and in the test set alike, is built from it. Pass `k_bulk` alongside `k` when building
+G; omitting it silently models absorption instead of generation.
+
 ### Physical Intuition for the SELE Profile
 
 Expected shape for a p-type GaAs wafer (paper Figure 2b):
@@ -77,6 +94,12 @@ python -m src.regularization.score_model.standalones.tune_hyperparameters
 - **tune_hyperparameters.py**: Automated grid search with multiprocessing over the hyperparameter space.
 - **model_training/sele-score-model-training-script.py**: Trains a score checkpoint from a synthetic SELE dataset.
 - **model_training/test-score-models.py**: Visualizes score gradients from trained checkpoints.
+
+### Rebuild the ground-truth test set
+```bash
+python -m src.test_set.build_test_set   # re-extract profiles from the paper figures
+python -m src.test_set.plot_test_set    # overview figure of both parameter sweeps
+```
 
 ### Install dependencies
 ```bash
@@ -136,12 +159,15 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 | `src/types/config.py` | Global CONFIG, ModelScoreGradConfig, presets |
 | `src/__init__.py` | CONFIG import (avoid circular imports) |
 | `src/mesh.py` | Builds G matrix (Beer-Lambert), linear and non-uniform meshes |
+| `src/optical_constants.py` | The project's optics: n and k with/without the Drude term |
+| `src/matlab_fig.py` | Reads MATLAB `.fig` files without MATLAB |
 | `src/operators.py` | L0/L1/L2 regularization matrices |
 | `src/regularization/score_model/score_model_grad.py` | NAG solver with score prior |
 | `src/regularization/score_model/model_definition.py` | ScoreNetwork PyTorch model |
 | `src/regularization/score_model/standalones/hyperparameter_playground.py` | Test single hyperparameter config on one curve |
 | `src/regularization/score_model/standalones/tune_hyperparameters.py` | Grid search over hyperparameter space |
 | `src/regularization/score_model/standalones/model_training/` | Training scripts and Colab notebook |
+| `src/test_set/` | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures |
 
 ### Data files
 
@@ -149,13 +175,46 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 |----------|----------|----------|
 | Measurement | `Data/ELE_sim.csv` | Simulated ELE measurement (the "observation") |
 | Ground truth | `Data/SELE_ground_truth.csv` | Ground truth SELE for comparison |
-| Optical inputs | `Data/z.csv`, `k.csv`, `wavelength_nm.csv` | z-mesh, extinction coefficient, wavelengths |
+| Ground-truth test set | `Data/test_set/` | Multiple ground-truth SELE profiles, each with its G and ELE, for scoring a method across shapes rather than at one operating point (see its README) |
+| Paper figures | `Data/Tamir_paper_SELE_figs/` | Source `.fig` files the test set and its optical constants come from (see its README) |
+| Optical inputs | `Data/z.csv`, `wavelength_nm.csv` | z-mesh and the measurement wavelengths. k(λ) does **not** live here — it comes from the paper figures via `src/optical_constants.py` |
 | Precomputed G matrices | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length) |
 | Score model checkpoints | `Data/score_model/models/` | `.pt` files, one per trained score net (see checkpoint format below) |
 | Score model training datasets | `Data/score_model/datasets/` | Synthetic SELE curve sets used to train checkpoints |
 
 `Data/score_model/models/` and `Data/score_model/datasets/` are gitignored and tracked via DVC
 (`.dvc` files) rather than committed directly — pull them with DVC, not git, if missing.
+
+### Ground-truth test set
+
+Built by `src/test_set/` from the paper's `.fig` files; read it through
+`src/test_set/loader.py`, never by parsing `index.csv` positionally. Durable points:
+
+- **Every curve is stored on two meshes.** Its own (from the source figure, spanning the full
+  wafer) and the linear solver mesh. Each has its own G and ELE, and the two ELEs differ by
+  the discretization gap between them — which of the two is "the observation" is a real
+  choice, not an implementation detail. `Data/test_set/README.md` quantifies it.
+- **A G is data only when storing it beats recomputing it.** It is a pure function of the
+  optical constants and the mesh, so an operator too large to be worth committing is left out
+  of the set and rebuilt on load. Go through `loader.load_native_G` rather than reaching for
+  a file, and never commit a large derived matrix when its inputs are already in the repo.
+- **Resample across meshes by depth, never by index.** The profiles span the full 350 µm
+  wafer while the solver mesh spans `W`; index-based resampling silently compresses a profile
+  onto the wrong depths.
+- **Truncating at `W` is free for the forward model but not for SELE-domain metrics.**
+  Incident light is fully absorbed within a few µm, so the deep tail contributes nothing to
+  the ELE — yet a large fraction of SELE *area* lives out there. An error metric integrated
+  over depth and one computed from the residual will disagree for that reason alone.
+- **A coarse solver mesh cannot represent the surface value.** Its first element centre sits
+  deeper than the figures' first sample, so `sele[0]` there is interpolated, not SELE(z=0) —
+  relevant because SRV is read off exactly that point.
+- **The set and the solver share one forward model.** Both build G from
+  `src/optical_constants.py`, so the test set's `solver_mesh/G_500.csv` is bit-identical to
+  what `calc_mesh_and_G` produces. Keep it that way — a benchmark whose G differs from the
+  solver's measures discretization error, not reconstruction error.
+- **Nothing scores a solver against the set yet, and it holds no noise.** Both are deliberate,
+  not gaps to fill unprompted. `results/` predates the optics unification and is not
+  comparable to fresh output.
 
 ---
 

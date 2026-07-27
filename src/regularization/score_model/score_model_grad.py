@@ -439,7 +439,11 @@ def solve_gradient_descent(
         velocity_norm_history.append(float(np.linalg.norm(velocity)))
 
         # x^(t+1) = x^(t) + v^(t+1)
-        S_norm = S_norm + velocity
+        # Clip back into the training support [-1, 1]: unlike step-0 init, nothing else
+        # bounds S_norm here, so unclamped steps can push physical S below d_min (e.g.
+        # negative SELE) exactly like the unclamped reverse-diffusion sampler does.
+        S_norm_pre_update = S_norm
+        S_norm = np.clip(S_norm + velocity, -1.0, 1.0)
 
         # --- F. MSE Tracking (diagnostic only; requires ground truth) ---
         # S_gt is expected on the SAME mesh as the solver (the caller resamples it onto the
@@ -484,8 +488,8 @@ def solve_gradient_descent(
             # Debug Plotting -- comprehensive single-step view (physical + normalized,
             # gradients, per-element decomposition, and measurement-space fit)
             if hyperparams.IS_SHOW_DEBUG_PLOT:
-                # S_norm has just been updated; recover the start-of-iter state.
-                S_norm_before = S_norm - velocity
+                # S_norm has just been updated; use the state captured before the clipped update.
+                S_norm_before = S_norm_pre_update
                 S_norm_after = S_norm
                 S_phys_before = (S_norm_before + 1.0) / norm_scale_factor + d_min
                 S_phys_after = (S_norm_after + 1.0) / norm_scale_factor + d_min

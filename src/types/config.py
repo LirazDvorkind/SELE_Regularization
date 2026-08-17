@@ -201,3 +201,8 @@ class Config:
     force_SELE_last_zero: bool
 
     is_save_plots: bool   # Write PNGs to results/
+
+    # If set, run against Data/test_set/ curve <curve_id> (see Data/test_set/index.csv, e.g.
+    # "srv_1e5", "tau_8ns") instead of the default eta_ext/z_gt/sele_gt in data_paths.
+    # None = unchanged default behavior.
+    test_set_curve_id: str | None = None

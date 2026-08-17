@@ -13,6 +13,7 @@ from src.operators import build_L
 from src.plotting import plot_lcurve, plot_sele, plot_eta
 from src.regularization import tikhonov_non_uniform, total_variation
 from src.regularization.score_model import score_model_grad
+from src.test_set.loader import load_curve
 from src.types.G_calculation import GInputData
 from src.types.enums import RegularizationMethod
 from src.utils import expand_sele
@@ -35,11 +36,27 @@ def _load_G_inputs(z, wavelengths_path):
     )
 
 
+def _load_ground_truth(data_paths, curve_id: str | None):
+    """The (eta_ext, z_gt, sele_gt) triple to reconstruct against, plus a display label.
+
+    Default: the original paper measurement. If CONFIG.test_set_curve_id is set, one
+    Data/test_set/ curve instead -- its *native*-mesh ele (the curve's own independently
+    generated ELE), not the solver-mesh one from load_on_solver_mesh, to mirror how
+    Data/ELE_sim.csv today stands in for an independent measurement rather than something
+    recomputed through the solver's own approximate G.
+    """
+    if curve_id is None:
+        return (load_eta(data_paths.eta_ext), load_eta(data_paths.z_gt),
+                load_eta(data_paths.sele_gt), "default")
+    curve = load_curve(curve_id)
+    return curve.ele, curve.z_cm, curve.sele, curve.label
+
+
 def run_regularization():
     """Run full SELE regularization pipeline."""
-    eta_path, z_path = CONFIG.data_paths.eta_ext, CONFIG.data_paths.z
+    z_path = CONFIG.data_paths.z
     wavelengths_path = CONFIG.data_paths.wavelengths
-    z_gt_path, sele_gt_path = CONFIG.data_paths.z_gt, CONFIG.data_paths.sele_gt
+    curve_id = CONFIG.test_set_curve_id
     L_flag, regularization_method = CONFIG.L_flag, CONFIG.regularization_method
     kappa_max, kappa_min = CONFIG.kappa_range
     conf_fact, n_kappa = CONFIG.conf_window, CONFIG.n_kappa
@@ -49,9 +66,7 @@ def run_regularization():
     # --- NON UNIFORM MESH MODE ---------------------------------------------------
     if regularization_method is RegularizationMethod.NON_UNIFORM_MESH:
         # 1. Load data ---------------------------------------------------------
-        z_gt = load_eta(z_gt_path)
-        sele_gt = load_eta(sele_gt_path)
-        eta_ext = load_eta(eta_path)
+        eta_ext, z_gt, sele_gt, gt_label = _load_ground_truth(CONFIG.data_paths, curve_id)
         z = load_csv(z_path).ravel()
 
         G_values = _load_G_inputs(z, wavelengths_path)
@@ -96,16 +111,14 @@ def run_regularization():
 
         # 9. Plotting
         plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)
-        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
+        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, gt_label=gt_label, save=is_save_plots)
         plot_eta(G_values.wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)
 
     # --- TOTAL VARIATION MODE ------------------------------------------------------
     elif regularization_method is RegularizationMethod.TOTAL_VARIATION:
         # 1. Load data
-        z_gt = load_eta(z_gt_path)
-        sele_gt = load_eta(sele_gt_path)
-        eta_ext = load_eta(eta_path)
+        eta_ext, z_gt, sele_gt, gt_label = _load_ground_truth(CONFIG.data_paths, curve_id)
         z = load_csv(z_path).ravel()
 
         # Load optical inputs for recomputing G on the new mesh
@@ -145,16 +158,14 @@ def run_regularization():
         # 8. Plots
         plot_lcurve(tv_norms, residuals, kappa_vals, knee_idx, mask,
                     seminorm_label=r"TV norm $||L_1 S||_1$", save=is_save_plots)
-        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
+        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, gt_label=gt_label, save=is_save_plots)
         plot_eta(G_values.wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)
 
     # --- MODEL SCORE GRADIENT MODE ------------------------------------------------------
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
         # 1. Load data
-        z_gt = load_eta(z_gt_path)
-        sele_gt = load_eta(sele_gt_path)
-        eta_ext = load_eta(eta_path)
+        eta_ext, z_gt, sele_gt, gt_label = _load_ground_truth(CONFIG.data_paths, curve_id)
         z = load_csv(z_path).ravel()
 
         G_values = _load_G_inputs(z, wavelengths_path)
@@ -251,6 +262,6 @@ def run_regularization():
         generate_run_report("results")
 
         # 6. Plots
-        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, save=is_save_plots)
+        plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, gt_label=gt_label, save=is_save_plots)
         plot_eta(G_values.wavelengths, eta_ext, eta_fit, save=is_save_plots)
         plt.show(block=True)

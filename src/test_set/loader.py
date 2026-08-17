@@ -81,29 +81,36 @@ def _index_row(curve_id: str) -> dict:
     raise KeyError(f"{curve_id!r} is not in the test set index.")
 
 
+def _build_curve(row: dict) -> GroundTruthCurve:
+    curve_id = row["curve_id"]
+    return GroundTruthCurve(
+        curve_id=curve_id,
+        param_name=row["param_name"],
+        param_value=float(row["param_value"]),
+        param_units=row["param_units"],
+        # z/sele paths are relative to Data/ -- a curve may reference a profile that
+        # already lives outside the test set rather than a copy of it.
+        z_cm=load_csv(str(_DATA_DIR / row["z_file"])).ravel(),
+        sele=load_csv(str(_DATA_DIR / row["sele_file"])).ravel(),
+        ele=load_csv(str(_TEST_SET_DIR / "curves" / curve_id / "ele.csv")).ravel(),
+    )
+
+
 def load_test_set(include_reference: bool = True) -> List[GroundTruthCurve]:
     """Load every curve listed in ``Data/test_set/index.csv``, in index order.
 
     G is left out deliberately: the reference curve's is 28x100000, too heavy to carry on
     every load. Fetch it per curve with :func:`load_native_G`.
     """
-    curves = []
-    for row in _index_rows():
-        if row["param_name"] == "reference" and not include_reference:
-            continue
-        curve_id = row["curve_id"]
-        curves.append(GroundTruthCurve(
-            curve_id=curve_id,
-            param_name=row["param_name"],
-            param_value=float(row["param_value"]),
-            param_units=row["param_units"],
-            # z/sele paths are relative to Data/ -- a curve may reference a profile that
-            # already lives outside the test set rather than a copy of it.
-            z_cm=load_csv(str(_DATA_DIR / row["z_file"])).ravel(),
-            sele=load_csv(str(_DATA_DIR / row["sele_file"])).ravel(),
-            ele=load_csv(str(_TEST_SET_DIR / "curves" / curve_id / "ele.csv")).ravel(),
-        ))
-    return curves
+    return [
+        _build_curve(row) for row in _index_rows()
+        if include_reference or row["param_name"] != "reference"
+    ]
+
+
+def load_curve(curve_id: str) -> GroundTruthCurve:
+    """The single named curve, e.g. for driving the pipeline against one test-set profile."""
+    return _build_curve(_index_row(curve_id))
 
 
 def load_native_G(curve_id: str) -> NDArray[np.float64]:

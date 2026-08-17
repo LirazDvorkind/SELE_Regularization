@@ -13,6 +13,13 @@ CONFIG = Config(
         wavelengths="Data/wavelength_nm.csv",
         score_model_curve="Data/sele_score_model_curve.csv",
     ),
+    # Run against a Data/test_set/ curve instead of the default eta_ext/sele_gt/z_gt above,
+    # e.g. test_set_curve_id="tau_8ns" (see Data/test_set/index.csv for valid ids or below).
+    # SRV sweep (surface recombination velocity): srv_1e3, srv_1e4, srv_1e5, srv_5e5, srv_1e6, srv_1e7
+    # τ_SRH sweep (SRH lifetime): tau_0p1ns, tau_0p25ns, tau_0p5ns, tau_1ns, tau_2ns, tau_4ns, tau_8ns, tau_15ns,
+    # tau_20ns, tau_40ns, tau_60ns
+    # Set to None for original Alon SELE profile
+    test_set_curve_id=None,
     L_flag=LFlag.L2,
     regularization_method=RegularizationMethod.MODEL_SCORE_GRAD,
     is_save_plots=True,

@@ -1,0 +1,362 @@
+{
+  ".vscode/settings.json": {
+    "mtime": 1779469776.6865141,
+    "seen": 1787927591.815343,
+    "ast_hash": "c982c0e9a81148f64f7a50744b62ce63",
+    "semantic_hash": "c982c0e9a81148f64f7a50744b62ce63"
+  },
+  "MATLAB SELE Simulation/Fresnel.m": {
+    "mtime": 1779469776.7246206,
+    "seen": 1787927591.8153477,
+    "ast_hash": "64c294b8128950b2cf46c4f5f0f27fc4",
+    "semantic_hash": "64c294b8128950b2cf46c4f5f0f27fc4"
+  },
+  "MATLAB SELE Simulation/Plot_Sp.m": {
+    "mtime": 1779469776.7266183,
+    "seen": 1787927591.81535,
+    "ast_hash": "df4822f6e6bada1c9c719bba3266465a",
+    "semantic_hash": "df4822f6e6bada1c9c719bba3266465a"
+  },
+  "MATLAB SELE Simulation/calc_Sp2.m": {
+    "mtime": 1782550415.951906,
+    "seen": 1787927591.8153512,
+    "ast_hash": "18d052fd4fc987a02b58f7961f1fa2a2",
+    "semantic_hash": "18d052fd4fc987a02b58f7961f1fa2a2"
+  },
+  "MATLAB SELE Simulation/compute_sele_curve.m": {
+    "mtime": 1783712513.3172324,
+    "seen": 1787927591.815353,
+    "ast_hash": "f37b307b0f7b1375a4cb5f4d8756a819",
+    "semantic_hash": "f37b307b0f7b1375a4cb5f4d8756a819"
+  },
+  "MATLAB SELE Simulation/create_training_set.m": {
+    "mtime": 1783177941.0804837,
+    "seen": 1787927591.8153539,
+    "ast_hash": "bbfcf664b0f3ac885e974620452b4e93",
+    "semantic_hash": "bbfcf664b0f3ac885e974620452b4e93"
+  },
+  "MATLAB SELE Simulation/parameter_sensitivity_analysis.m": {
+    "mtime": 1783712513.3172324,
+    "seen": 1787927591.815355,
+    "ast_hash": "a8229efe313655d3fba4832802ddd089",
+    "semantic_hash": "a8229efe313655d3fba4832802ddd089"
+  },
+  "Utils/print_files.py": {
+    "mtime": 1779469776.754386,
+    "seen": 1787927591.8153565,
+    "ast_hash": "5a4fbdbf114708b40cc722e7b95671f8",
+    "semantic_hash": "5a4fbdbf114708b40cc722e7b95671f8"
+  },
+  "pyproject.toml": {
+    "mtime": 1787925942.9681282,
+    "seen": 1787927591.8153574,
+    "ast_hash": "b78b534472eefb19f35c0e1c086b5dae",
+    "semantic_hash": "b78b534472eefb19f35c0e1c086b5dae"
+  },
+  "src/__init__.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153586,
+    "ast_hash": "82b35ffb6a03a3cfeac8eea1bee8225e",
+    "semantic_hash": "82b35ffb6a03a3cfeac8eea1bee8225e"
+  },
+  "src/io.py": {
+    "mtime": 1779469776.7887914,
+    "seen": 1787927591.8153598,
+    "ast_hash": "8c5f9fcb9f7983d452b6e24c184fb621",
+    "semantic_hash": "8c5f9fcb9f7983d452b6e24c184fb621"
+  },
+  "src/main.py": {
+    "mtime": 1779469776.7887914,
+    "seen": 1787927591.8153613,
+    "ast_hash": "4d3682962f89465f2ea0e131b9fbf677",
+    "semantic_hash": "4d3682962f89465f2ea0e131b9fbf677"
+  },
+  "src/matlab_fig.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153625,
+    "ast_hash": "b9fde957fd1b99540f481650458eabc0",
+    "semantic_hash": "b9fde957fd1b99540f481650458eabc0"
+  },
+  "src/mesh.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153636,
+    "ast_hash": "2a78f915aae79f7c2e354dca39edc27e",
+    "semantic_hash": "2a78f915aae79f7c2e354dca39edc27e"
+  },
+  "src/operators.py": {
+    "mtime": 1779469776.7887914,
+    "seen": 1787927591.8153648,
+    "ast_hash": "79127039e72e50037e2d4b2e30996894",
+    "semantic_hash": "79127039e72e50037e2d4b2e30996894"
+  },
+  "src/optical_constants.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153658,
+    "ast_hash": "fe92a80333b9638823685d278478b213",
+    "semantic_hash": "fe92a80333b9638823685d278478b213"
+  },
+  "src/pipeline.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153672,
+    "ast_hash": "471c1eb706da0d853529e925e6f9e201",
+    "semantic_hash": "471c1eb706da0d853529e925e6f9e201"
+  },
+  "src/plotting.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153682,
+    "ast_hash": "1f74e06adab774d5ac368001830cc4cd",
+    "semantic_hash": "1f74e06adab774d5ac368001830cc4cd"
+  },
+  "src/regularization/score_model/model_definition.py": {
+    "mtime": 1787927483.9169488,
+    "seen": 1787927591.8153691,
+    "ast_hash": "d57ec1053da49e58816eb59c813fae6c",
+    "semantic_hash": "d57ec1053da49e58816eb59c813fae6c"
+  },
+  "src/regularization/score_model/score_model_grad.py": {
+    "mtime": 1787927493.6490936,
+    "seen": 1787927591.8153703,
+    "ast_hash": "a03ce384833fa00e1d6b48967b36b1ba",
+    "semantic_hash": "a03ce384833fa00e1d6b48967b36b1ba"
+  },
+  "src/regularization/score_model/standalones/helpers.py": {
+    "mtime": 1782563750.3610044,
+    "seen": 1787927591.8153715,
+    "ast_hash": "3d1663763dc298c40133980598e3239a",
+    "semantic_hash": "3d1663763dc298c40133980598e3239a"
+  },
+  "src/regularization/score_model/standalones/hyperparameter_playground.py": {
+    "mtime": 1783160797.3324788,
+    "seen": 1787927591.8153722,
+    "ast_hash": "a2e14ca02750d5909d1982d7d768d7cb",
+    "semantic_hash": "a2e14ca02750d5909d1982d7d768d7cb"
+  },
+  "src/regularization/score_model/standalones/hyperparameter_playground_sweep.py": {
+    "mtime": 1783160803.6449535,
+    "seen": 1787927591.8153741,
+    "ast_hash": "ff58cb1f19ec8cca8c1ee716d894c2e3",
+    "semantic_hash": "ff58cb1f19ec8cca8c1ee716d894c2e3"
+  },
+  "src/regularization/score_model/standalones/model_training/debug_b_consistency.py": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.815375,
+    "ast_hash": "93bdb23c23410db758b4f3ccc8720584",
+    "semantic_hash": "93bdb23c23410db758b4f3ccc8720584"
+  },
+  "src/regularization/score_model/standalones/model_training/debug_resolution_convergence.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.815376,
+    "ast_hash": "aadc9c6ba8c50cb9ed33b60c13e8ac71",
+    "semantic_hash": "aadc9c6ba8c50cb9ed33b60c13e8ac71"
+  },
+  "src/regularization/score_model/standalones/model_training/sele-score-model-training-script.py": {
+    "mtime": 1787927510.9039938,
+    "seen": 1787927591.8153772,
+    "ast_hash": "fe30a56dca7ebce736864f7b46bfbf0e",
+    "semantic_hash": "fe30a56dca7ebce736864f7b46bfbf0e"
+  },
+  "src/regularization/score_model/standalones/model_training/test-score-models.py": {
+    "mtime": 1782563750.3610044,
+    "seen": 1787927591.8153782,
+    "ast_hash": "521f2b5346d145a98b9d4b3f8bbd427a",
+    "semantic_hash": "521f2b5346d145a98b9d4b3f8bbd427a"
+  },
+  "src/regularization/score_model/standalones/new_model_toolkit/__init__.py": {
+    "mtime": 1783176417.949504,
+    "seen": 1787927591.8153791,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/regularization/score_model/standalones/new_model_toolkit/auto_tune_hyperparameters.py": {
+    "mtime": 1783176390.7333388,
+    "seen": 1787927591.8153806,
+    "ast_hash": "fe8e30f3384b8260f4bc8894825ace38",
+    "semantic_hash": "fe8e30f3384b8260f4bc8894825ace38"
+  },
+  "src/regularization/score_model/standalones/new_model_toolkit/main.py": {
+    "mtime": 1783180480.227856,
+    "seen": 1787927591.8153815,
+    "ast_hash": "5781cb0a2b18bf76e034706d754def8f",
+    "semantic_hash": "5781cb0a2b18bf76e034706d754def8f"
+  },
+  "src/regularization/score_model/standalones/new_model_toolkit/test_diffusion_generation.py": {
+    "mtime": 1787927538.3510623,
+    "seen": 1787927591.8153825,
+    "ast_hash": "b60583716890f72b65c3f1297a0140b2",
+    "semantic_hash": "b60583716890f72b65c3f1297a0140b2"
+  },
+  "src/regularization/score_model/standalones/sele_w_score_optimization_example.py": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8153834,
+    "ast_hash": "8a2b323ca8ad95a09218ede92b168b6c",
+    "semantic_hash": "8a2b323ca8ad95a09218ede92b168b6c"
+  },
+  "src/regularization/score_model/standalones/tune_hyperparameters.py": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8153846,
+    "ast_hash": "29512e2a429931627ef8760425ed1475",
+    "semantic_hash": "29512e2a429931627ef8760425ed1475"
+  },
+  "src/regularization/tikhonov_non_uniform.py": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8153856,
+    "ast_hash": "84b6449d210ad8863a0a43381b94bced",
+    "semantic_hash": "84b6449d210ad8863a0a43381b94bced"
+  },
+  "src/regularization/total_variation.py": {
+    "mtime": 1781878028.93657,
+    "seen": 1787927591.8153865,
+    "ast_hash": "233a0181d80e6c52c6dd146193aff8d5",
+    "semantic_hash": "233a0181d80e6c52c6dd146193aff8d5"
+  },
+  "src/test_set/__init__.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153877,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "src/test_set/build_test_set.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153887,
+    "ast_hash": "e307b4d5a5b1dbd6e332946c48f1f6cc",
+    "semantic_hash": "e307b4d5a5b1dbd6e332946c48f1f6cc"
+  },
+  "src/test_set/loader.py": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8153896,
+    "ast_hash": "7cd805fd8d755ae1f9373cb94cdfc636",
+    "semantic_hash": "7cd805fd8d755ae1f9373cb94cdfc636"
+  },
+  "src/test_set/plot_test_set.py": {
+    "mtime": 1787919628.962674,
+    "seen": 1787927591.8153908,
+    "ast_hash": "05e71592c936c5fd79c48af91eb7a4ab",
+    "semantic_hash": "05e71592c936c5fd79c48af91eb7a4ab"
+  },
+  "src/types/G_calculation.py": {
+    "mtime": 1787919628.962674,
+    "seen": 1787927591.815392,
+    "ast_hash": "6397b4d3a0b35e50f4795b2b0c9fe74e",
+    "semantic_hash": "6397b4d3a0b35e50f4795b2b0c9fe74e"
+  },
+  "src/types/config.py": {
+    "mtime": 1787919628.962674,
+    "seen": 1787927591.815393,
+    "ast_hash": "c1172f60bcb11de7833ab876eb9b023c",
+    "semantic_hash": "c1172f60bcb11de7833ab876eb9b023c"
+  },
+  "src/types/enums.py": {
+    "mtime": 1787919628.962674,
+    "seen": 1787927591.8153944,
+    "ast_hash": "0481197d9a77ebfc10f4fddca17b2ba9",
+    "semantic_hash": "0481197d9a77ebfc10f4fddca17b2ba9"
+  },
+  "src/utils.py": {
+    "mtime": 1779469776.815807,
+    "seen": 1787927591.8153954,
+    "ast_hash": "52bbed4dec4b0b22ead657b150361572",
+    "semantic_hash": "52bbed4dec4b0b22ead657b150361572"
+  },
+  "CLAUDE.md": {
+    "mtime": 1787919628.8524992,
+    "seen": 1787927591.8153968,
+    "ast_hash": "3a5373b62ba20b5c42ce8362664b686d",
+    "semantic_hash": "3a5373b62ba20b5c42ce8362664b686d"
+  },
+  "Data/Tamir_paper_SELE_figs/README.md": {
+    "mtime": 1787919628.8661003,
+    "seen": 1787927591.815398,
+    "ast_hash": "155c3bed485f9a7936640d5ca4ec90bc",
+    "semantic_hash": "155c3bed485f9a7936640d5ca4ec90bc"
+  },
+  "Data/test_set/README.md": {
+    "mtime": 1787919628.868098,
+    "seen": 1787927591.8153992,
+    "ast_hash": "9ee760fb44c5fa7940117a079050a93f",
+    "semantic_hash": "9ee760fb44c5fa7940117a079050a93f"
+  },
+  "README.md": {
+    "mtime": 1787919628.930892,
+    "seen": 1787927591.8154001,
+    "ast_hash": "b49e2e6ed09dd6881ef6c19a5e9be483",
+    "semantic_hash": "b49e2e6ed09dd6881ef6c19a5e9be483"
+  },
+  "Utils/greek letters.txt": {
+    "mtime": 1779469776.7524717,
+    "seen": 1787927591.8154013,
+    "ast_hash": "01ef8f9467adf7fb7a5a8d267c75b116",
+    "semantic_hash": "01ef8f9467adf7fb7a5a8d267c75b116"
+  },
+  "Utils/math symbols.txt": {
+    "mtime": 1779469776.754386,
+    "seen": 1787927591.8154023,
+    "ast_hash": "dbaad9e6ccb24f8682169fe06a71b2d9",
+    "semantic_hash": "dbaad9e6ccb24f8682169fe06a71b2d9"
+  },
+  "plans/score-network-conv1d-explanation.md": {
+    "mtime": 1787919628.930892,
+    "seen": 1787927591.8154035,
+    "ast_hash": "64469ab83693c3d5eea0b0ab7377f205",
+    "semantic_hash": "64469ab83693c3d5eea0b0ab7377f205"
+  },
+  "plans/score-network-conv1d-plan.md": {
+    "mtime": 1787919628.930892,
+    "seen": 1787927591.8154047,
+    "ast_hash": "01ef7073a5e73a9df528c1145b1c040d",
+    "semantic_hash": "01ef7073a5e73a9df528c1145b1c040d"
+  },
+  "results/run_report.txt": {
+    "mtime": 1787919628.95149,
+    "seen": 1787927591.8154056,
+    "ast_hash": "08b150ae0d842dd658403805dbe6b772",
+    "semantic_hash": "08b150ae0d842dd658403805dbe6b772"
+  },
+  "src/regularization/score_model/standalones/README.md": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8154066,
+    "ast_hash": "acfd92b782c0fd6e8b37c92e8230bdeb",
+    "semantic_hash": "acfd92b782c0fd6e8b37c92e8230bdeb"
+  },
+  "src/regularization/score_model/standalones/Results/tuning/500_model_results.txt": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8154075,
+    "ast_hash": "951a689525e7ecaea929de2cc0aec317",
+    "semantic_hash": "951a689525e7ecaea929de2cc0aec317"
+  },
+  "src/regularization/score_model/standalones/Results/tuning/ELE results.txt": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.815409,
+    "ast_hash": "e710aa8e4c1073d41cf1452fad7956ef",
+    "semantic_hash": "e710aa8e4c1073d41cf1452fad7956ef"
+  },
+  "src/regularization/score_model/standalones/Results/tuning/SELE results.txt": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.81541,
+    "ast_hash": "940e9fc18f10f017628b38fe7b8c174f",
+    "semantic_hash": "940e9fc18f10f017628b38fe7b8c174f"
+  },
+  "src/regularization/score_model/standalones/model_training/README.md": {
+    "mtime": 1779469776.7998407,
+    "seen": 1787927591.8154109,
+    "ast_hash": "e42fa202f4f2c730ec532cb7fbb5ee49",
+    "semantic_hash": "e42fa202f4f2c730ec532cb7fbb5ee49"
+  },
+  "src/regularization/score_model/standalones/new_model_toolkit/README.md": {
+    "mtime": 1783178295.0243564,
+    "seen": 1787927591.8154123,
+    "ast_hash": "a84673ca2164168d23bda9cac73c4a97",
+    "semantic_hash": "a84673ca2164168d23bda9cac73c4a97"
+  },
+  "Papers/Mapping Losses through Empirical Extraction of the Spatial External Luminescence Efficiency.pdf": {
+    "mtime": 1779469776.7481496,
+    "seen": 1787927591.815413,
+    "ast_hash": "32e994c1cd22985b291a17ceb268c582",
+    "semantic_hash": "32e994c1cd22985b291a17ceb268c582"
+  },
+  "Papers/SELE Mapping Supporting Information.pdf": {
+    "mtime": 1779469776.7524717,
+    "seen": 1787927591.815414,
+    "ast_hash": "6146916eed8832f0d9774e5657a26dcd",
+    "semantic_hash": "6146916eed8832f0d9774e5657a26dcd"
+  }
+}

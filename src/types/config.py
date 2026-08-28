@@ -15,13 +15,6 @@ class DataPaths:
     # path to Tamir's depth vector
     z: str
 
-    # Path to extinction coefficient k(λ), from MATLAB code
-    k: str
-
-    # Wavelengths [nm] involved in alpha (optical constants) calculations, in MATLAB it is called n_k_wavelength
-    # Reminder α(λ) = 4πk(λ)/λ [cm⁻¹]
-    lambda_for_alpha: str
-
     # eta_ext (J) CSV, this is the experiment simulation results, in MATLAB it is called PLQY_sim
     eta_ext: str
 
@@ -208,3 +201,8 @@ class Config:
     force_SELE_last_zero: bool
 
     is_save_plots: bool   # Write PNGs to results/
+
+    # If set, run against Data/test_set/ curve <curve_id> (see Data/test_set/index.csv, e.g.
+    # "srv_1e5", "tau_8ns") instead of the default eta_ext/z_gt/sele_gt in data_paths.
+    # None = unchanged default behavior.
+    test_set_curve_id: str | None = None

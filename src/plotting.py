@@ -71,7 +71,8 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
     plt.show(block=False)
 
 
-def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, zoom_microns: float = 5.0, save: bool = False):
+def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, gt_label: str = "default",
+              zoom_microns: float = 5.0, save: bool = False):
     mask = z_gt <= np.max(z_centres)
     sele_gt = sele_gt[mask]
     z_gt = z_gt[mask]
@@ -88,11 +89,11 @@ def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, zoom_microns: float = 
                         S_mean - S_std,
                         S_mean + S_std,
                         alpha=0.3, label=r'$\pm 1\,\sigma$')
-        a.plot(z_gt_um, sele_gt, 'k--', label='SELE ground truth')
+        a.plot(z_gt_um, sele_gt, 'k--', label=f'SELE ground truth ({gt_label})')
         a.set_xlabel('z $[\\mu m]$')
         a.set_ylabel('SELE')
 
-    ax.set_title("SELE vs Ground Truth")
+    ax.set_title(f"SELE vs Ground Truth ({gt_label})")
     ax.legend()
 
     ax_zoom.set_xlim(0, zoom_microns)

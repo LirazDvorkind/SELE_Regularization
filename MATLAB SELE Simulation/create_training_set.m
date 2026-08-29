@@ -31,12 +31,12 @@ C_auger = 15e-30;
 B0      = 2.5e-10;
 
 %% Dataset generation
-n_samples = 1e3;
+n_samples = 1e4;
 data = zeros(n_samples, x_res);
 
 % Output file name - can be .mat or .csv, the code will save in the correct
 % format per the extension
-data_file_output_name = sprintf("sele_simulated_%d_curves_%d_long.csv", ...
+data_file_output_name = sprintf("sele_simulated_%d_curves_%d_long.mat", ...
     n_samples, x_res);
 is_debug = false; % Place breakpoint on the "close all" and hit Continue
 

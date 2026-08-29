@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt # Ensure matplotlib is imported for the debug pl
 from src.types.config import ModelScoreGradConfig
 from src.utils import match_length_interp
 
-from src.regularization.score_model.model_definition import ScoreNetwork
+from src.regularization.score_model.model_definition import build_score_network
 
 
 # Cosine-annealed diffusion-time schedule for querying the score network.
@@ -30,15 +30,7 @@ def load_score_model(model_path: str) -> tuple:
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     model_config = checkpoint['config']
 
-    score_network = ScoreNetwork(
-        input_dim=model_config['target_length'] + 1,
-        output_dim=model_config['target_length'],
-        hidden_dims=model_config['hidden_dims'],
-        use_layer_norm=model_config.get('use_layer_norm', False),
-        use_residual=model_config.get('use_residual', False),
-        use_time_embedding=model_config.get('use_time_embedding', False),
-        time_embed_dim=model_config.get('time_embed_dim', 128),
-    )
+    score_network = build_score_network(model_config)
 
     state_dict = checkpoint['model_state_dict']
     if any(k.startswith('_orig_mod.') for k in state_dict):
@@ -311,15 +303,7 @@ def solve_gradient_descent(
             checkpoint = torch.load(hyperparams.model_path, map_location=device, weights_only=False)
             model_config = checkpoint['config']
 
-            score_network = ScoreNetwork(
-                input_dim=model_config['target_length'] + 1,
-                output_dim=model_config['target_length'],
-                hidden_dims=model_config['hidden_dims'],
-                use_layer_norm=model_config.get('use_layer_norm', False),
-                use_residual=model_config.get('use_residual', False),
-                use_time_embedding=model_config.get('use_time_embedding', False),
-                time_embed_dim=model_config.get('time_embed_dim', 128),
-            )
+            score_network = build_score_network(model_config)
 
             if G.shape[1] != model_config['target_length']:
                 raise ValueError(

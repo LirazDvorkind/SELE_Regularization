@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import math
 import torch
@@ -131,3 +131,188 @@ class ScoreNetwork(nn.Module):
         else:
             xt = torch.cat([x, t], dim=-1)
         return self.network(xt)
+
+
+def _default_dilations(target_length: int) -> Tuple[int, ...]:
+    """Dilation schedule sized to the curve length.
+
+    Kernel size 5, two convs per block: receptive field grows by 8*dilation per
+    block (see plans/score-network-conv1d-explanation.md, section 6). The d500
+    list reaches RF 509 by the 6th block; d32 caps at 4 blocks (RF well past 32).
+    """
+    if target_length <= 64:
+        return (1, 2, 4, 8)
+    return (1, 2, 4, 8, 16, 32)
+
+
+class TimeMLP(nn.Module):
+    """Sinusoidal time embedding through a shared 2-layer MLP, read by every block's FiLM."""
+
+    def __init__(self, sinusoidal_dim: int = 128, hidden_dim: int = 256):
+        super().__init__()
+        self.time_embed = SinusoidalTimeEmbedding(sinusoidal_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(sinusoidal_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+
+    def forward(self, t: torch.Tensor) -> torch.Tensor:
+        return self.mlp(self.time_embed(t))
+
+
+class FiLM(nn.Module):
+    """Per-channel scale-and-shift from the time embedding, broadcast across depth.
+
+    gamma/beta are shape (B, channels) -- one value per channel, not per depth --
+    because noise level is a property of the whole curve, uniform across depth.
+    """
+
+    def __init__(self, t_emb_dim: int, channels: int):
+        super().__init__()
+        self.to_gamma_beta = nn.Linear(t_emb_dim, 2 * channels)
+
+    def forward(self, h: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
+        gamma, beta = self.to_gamma_beta(t_emb).chunk(2, dim=-1)
+        return h * gamma.unsqueeze(-1) + beta.unsqueeze(-1)
+
+
+class DilatedConvBlock(nn.Module):
+    """Conv1d -> GroupNorm -> SiLU -> FiLM(t) -> Conv1d -> GroupNorm -> SiLU, with an identity skip."""
+
+    def __init__(
+            self,
+            channels: int,
+            kernel_size: int,
+            dilation: int,
+            t_emb_dim: int,
+            n_groups: int = 8,
+            use_norm: bool = True,
+    ):
+        super().__init__()
+        pad = dilation * (kernel_size - 1) // 2
+        conv_kwargs = dict(kernel_size=kernel_size, dilation=dilation, padding=pad, padding_mode='replicate')
+        self.conv1 = nn.Conv1d(channels, channels, **conv_kwargs)
+        self.conv2 = nn.Conv1d(channels, channels, **conv_kwargs)
+        self.norm1 = nn.GroupNorm(n_groups, channels) if use_norm else nn.Identity()
+        self.norm2 = nn.GroupNorm(n_groups, channels) if use_norm else nn.Identity()
+        self.film = FiLM(t_emb_dim, channels)
+        self.act = nn.SiLU()
+
+    def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
+        h = self.act(self.norm1(self.conv1(x)))
+        h = self.film(h, t_emb)
+        h = self.act(self.norm2(self.conv2(h)))
+        return x + h
+
+
+class Conv1dScoreNetwork(nn.Module):
+    """
+    1D dilated residual convolutional score network.
+
+    Replaces ScoreNetwork's fully-connected layers -- which have no structural
+    notion of depth adjacency -- with a stack of dilated convolutions sharing
+    weights across depth, so smoothness is architectural rather than something
+    the network must infer statistically. See
+    plans/score-network-conv1d-explanation.md for the full rationale.
+
+    Args:
+        target_length: number of depth points (SELE curve length).
+        channels: internal channel count carried at every depth point.
+        n_blocks: number of dilated residual blocks. None = derive from
+            target_length via _default_dilations.
+        kernel_size: convolution kernel width (bidirectional, not causal --
+            depth has no preferred direction).
+        dilations: explicit dilation per block. None = _default_dilations(target_length),
+            optionally truncated to n_blocks.
+        use_norm: GroupNorm on/off. GroupNorm normalizes across the length axis and
+            strips per-sample amplitude, which is this dataset's dominant variance
+            direction -- disable if trained samples show collapsed amplitude spread.
+    """
+
+    def __init__(
+            self,
+            target_length: int = 500,
+            channels: int = 128,
+            n_blocks: Optional[int] = None,
+            kernel_size: int = 5,
+            dilations: Optional[Tuple[int, ...]] = None,
+            sinusoidal_dim: int = 128,
+            time_hidden_dim: int = 256,
+            n_groups: int = 8,
+            use_norm: bool = True,
+    ):
+        super().__init__()
+        if dilations is None:
+            dilations = _default_dilations(target_length)
+        if n_blocks is not None:
+            dilations = dilations[:n_blocks]
+        self.target_length = target_length
+
+        self.time_mlp = TimeMLP(sinusoidal_dim, time_hidden_dim)
+        self.stem = nn.Conv1d(
+            1, channels, kernel_size, padding=kernel_size // 2, padding_mode='replicate'
+        )
+        self.blocks = nn.ModuleList([
+            DilatedConvBlock(channels, kernel_size, d, time_hidden_dim, n_groups, use_norm)
+            for d in dilations
+        ])
+        self.head_norm = nn.GroupNorm(n_groups, channels) if use_norm else nn.Identity()
+        self.head_act = nn.SiLU()
+        self.head_conv = nn.Conv1d(channels, 1, kernel_size=1)
+
+        # Zero-initialize the output conv: the network starts by predicting zero
+        # score, so early training does not have to fight large random outputs.
+        nn.init.zeros_(self.head_conv.weight)
+        nn.init.zeros_(self.head_conv.bias)
+
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Noisy data tensor of shape (batch_size, target_length)
+            t: Time tensor of shape (batch_size, 1)
+        Returns:
+            Score tensor of shape (batch_size, target_length)
+        """
+        t_emb = self.time_mlp(t)
+        h = x.unsqueeze(1)  # (B, 1, L)
+        h = self.stem(h)
+        for block in self.blocks:
+            h = block(h, t_emb)
+        h = self.head_act(self.head_norm(h))
+        h = self.head_conv(h)
+        return h.squeeze(1)
+
+
+def build_score_network(model_config: dict) -> nn.Module:
+    """
+    Construct a score network from a checkpoint's (or TrainingConfig's) config dict.
+
+    Dispatches on model_config['arch']: an absent key defaults to 'mlp', so every
+    checkpoint saved before this factory existed keeps loading as ScoreNetwork
+    unchanged. Pass 'conv1d' to build Conv1dScoreNetwork instead.
+    """
+    arch = model_config.get('arch', 'mlp')
+    target_length = model_config['target_length']
+
+    if arch == 'mlp':
+        return ScoreNetwork(
+            input_dim=target_length + 1,
+            output_dim=target_length,
+            hidden_dims=model_config['hidden_dims'],
+            use_layer_norm=model_config.get('use_layer_norm', False),
+            use_residual=model_config.get('use_residual', False),
+            use_time_embedding=model_config.get('use_time_embedding', False),
+            time_embed_dim=model_config.get('time_embed_dim', 128),
+        )
+    elif arch == 'conv1d':
+        dilations = model_config.get('dilations')
+        return Conv1dScoreNetwork(
+            target_length=target_length,
+            channels=model_config.get('channels', 128),
+            n_blocks=model_config.get('n_blocks'),
+            kernel_size=model_config.get('kernel_size', 5),
+            dilations=tuple(dilations) if dilations else None,
+        )
+    else:
+        raise ValueError(f"Unknown score network arch: {arch!r}")

@@ -20,7 +20,7 @@ from tqdm.auto import tqdm
 
 from pathlib import Path
 
-from src.regularization.score_model.model_definition import ScoreNetwork
+from src.regularization.score_model.model_definition import build_score_network
 
 _DATA_DIR = Path(__file__).resolve().parents[5] / "Data" / "score_model"
 
@@ -39,6 +39,10 @@ class TrainingConfig:
     learning_rate: float = 1e-3
     num_epochs: int = 300
     target_length: int = 500  # If lower than data's length, data will be downsampled.
+
+    arch: str = 'conv1d'  # 'conv1d' (see plans/score-network-conv1d-plan.md) or 'mlp' (legacy)
+
+    # MLP architecture (only used when arch == 'mlp').
     # hidden_dims:
     #   for target_length 500 use (512, 1024, 2048, 2048, 1024, 512)
     #   for target_length 32 use (64, 128, 256, 256, 128, 64)
@@ -47,6 +51,14 @@ class TrainingConfig:
     use_residual: bool = True  # Residual connections — critical for d500 convergence
     use_time_embedding: bool = True  # Sinusoidal time embedding for richer time conditioning
     time_embed_dim: int = 128
+
+    # Conv1d architecture (only used when arch == 'conv1d'). None fields fall back
+    # to model_definition._default_dilations, sized to target_length.
+    channels: int = 128
+    n_blocks: Optional[int] = None
+    kernel_size: int = 5
+    dilations: Optional[Tuple[int, ...]] = None
+
     data_path: str = str(_DATA_DIR / 'datasets' / 'sele_simulated_100000_curves_500_long.mat')  # From a modified MATLAB code create_training_set.m with seed rng(12)
     output_path: str = str(_DATA_DIR / 'models' / 'sele_score_net_d500_100k.pt')
     beta_min: float = 0.1
@@ -255,15 +267,7 @@ def train_model(config: TrainingConfig) -> None:
     data_loader = create_data_loader(data, config.batch_size)
 
     # Initialize model
-    score_network = ScoreNetwork(
-        input_dim=config.target_length + 1,
-        output_dim=config.target_length,
-        hidden_dims=config.hidden_dims,
-        use_layer_norm=config.use_layer_norm,
-        use_residual=config.use_residual,
-        use_time_embedding=config.use_time_embedding,
-        time_embed_dim=config.time_embed_dim,
-    )
+    score_network = build_score_network(asdict(config))
 
     # Compile for faster CPU execution (PyTorch 2.0+)
     try:

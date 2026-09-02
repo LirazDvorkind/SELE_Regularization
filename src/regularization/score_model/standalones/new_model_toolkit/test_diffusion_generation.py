@@ -6,14 +6,16 @@ profiles by running reverse VP-SDE (Euler-Maruyama) from Gaussian noise.
 
 For each of the 3 models (Alon's d32, my d32, my d500):
   1. Start from 5 independent Gaussian noise vectors
-  2. Integrate the reverse SDE from t≈1 → t≈0
-  3. Display all 5 generated curves in a figure
+  2. Integrate the reverse SDE from t≈1 down to T_STOP
+  3. Apply the Tweedie readout to turn that noisy state into a clean curve
+  4. Display all 5 generated curves in a figure
 
 Run from repo root:
     python -m src.regularization.score_model.standalones.new_model_toolkit.test_diffusion_generation
 """
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -21,7 +23,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from src.io import load_csv
 from src.regularization.score_model.score_model_grad import load_score_model
+from src.utils import match_length_interp
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 
@@ -31,9 +35,19 @@ MODELS: dict[str, str] = {
     "My d500":    str(_REPO_ROOT / "Data" / "score_model" / "models" / "sele_score_net_d500.pt"),
 }
 
+# Real curves the generated ones are measured against.
+REFERENCE_CURVES = str(
+    _REPO_ROOT / "Data" / "score_model" / "datasets" / "sele_simulated_1000_curves_500_long.csv"
+)
+
 N_SAMPLES = 5
 N_STEPS = 1000
 DEVICE = torch.device("cpu")
+
+# Where the reverse SDE stops. Not integrated down to time_eps because the score
+# saturates below t ~ 0.005 (measured magnitude ratio-to-ideal 0.109 at t=1e-4)
+# while the Tweedie readout multiplies the score by sigma_t^2 and trusts it.
+T_STOP = 0.02
 
 # Diffusion schedule defaults (same as training defaults in TrainingConfig)
 _DEFAULT_BETA_MIN = 0.1
@@ -53,6 +67,28 @@ class _AlonModelWrapper(nn.Module):
         return self.model(torch.cat([x, t], dim=-1))
 
 
+def _vp_coefficients(t: float, beta_min: float, beta_max: float) -> tuple[float, float]:
+    """VP-SDE marginal coefficients (a_t, sigma_t) for x_t = a_t * x_0 + sigma_t * z."""
+    int_beta = (beta_min + 0.5 * (beta_max - beta_min) * t) * t
+    # expm1 rather than 1 - exp(...): at small t the naive form loses most of its
+    # significant digits to cancellation.
+    return math.exp(-0.5 * int_beta), math.sqrt(-math.expm1(-int_beta))
+
+
+def compute_roughness(curves: np.ndarray) -> np.ndarray:
+    """Scale-free point-to-point jitter: rms(second difference) / std, per curve."""
+    curves = np.atleast_2d(curves)
+    second_diff = np.diff(curves, n=2, axis=-1)
+    return np.sqrt(np.mean(second_diff ** 2, axis=-1)) / np.std(curves, axis=-1)
+
+
+def reference_roughness(target_length: int) -> float:
+    """Median roughness of real training curves, resampled to the model's resolution."""
+    curves = load_csv(REFERENCE_CURVES)
+    resampled = np.array([match_length_interp(c, target_length) for c in curves])
+    return float(np.median(compute_roughness(resampled)))
+
+
 def reverse_diffusion_sample(
     model: torch.nn.Module,
     d_min: float,
@@ -63,30 +99,34 @@ def reverse_diffusion_sample(
     time_eps: float,
     n_samples: int = N_SAMPLES,
     n_steps: int = N_STEPS,
-) -> np.ndarray:
+    t_stop: float = T_STOP,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Generate samples via Euler-Maruyama on the reverse VP-SDE.
 
-    Integrates from t = 1-time_eps → time_eps (high noise → low noise).
+    Integrates from t = 1-time_eps → t_stop (high noise → low noise), then applies
+    Tweedie's formula to read out a clean curve.
 
     Reverse SDE:
         dx = [-0.5 * beta(t) * x - beta(t) * score(x, t)] * dt + sqrt(beta(t)) * dW
     where dt < 0 (time going backward), so with positive step size h:
         x_prev = x + [0.5 * beta(t) * x + beta(t) * score(x, t)] * h + sqrt(beta(t) * h) * z
 
-    Returns array of shape (n_samples, target_length) in physical SELE units.
+    Returns (denoised, raw), both (n_samples, target_length) in physical SELE units.
+    The raw state is a sample from p_t and by construction still carries sigma_t of
+    white noise; returning both keeps the two from being mistaken for each other.
     """
     norm_scale = 2.0 / (d_max - d_min)
 
     # Start from unit Gaussian — approximate x at t≈1 which is nearly pure noise
     x = torch.randn(n_samples, target_length, device=DEVICE)
 
-    time_grid = np.linspace(1.0 - time_eps, time_eps, n_steps + 1)
+    time_grid = np.linspace(1.0 - time_eps, t_stop, n_steps + 1)
     h = float(time_grid[0] - time_grid[1])  # positive step size
 
     model.eval()
     with torch.no_grad():
-        for i, t_val in enumerate(time_grid[:-1]):
+        for t_val in time_grid[:-1]:
             t_tensor = torch.full((n_samples, 1), t_val, dtype=torch.float32, device=DEVICE)
 
             beta_t = beta_min + (beta_max - beta_min) * t_val
@@ -98,15 +138,19 @@ def reverse_diffusion_sample(
             noise = torch.randn_like(x)
 
             x = x + drift * h + diffusion_coef * noise
-            # Clip back into training support [-1, 1]: the reverse SDE has no
-            # boundary constraint, so unclamped steps can overshoot past the data
-            # range and denormalize to physically implausible (e.g. negative) SELE.
-            x = x.clamp(-1.0, 1.0)
+
+        # Tweedie readout: E[x_0 | x_t] = (x_t + sigma_t^2 * score) / a_t. The score is
+        # re-evaluated at the final state and t_stop -- the loop's last score belongs to
+        # a different x at a different t.
+        t_tensor = torch.full((n_samples, 1), t_stop, dtype=torch.float32, device=DEVICE)
+        a_t, sigma_t = _vp_coefficients(t_stop, beta_min, beta_max)
+        x0 = (x + sigma_t ** 2 * model(x, t_tensor)) / a_t
 
     # Denormalize: S_norm ∈ [-1, 1] → physical units
-    x_np = x.numpy()
-    S_phys = (x_np + 1.0) / norm_scale + d_min
-    return S_phys
+    def denormalize(v: torch.Tensor) -> np.ndarray:
+        return (v.numpy() + 1.0) / norm_scale + d_min
+
+    return denormalize(x0), denormalize(x)
 
 
 def plot_generated_samples(model_name: str, samples: np.ndarray) -> None:
@@ -162,9 +206,9 @@ def run(model_path: str, model_name: str = "New model") -> None:
 
     print(f"    target_length={target_length}, beta=[{beta_min}, {beta_max}], time_eps={time_eps}")
     print(f"    data range: [{d_min:.4f}, {d_max:.4f}]")
-    print(f"    Generating {N_SAMPLES} samples with {N_STEPS} reverse steps...")
+    print(f"    Generating {N_SAMPLES} samples with {N_STEPS} reverse steps down to t={T_STOP}...")
 
-    samples = reverse_diffusion_sample(
+    samples, samples_raw = reverse_diffusion_sample(
         model=model,
         d_min=d_min,
         d_max=d_max,
@@ -174,9 +218,13 @@ def run(model_path: str, model_name: str = "New model") -> None:
         time_eps=time_eps,
         n_samples=N_SAMPLES,
         n_steps=N_STEPS,
+        t_stop=T_STOP,
     )
 
-    print(f"    Generated sample range: [{samples.min():.4f}, {samples.max():.4f}]")
+    print(f"    Generated sample range: [{samples.min():.4e}, {samples.max():.4e}]")
+    print(f"    Roughness  raw SDE state : {np.median(compute_roughness(samples_raw)):.4f}")
+    print(f"    Roughness  denoised      : {np.median(compute_roughness(samples)):.4f}")
+    print(f"    Roughness  real curves   : {reference_roughness(target_length):.6f}")
     plot_generated_samples(model_name, samples)
 
 

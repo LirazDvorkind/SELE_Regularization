@@ -17,6 +17,20 @@ Keep CLAUDE.md a generic rulebook. When adding or editing a rule here, don't ill
 with an example drawn from the task you were just doing -- write the rule so it stands on
 its own for any future task. Task-specific detail belongs in the PR/commit, not here.
 
+### Writing files from the shell
+
+Don't write multi-line file content through a Bash heredoc (`cat > file <<'EOF'`). On this
+Windows/Git-Bash setup, long heredocs containing apostrophes, backticks, or quotes fail to
+parse with `unexpected EOF while looking for matching`, and the file is left unwritten. Use
+the Write tool (or Edit) for file content; keep Bash for commands. If a script must be run
+from a temporary file, Write it first, then run it.
+
+### Commit messages
+
+One short sentence that captures the gist of the change without glossing over anything
+important in it. No bullet points. A multi-sentence body is for a genuinely large change
+that cannot be summarized honestly in one line -- prefer the minimum.
+
 ---
 
 ## Project Overview

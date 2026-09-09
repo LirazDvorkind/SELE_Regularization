@@ -310,5 +310,10 @@ Don't rely on hue alone to distinguish series if avoidable — vary marker/line 
 In `Papers/` directory:
 - **Main paper**: "Mapping Losses through Empirical Extraction of the Spatial External Luminescence Efficiency" (Yeshurun, Fiegenbaum-Raz, Segev, ACS Appl. Energy Mater. 2024)
 - **Supporting Information**: Derivations for PL calibration, optical constants, regularization method (L-curve), photon recycling model, finite element simulation details
+- **PhD thesis** (Yeshurun, TAU): the full treatment, including PN junctions and MOS capacitors
 
 Key equations: (2) forward model, (4) ELE from SELE, (5) simulated SELE via perturbation, (8) Tikhonov minimization, (11) photovoltage buildup from SELE.
+
+Before reading any of them, read `Papers/README.md`: the built-in PDF reader does not work in
+this environment, and the README gives the working extraction commands, each document's
+structure, and the printed-to-PDF page offset for the thesis.

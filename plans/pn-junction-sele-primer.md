@@ -80,7 +80,7 @@ The other feature: the ILE spike to ~97% at z = 3.62 µm. That's the BSF interfa
 
 ## 4. Fig 3.11 (printed p52) — the SELE itself, at short circuit
 
-Red curve, left axis. Note the units: **0–0.25 %**, i.e. 1e-3, versus 30–45 % for the wafer. Left to right:
+Red curve, left axis. Units: **0–0.25 %**, versus 0.3–0.45 % for the wafer — comparable magnitude, not orders apart. Left to right:
 
 - **z = 0: zero.** Surface recombination, as in the wafer.
 - **z ≈ 0.05–0.1 µm: sharp peak to 0.12 %.** Inside the emitter. The emitter is doped 2e18, so R_rad ∝ n₀·Δp is ~3 decades above the base (Fig 3.10a, red curve near z=0), and a carrier generated here is far enough from the surface not to die there but hasn't reached the field yet. The thesis says outright that in GaAs and InP "most of the SELE originates from the emitter."
@@ -89,7 +89,7 @@ Red curve, left axis. Note the units: **0–0.25 %**, i.e. 1e-3, versus 30–45 
 - **z ≈ 3.8 µm: second peak, 0.2 %, inside the BSF layer.** Carriers generated here are on the wrong side of the barrier: the wall that protects the base also stops *them* from reaching the junction, so SCE drops (black falls). They pile up at the interface where ILE is 97%. High density × high radiative fraction × a mirror right behind them = big SELE.
 - **z = 4.02: zero.** Ideal ohmic contact — infinite surface recombination.
 
-One-line intuition: **SELE and SCE compete for the same carrier.** Wherever collection is efficient (junction, fields), SELE is zero. Wherever collection is blocked (surface, barrier, far from the junction), SELE gets a chance. At short circuit, collection wins almost everywhere, so SELE is 1e-3 — three orders below the wafer.
+One-line intuition: **SELE and SCE compete for the same carrier.** Wherever collection is efficient (junction, fields), SELE is zero. Wherever collection is blocked (surface, barrier, far from the junction), SELE gets a chance. At short circuit, collection wins almost everywhere, so peak SELE tops out around 0.2 % — somewhat below the wafer's 0.3–0.45 %, not orders of magnitude below it.
 
 ## 5. Fig 3.12–3.13 (printed p54–55) — bias dependence
 
@@ -122,7 +122,7 @@ Log scale. Si is 1e-7 %, GaAs 1e-3 %: the SELE ratio tracks the B_rad ratio (5e-
 
 2. **The wavelength band is the lever.** The thesis simulates ELE out to 900 nm. Near-gap wavelengths (800–870 nm) penetrate microns, and the silver mirror doubles their path — that is what puts information at 3–4 µm depth. The framework can quantify how much each added wavelength pushes the horizon. Whether the optical constants in `Data/` cover that range is the first thing to check.
 
-3. **The learned prior does not transfer.** The score model / PCA prior learned five-parameter wafer curves: one peak at 0.5–5 µm, magnitude 0.3–0.45. The PN-junction SELE is two sharp peaks, a hard zero at the junction, magnitude 1e-3, and it depends on V. A wafer-trained prior would confidently reconstruct the wrong shape. Any prior-based method needs a training set per device class — or the prior-free G-only analysis is the honest tool, and it tells you which features are recoverable before you build anything.
+3. **The learned prior does not transfer.** The score model / PCA prior learned five-parameter wafer curves: one broad peak at 0.5–5 µm, magnitude 0.3–0.45 %. The PN-junction SELE is a different *shape* at similar overall magnitude (0–0.25 %): two sharp peaks flanking a hard zero at the junction, and it depends on V. A wafer-trained prior would confidently reconstruct the wrong shape. Any prior-based method needs a training set per device class — or the prior-free G-only analysis is the honest tool, and it tells you which features are recoverable before you build anything.
 
 A softer fourth point: the thesis obtains the junction SELE by forward simulation (Eq. 3.2, perturb-and-measure in COMSOL), never by inverting measured ELE. Inversion for a PN junction is still open territory.
 

@@ -92,6 +92,38 @@ def effective_rank(noise_pct: float) -> int:
     return int(max(1, np.sum(s_G / s_G[0] > noise_pct / 100.0)))
 
 
+def add_near_surface_inset(ax, bounds=(0.46, 0.50, 0.51, 0.46), z_max: float = 1.0,
+                           indicate: bool = True, color: str = PURPLE):
+    """Replay whatever curves `ax` already holds, zoomed to the first `z_max` micrometers."""
+    inset = ax.inset_axes(bounds, facecolor="white")
+    inset.patch.set_alpha(1.0)
+    for spine in inset.spines.values():
+        spine.set_edgecolor(color)
+        spine.set_linewidth(1.3)
+    lo, hi = np.inf, -np.inf
+    for line in ax.get_lines():
+        x = np.asarray(line.get_xdata(), dtype=float)
+        y = np.asarray(line.get_ydata(), dtype=float)
+        if x.size == 0:
+            continue
+        inset.plot(x, y, color=line.get_color(), lw=line.get_linewidth(),
+                   ls=line.get_linestyle(), marker=line.get_marker(),
+                   ms=line.get_markersize(), alpha=line.get_alpha())
+        near = x <= z_max
+        if near.any():
+            lo, hi = min(lo, y[near].min()), max(hi, y[near].max())
+    inset.set_xlim(0, z_max)
+    if np.isfinite(lo) and hi > lo:
+        pad = 0.08 * (hi - lo)
+        inset.set_ylim(lo - pad, hi + pad)
+    inset.tick_params(labelsize=7)
+    inset.grid(alpha=0.25)
+    inset.set_title(f"zoom: first {z_max:g} µm", fontsize=8, pad=3)
+    if indicate:
+        ax.indicate_inset_zoom(inset, edgecolor=color, lw=1.3, alpha=0.9)
+    return inset
+
+
 def caption(title: str, body: str, width: int = 98) -> None:
     """Bold headline + a plain-language paragraph, on a light card behind ax_caption."""
     ax_caption.add_patch(Rectangle((0, 0), 1, 1, transform=ax_caption.transAxes,
@@ -264,7 +296,8 @@ def view_a():
     ax_right.set_ylabel("SELE")
     ax_right.grid(alpha=0.25)
     ax_right.set_title(f"curve #{idx}  |  leftover error = {err:.2e}", fontsize=9)
-    ax_right.legend(fontsize=8.3, loc="upper right")
+    ax_right.legend(fontsize=8.3, loc="lower right")
+    add_near_surface_inset(ax_right)
 
 
 def view_b():
@@ -389,7 +422,13 @@ def view_d():
     ax_right.set_xlabel("depth z (µm)")
     ax_right.set_ylabel("SELE")
     ax_right.grid(alpha=0.25)
-    ax_right.legend(fontsize=8.3)
+    ax_right.legend(fontsize=8.3, loc="lower right")
+    inset = add_near_surface_inset(ax_right)
+    inset.fill_between(Z, mu - 2 * post_sd, mu + 2 * post_sd, color=BLUE, alpha=0.2)
+    near = Z <= 1.0
+    lo = min((mu - 2 * post_sd)[near].min(), X[idx][near].min())
+    hi = max((mu + 2 * post_sd)[near].max(), X[idx][near].max())
+    inset.set_ylim(lo, hi)
 
 
 def view_e():
@@ -482,7 +521,8 @@ def view_f():
     ax_left.set_ylabel("SELE")
     ax_left.grid(alpha=0.25)
     ax_left.set_title(f"{n_match} of {N_CURVES} curves give almost the same reading", fontsize=9)
-    ax_left.legend(fontsize=8.3)
+    ax_left.legend(fontsize=8.3, loc="lower right")
+    add_near_surface_inset(ax_left)
 
     sd_match = Xm.std(0)
     scale = np.abs(Xm).mean(0) + 1e-30
@@ -535,12 +575,13 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
 
     bands = [(0, 3, GREEN, 0.15, "data-informed"), (3, 8, YELLOW, 0.25, "marginal"),
              (8, W_UM, VERMILLION, 0.13, "prior-dominated")]
-    out_fig, (ax_s, ax_e, ax_d) = plt.subplots(1, 3, figsize=(15, 4.2), constrained_layout=True)
+    out_fig, ((ax_s, ax_e), (ax_d, ax_g)) = plt.subplots(2, 2, figsize=(11, 9.2),
+                                                         constrained_layout=True)
     other_label = f"{others.sum()} other training curves"
 
     for z0, z1, color, alpha, label in bands:
         ax_s.axvspan(z0, z1, color=color, alpha=alpha, lw=0)
-        ax_s.text((z0 + z1) / 2, 0.02, label, ha="center", va="bottom", fontsize=8,
+        ax_s.text(z0 + 0.3, 0.02, label, ha="left", va="bottom", fontsize=8,
                   rotation=90 if z1 - z0 < 6 else 0, transform=ax_s.get_xaxis_transform())
     ax_s.plot(Z, 100 * X[others].T, color="0.55", lw=0.8)
     ax_s.plot([], [], color="0.55", lw=0.8, label=other_label)
@@ -548,9 +589,10 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
     ax_s.set_xlim(0, W_UM)
     ax_s.set_xlabel("depth z (μm)")
     ax_s.set_ylabel("SELE (%)")
-    ax_s.set_title(f"(a) SELE curves with ELE within {noise_pct:g}% of the reference", fontsize=10)
+    ax_s.set_title(f"(a) different SELE, same ELE (to {noise_pct:g}%)", fontsize=10)
     ax_s.grid(alpha=0.25)
-    ax_s.legend(fontsize=8.5, loc="upper right", framealpha=0.9)
+    ax_s.legend(fontsize=8.5, loc="lower right", framealpha=0.9)
+    add_near_surface_inset(ax_s)
 
     ax_e.plot(WAVELENGTHS_NM, 100 * E[others].T, color="0.55", lw=0.8, marker=".", ms=3)
     ax_e.plot([], [], color="0.55", lw=0.8, marker=".", ms=3, label=other_label)
@@ -567,9 +609,34 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
     ax_d.axhline(0, color=BLACK, lw=2.0, ls="--")
     ax_d.set_xlabel("excitation wavelength (nm)")
     ax_d.set_ylabel("ELE difference from reference (%)")
-    ax_d.set_title("(c) zoom: relative ELE difference", fontsize=10)
+    ax_d.set_title("(c) zoom: ELE difference", fontsize=10)
     ax_d.grid(alpha=0.25)
     ax_d.legend(fontsize=8.5, framealpha=0.9, loc="upper right")
+
+    wl = np.asarray(WAVELENGTHS_NM).ravel()
+    cmap, norm = plt.get_cmap("viridis"), plt.Normalize(wl.min(), wl.max())
+    for z0, z1, color, alpha, _ in bands:
+        ax_g.axvspan(z0, z1, color=color, alpha=alpha, lw=0)
+    for row, lam in zip(G, wl):
+        ax_g.plot(Z, row, color=cmap(norm(lam)), lw=1.0)
+    ax_g.axvline(1.0, color="#333333", ls=":", lw=1.2)
+    ax_g.text(1.35, 0.78, "1 μm", fontsize=8, color="#333333", transform=ax_g.get_xaxis_transform())
+    ax_g.set_yscale("log")
+    ax_g.set_xlim(0, W_UM)
+    ax_g.set_ylim(G.max() * 1e-6, G.max() * 2)
+    ax_g.set_xlabel("depth z (μm)")
+    ax_g.set_ylabel("G(λ, :): photon fraction per wavelength  (log scale)")
+    ax_g.set_title("(d) why: G is blind past ~1 μm", fontsize=10)
+    ax_g.grid(alpha=0.25, which="major")
+    cbar = out_fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax_g,
+                            pad=0.015, fraction=0.045)
+    cbar.set_label("excitation wavelength (nm)", fontsize=8.5)
+    cbar.ax.tick_params(labelsize=8)
+    # No zoom indicator: the inset is linear-y, so its box has no valid place on a log parent.
+    inset_g = add_near_surface_inset(ax_g, bounds=(0.45, 0.55, 0.52, 0.40), indicate=False)
+    inset_g.set_xlabel("z (μm)", fontsize=7.5, labelpad=1)
+    inset_g.set_ylabel("G(λ, :): photon fraction", fontsize=7.5, labelpad=1)
+    inset_g.set_title("zoom: first 1 μm  (linear scale)", fontsize=8, pad=3)
 
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     out_path = FIG_DIR / f"ambiguity_curve{idx}_noise{noise_pct:g}pct.png"

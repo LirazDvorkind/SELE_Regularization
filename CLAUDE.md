@@ -17,6 +17,20 @@ Keep CLAUDE.md a generic rulebook. When adding or editing a rule here, don't ill
 with an example drawn from the task you were just doing -- write the rule so it stands on
 its own for any future task. Task-specific detail belongs in the PR/commit, not here.
 
+### Writing files from the shell
+
+Don't write multi-line file content through a Bash heredoc (`cat > file <<'EOF'`). On this
+Windows/Git-Bash setup, long heredocs containing apostrophes, backticks, or quotes fail to
+parse with `unexpected EOF while looking for matching`, and the file is left unwritten. Use
+the Write tool (or Edit) for file content; keep Bash for commands. If a script must be run
+from a temporary file, Write it first, then run it.
+
+### Commit messages
+
+One short sentence that captures the gist of the change without glossing over anything
+important in it. No bullet points. A multi-sentence body is for a genuinely large change
+that cannot be summarized honestly in one line -- prefer the minimum.
+
 ---
 
 ## Project Overview
@@ -57,8 +71,8 @@ G; omitting it silently models absorption instead of generation.
 
 Expected shape for a p-type GaAs wafer (paper Figure 2b):
 
-- **Near surface (z ~ 0)**: LOW (~0.05-0.1) due to surface recombination suppressing radiative recombination
-- **Rises to peak** (~0.3-0.45) at ~0.5-1 µm; peak position correlates with minority carrier diffusion length
+- **Near surface (z ~ 0)**: LOW (~0.05-0.1 %) due to surface recombination suppressing radiative recombination
+- **Rises to peak** (~0.3-0.45 %) at ~0.5-1 µm; peak position correlates with minority carrier diffusion length
 - **Decays toward 0** deeper (self-absorption); the profile approaches ~0 at the back of the 350 µm wafer
 
 | Physical Parameter | Effect on SELE |
@@ -296,5 +310,10 @@ Don't rely on hue alone to distinguish series if avoidable — vary marker/line 
 In `Papers/` directory:
 - **Main paper**: "Mapping Losses through Empirical Extraction of the Spatial External Luminescence Efficiency" (Yeshurun, Fiegenbaum-Raz, Segev, ACS Appl. Energy Mater. 2024)
 - **Supporting Information**: Derivations for PL calibration, optical constants, regularization method (L-curve), photon recycling model, finite element simulation details
+- **PhD thesis** (Yeshurun, TAU): the full treatment, including PN junctions and MOS capacitors
 
 Key equations: (2) forward model, (4) ELE from SELE, (5) simulated SELE via perturbation, (8) Tikhonov minimization, (11) photovoltage buildup from SELE.
+
+Before reading any of them, read `Papers/README.md`: the built-in PDF reader does not work in
+this environment, and the README gives the working extraction commands, each document's
+structure, and the printed-to-PDF page offset for the thesis.

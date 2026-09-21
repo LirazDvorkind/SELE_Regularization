@@ -21,12 +21,13 @@ import numpy as np
 
 from src.forward_model.ele import measurement_wavelengths
 from src.regularization.parametric_model.inference import (
-    band_report,
     load_model,
     mean_parameters,
     residual_report,
     sample_sele,
 )
+from src.regularization.parametric_model import in_distribution as indist
+from src.regularization.parametric_model import uncertainty as unc
 from src.regularization.parametric_model.plot_parametric_result import save_figures
 from src.test_set.loader import load_curve, load_test_set
 
@@ -38,12 +39,15 @@ _OUTPUT_DIR = _ROOT / "results" / "parametric_model"
 def _report(model, stem, ele, wavelengths, truth_z=None, truth_sele=None,
             n_samples=4000, output_dir=_OUTPUT_DIR):
     print(f"\n{stem}")
+    # Before anything else: a measurement unlike the training data makes every number below
+    # meaningless, and nothing in them would say so on its own.
+    print(indist.report(model, ele))
     ensemble = sample_sele(model, ele, n_samples=n_samples)
 
     print(f"  posterior mean: {model.spec.describe(mean_parameters(model, ensemble))}")
     print("  ELE residual against the measurement:")
     print(residual_report(model, ensemble, ele))
-    print(band_report(ensemble))
+    print(unc.report(ensemble, ele))
 
     save_figures(ensemble, wavelengths, ele, output_dir, stem,
                  ground_truth_z_cm=truth_z, ground_truth_sele=truth_sele)

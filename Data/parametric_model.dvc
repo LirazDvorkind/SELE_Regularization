@@ -1,0 +1,6 @@
+outs:
+- md5: 87d5838096e20c83f89481b3b4d13da4.dir
+  size: 32923335
+  nfiles: 3
+  hash: md5
+  path: parametric_model

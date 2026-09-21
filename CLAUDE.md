@@ -5,6 +5,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This principle applies to every README in this repo too: prefer describing concepts and pointing to
 where specifics live in code over restating specifics that will drift.
 
+### Searching the codebase
+
+This repo carries a graphify knowledge graph at **`graphify-out/` in the repo root**
+(`graphify-out/graph.json`, plus `GRAPH_REPORT.md` for a plain-language overview). Use it
+without waiting to be asked, via `/graphify query "<question>"`, whenever the question is
+structural: how subsystems relate, what depends on what, where a concept lives, or any sweep
+broad enough that the answer is a map rather than a file.
+
+Don't reach for it when a direct tool is the shorter path. Reading a file you can already
+name, grepping for a known symbol, and anything that requires *running* code to produce a
+number are all faster and more reliable with Read, Grep and Bash. A graph describes
+structure; it does not measure behaviour.
+
+**Check it is current before trusting it, every time.** The graph is a snapshot, and a stale
+one answers confidently about a repo that no longer exists -- there is no signal in its
+output that says so, which makes this the failure mode to guard against rather than a nicety.
+
+```bash
+find . \( -name "*.py" -o -name "*.md" \) -newer graphify-out/graph.json \
+  -not -path "./.venv/*" -not -path "./.git/*" -not -path "./graphify-out/*"
+```
+
+Anything listed is work the graph has never seen. If the list is non-empty, either refresh it
+with `/graphify . --update` (incremental -- it re-extracts only what changed) or fall back to
+Grep and Read for that question. Never answer from a graph that predates the code in
+question, and say which of the two happened rather than letting the choice go unstated.
+
 ### Comments
 
 Don't overdo comments. Write them only where the WHY is genuinely non-obvious (a physics
@@ -129,7 +156,11 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 ### Entry point & flow
 `src/main.py` → `src/pipeline.py:run_regularization()` — orchestrates data loading, G-matrix computation, solving, and result export.
 
-### Three regularization modes (set via `CONFIG.regularization_method`)
+### Regularization modes (set via `CONFIG.regularization_method`)
+
+`src/regularization/parametric_model/` is a fourth approach that does not go through this
+enum or the pipeline: it infers the simulator's parameters rather than regularising a curve,
+and is driven by its own standalones. The three below are the curve-space methods.
 
 | Mode | Solver | Key file |
 |------|--------|---------|
@@ -182,6 +213,8 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 | `src/regularization/score_model/standalones/tune_hyperparameters.py` | Grid search over hyperparameter space |
 | `src/regularization/score_model/standalones/model_training/` | Training scripts and Colab notebook |
 | `src/test_set/` | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures |
+| `src/forward_model/` | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README) |
+| `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`) |
 
 ### Data files
 

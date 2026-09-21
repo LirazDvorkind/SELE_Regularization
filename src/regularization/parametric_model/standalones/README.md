@@ -18,7 +18,7 @@ from running the physics on samples from that Gaussian, not from a generative mo
 python -m src.forward_model.standalones.generate_dataset --curves 100000 --seed 7 \n    --name parametric_100k
 ```
 
-About 12 seconds. Writes two files to `Data/parametric_model/datasets/`. Only
+About 8 seconds. Writes two files to `Data/parametric_model/datasets/`. Only
 `parametric_100k_train.npz` (29 MB) is needed for training; the `_sele.npz` companion is a
 small sample of curves kept locally for sanity plots.
 
@@ -56,9 +56,14 @@ parameters. Resume checkpoints are written every 25 epochs, so a disconnected se
 up where it stopped.
 
 **Read the coverage numbers, not only the loss.** Each evaluation prints the fraction of
-held-out truths falling inside the predicted 68% and 95% ellipsoids. Those should land near
-68 and 95. Well below means the error bars are too tight to trust; well above means they are
-too wide to be useful. The likelihood alone will not tell you which is happening.
+held-out truths falling inside the predicted 68% and 95% ellipsoids, which should land near
+68 and 95. Both low means the covariance is too tight, both high means too loose, and either
+is fixed by rescaling.
+
+Expect instead to see them miss in *opposite* directions -- around 75 and 93. No rescaling
+fixes that, and it is the signature of an ellipsoid stretched over a solution set that is not
+one. It is a property of the output head rather than a bad run, and it is why the reported
+bands come from ranking draws by data fit rather than from the network's covariance directly.
 
 ### 4. Bring the checkpoint back
 
@@ -71,9 +76,20 @@ python -m src.regularization.parametric_model.standalones.run_inference --test-s
 python -m src.regularization.parametric_model.standalones.run_inference --ele-sim
 ```
 
-Figures land in `results/parametric_model/`. Each run prints the posterior mean parameters,
-the relative residual of the median reconstruction against the measurement, and the width of
-the 68% band by depth zone. Around two seconds per curve at the default 4000 samples.
+Figures land in `results/parametric_model/`. Around two seconds per curve at the default
+4000 samples. Each run prints, in order:
+
+1. **the input check** -- whether the measurement is the kind of curve the network was
+   trained on. If this fails nothing below it means anything; see `in_distribution.py`.
+2. **the posterior mean parameters**, and the ELE residual of the draws against the
+   measurement.
+3. **the misfit distribution and the bands**, from `uncertainty.py`.
+4. **scalar intervals** for surface SELE, peak SELE, peak depth and mean SELE over 0-3 um.
+
+Quote the scalars rather than reading them off a band. The band's edges are the extremes at
+each depth taken separately, so it loses the correlation between depths -- it cannot express
+that a draw with a high peak also puts that peak deeper -- and peak depth cannot be read off
+a band at all.
 
 The residual is the number that matters. The whole method exists to produce a SELE profile
 satisfying `ELE = G @ SELE`, and a profile that does not reproduce the measurement is not an
@@ -101,19 +117,20 @@ test set's lifetime sweep needs. With the floor at 5, all 17 test curves fit to 
 A checkpoint carries its `param_spec`, so one trained against a different box is detectable
 rather than silently wrong.
 
-## What the error bars mean, and what they do not
+## What the bands mean, and what they do not
 
-Training data is clean: no measurement noise anywhere. So the spread the network reports is
-the ambiguity of the noiseless inverse problem — how far the parameters can move while still
-producing an ELE curve the network cannot tell apart from the one it was given. That is the
-same kind of statement the non-uniform-mesh confidence window makes, and it is the intended
-reading.
+The reported band is the envelope of the draws that best reproduce the measurement, ranked by
+mean squared error in ELE space -- not percentiles of every draw. `uncertainty.py` holds the
+level and `standalones/check_uncertainty.py` is where its coverage was measured.
 
-It is not a measurement-noise posterior. The forward map is many-to-one only up to some
-precision; below that precision it is technically invertible, and a network with unlimited
-capacity trained on unlimited clean data would report ever-shrinking error bars. The bands
-therefore depend on how finely the network can resolve ELE differences, not only on the
-physics.
+Training data is clean: no measurement noise anywhere. So the band is the ambiguity of the
+noiseless inverse problem -- how far the parameters can move while still producing an ELE
+curve indistinguishable from the one given. That is the same kind of statement the
+non-uniform-mesh confidence window makes, and it is the intended reading.
+
+It is not a measurement-noise posterior, and it is an upper bound on the ambiguity rather
+than a tight estimate: the parameters that genuinely fit span less than the band reports, and
+the excess is how finely the network can resolve ELE differences rather than physics.
 
 If bands conditioned on a stated measurement precision are ever wanted, the change is small
 and local: add relative noise to `ele` inside the training loop, resampled each epoch, and

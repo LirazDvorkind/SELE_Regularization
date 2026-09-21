@@ -35,9 +35,9 @@ quadrature to converge. Generating 100000 curves that way took around 27 minutes
 `analytic_ele.py` avoids it. SELE is a sum of exponentials in depth and G's entries are
 exponentials in depth, so the sum over mesh elements is a geometric series with a closed
 form. Every exponential factorises across the two indices, so nothing transcendental is ever
-evaluated on the combined tensor. The same 100000 curves take about 7 seconds, and because
+evaluated on the combined tensor. The same 100000 curves take about 8 seconds, and because
 the cost no longer depends on the mesh, the default is a million elements — within 1e-7 of
-the continuum limit, where the 500-element solver mesh is off by as much as 17%.
+the continuum limit, where the 500-element solver mesh is off by about 50%.
 
 This is exact, not an approximation, and `standalones/check_analytic_ele.py` asserts the two
 routes agree. They match to 1e-13 on moderate meshes. Past about 20000 elements the
@@ -72,8 +72,8 @@ exactly why it is checked against the real matrix rather than trusted.
 
 ```bash
 cd "MATLAB SELE Simulation" && matlab -batch export_validation_curves
-python -m src.forward_model.standalones.validate_matlab_port   # 4.4e-13 vs MATLAB
-python -m src.forward_model.standalones.check_analytic_ele     # 1.3e-12 between routes
+python -m src.forward_model.standalones.validate_matlab_port   # 4e-13 vs MATLAB
+python -m src.forward_model.standalones.check_analytic_ele     # 2e-12 between routes
 python -m src.forward_model.standalones.check_dataset          # distribution vs MATLAB curves
 ```
 
@@ -96,5 +96,5 @@ cannot do. Each answers one question and prints its own evidence.
 
 They exist because each backs a decision that is live in the code -- the `D` floor, the choice
 not to treat the network's Gaussian as the answer -- and a number nobody can regenerate is an
-assertion rather than evidence. `plans/parametric-model-findings.md` records what they said
+assertion rather than evidence. `plans/parametric-model.md` records what they said
 and what followed from it.

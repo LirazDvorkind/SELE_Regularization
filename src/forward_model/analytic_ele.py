@@ -40,7 +40,7 @@ from src.optical_constants import extinction_at
 
 # The cost of this routine does not depend on the mesh at all, so there is no reason to
 # economise: a million elements sits within 1e-7 of the continuum limit, where 8000 is off by
-# 1e-3 and the 500-element solver mesh by as much as 17%.
+# 2e-3 and the 500-element solver mesh by about 50%.
 DEFAULT_ELEMENTS = 1_000_000
 
 

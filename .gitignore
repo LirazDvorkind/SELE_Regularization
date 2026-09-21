@@ -296,3 +296,6 @@ MATLAB SELE Simulation/*.csv
 
 # MATLAB autosave backups
 *.asv
+
+# Derived MATLAB reference for the Python simulator port (regenerate with export_validation_curves.m)
+MATLAB SELE Simulation/validation_reference.mat

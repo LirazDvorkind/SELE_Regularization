@@ -1,9 +1,14 @@
 """From an ELE measurement to a family of plausible SELE curves.
 
 The network gives a Gaussian over normalised parameters. Everything after that is physics:
-draw parameter vectors, run the simulator, and read the spread off the resulting curves.
-The bands are therefore percentiles of real simulated profiles, not error propagation
-through a linearisation, so they stay physically admissible no matter how wide they get.
+draw parameter vectors, run the simulator, and the result is an ensemble of real profiles, so
+whatever is read off it stays physically admissible no matter how wide it gets.
+
+What this module reports are percentiles of that ensemble as drawn, with every sample counting
+equally. That is the network's own spread and it is *not* what the figures or the headline
+numbers use -- ``uncertainty.py`` ranks the draws by how well each reproduces the measurement
+and reports the envelope of the best-fitting fraction, which is the calibrated statement. The
+functions here remain the raw view, useful for seeing what the network alone believes.
 """
 
 from __future__ import annotations
@@ -99,7 +104,7 @@ def sample_sele(
     sele = simulate_sele(params, z_cm)
 
     # The refit is the closed-form ELE, not G applied to the display mesh. Folding the
-    # coarse-mesh discretisation error (up to 17% at 500 elements) into the refit would put a
+    # coarse-mesh discretisation error (around 50% at 500 elements) into the refit would put a
     # floor under the residual that has nothing to do with how good the posterior is.
     ele_refit = simulate_ele(params)
 

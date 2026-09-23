@@ -72,15 +72,12 @@ for i = 1:n_samples
     % Effective lifetime
     tau_eff = 1 / (1/tau + 1/tau_rad + 1/tau_auger);
     
-    % At lower doping the FCA drops
-    k_eff = k_no_drude + (k_w_drude - k_no_drude) * (p0 / 1e19);
-    
     % Spectrally-resolved emission probability Sp(λ_emit, x)
     %  If a photon is absorbed at depth x, what is the probability it 
     %  produces an observable PL photon at emission wavelength λ_emit?
     Sp_2d = calc_Sp2( ...
         x, wavelength_PL, p0, ni, tau_eff, S, D, ...
-        n_k_wavelength, n_w_drude, k_eff, k_no_drude, ...
+        n_k_wavelength, n_w_drude, k_w_drude, k_no_drude, ...
         alpha_scale);
 
     % Integrate over emission energy → true SELE(x)

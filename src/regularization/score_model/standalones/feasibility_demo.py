@@ -9,7 +9,7 @@ introduction to the terms used everywhere else (ELE, SELE, G, prior, posterior).
 
 Run as: python -m src.regularization.score_model.standalones.feasibility_demo
 
-The "save figure" button (or --export) writes a static, document-ready version of the
+The "save figure" button (or --export) writes static, document-ready versions of the
 ambiguity figure (claim F) to results/feasibility/:
     python -m src.regularization.score_model.standalones.feasibility_demo --export [--idx N] [--noise 1.0]
 """
@@ -554,8 +554,12 @@ def pick_showcase_curve(tol: float, target_matches: int = 25) -> int:
     return int(np.argmin(penalty))
 
 
-def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> Path | None:
-    """Static two-panel version of claim F, sized for pasting into a document."""
+def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> list[Path] | None:
+    """Static versions of claim F, sized for pasting into a document.
+
+    Writes two figures that differ only in panel (c): one shows each ELE's relative
+    difference from the reference, the other a close-up of the absolute ELEs.
+    """
     tol = noise_pct / 100.0
     if idx is None:
         idx = pick_showcase_curve(tol)
@@ -572,7 +576,10 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
     if others.sum() < 1:
         print(f"curve #{idx}: no other curve within {noise_pct:.2f}% -- try another curve or more noise")
         return None
+    return [_ambiguity_figure(idx, others, noise_pct, absolute_c) for absolute_c in (False, True)]
 
+
+def _ambiguity_figure(idx: int, others: np.ndarray, noise_pct: float, absolute_c: bool) -> Path:
     bands = [(0, 3, GREEN, 0.15, "data-informed"), (3, 8, YELLOW, 0.25, "marginal"),
              (8, W_UM, VERMILLION, 0.13, "prior-dominated")]
     out_fig, ((ax_s, ax_e), (ax_d, ax_g)) = plt.subplots(2, 2, figsize=(11, 9.2),
@@ -604,16 +611,29 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
     ax_e.grid(alpha=0.25)
     ax_e.legend(fontsize=8.5, framealpha=0.9, loc="lower right")
 
-    ax_d.axhspan(-noise_pct, noise_pct, color=SKY, alpha=0.2, lw=0, label=f"±{noise_pct:g}%")
-    ax_d.plot(WAVELENGTHS_NM, 100 * (E[others] / E[idx] - 1).T, color="0.55", lw=0.8, marker=".", ms=3)
-    ax_d.axhline(0, color=BLACK, lw=2.0, ls="--")
+    wl = np.asarray(WAVELENGTHS_NM).ravel()
+    if absolute_c:
+        ref = 100 * E[idx]
+        lo, hi = ref * (1 - noise_pct / 100), ref * (1 + noise_pct / 100)
+        ax_d.fill_between(wl, lo, hi, color=SKY, alpha=0.2, lw=0, label=f"reference ±{noise_pct:g}%")
+        ax_d.plot(wl, 100 * E[others].T, color="0.55", lw=0.8, marker=".", ms=3)
+        ax_d.plot(wl, ref, color=BLACK, lw=2.0, ls="--")
+        y_lo = min(lo.min(), 100 * E[others].min())
+        y_hi = max(hi.max(), 100 * E[others].max())
+        pad = 0.05 * (y_hi - y_lo)
+        ax_d.set_ylim(y_lo - pad, y_hi + pad)
+        ax_d.set_ylabel("ELE (%)")
+        ax_d.set_title("(c) zoom: their ELEs", fontsize=10)
+    else:
+        ax_d.axhspan(-noise_pct, noise_pct, color=SKY, alpha=0.2, lw=0, label=f"±{noise_pct:g}%")
+        ax_d.plot(wl, 100 * (E[others] / E[idx] - 1).T, color="0.55", lw=0.8, marker=".", ms=3)
+        ax_d.axhline(0, color=BLACK, lw=2.0, ls="--")
+        ax_d.set_ylabel("ELE difference from reference (%)")
+        ax_d.set_title("(c) zoom: ELE difference", fontsize=10)
     ax_d.set_xlabel("excitation wavelength (nm)")
-    ax_d.set_ylabel("ELE difference from reference (%)")
-    ax_d.set_title("(c) zoom: ELE difference", fontsize=10)
     ax_d.grid(alpha=0.25)
     ax_d.legend(fontsize=8.5, framealpha=0.9, loc="upper right")
 
-    wl = np.asarray(WAVELENGTHS_NM).ravel()
     cmap, norm = plt.get_cmap("viridis"), plt.Normalize(wl.min(), wl.max())
     for z0, z1, color, alpha, _ in bands:
         ax_g.axvspan(z0, z1, color=color, alpha=alpha, lw=0)
@@ -639,7 +659,8 @@ def export_ambiguity_figure(idx: int | None = None, noise_pct: float = 1.0) -> P
     inset_g.set_title("zoom: first 1 μm  (linear scale)", fontsize=8, pad=3)
 
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = FIG_DIR / f"ambiguity_curve{idx}_noise{noise_pct:g}pct.png"
+    suffix = "_absolute" if absolute_c else ""
+    out_path = FIG_DIR / f"ambiguity_curve{idx}_noise{noise_pct:g}pct{suffix}.png"
     out_fig.savefig(out_path, dpi=300)
     plt.close(out_fig)
     print(f"saved {out_path}")

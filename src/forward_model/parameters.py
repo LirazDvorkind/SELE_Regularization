@@ -4,8 +4,8 @@ Transcribed from the randomisation block of ``MATLAB SELE Simulation/create_trai
 with one deliberate departure: ``D`` reaches down to 5 rather than 50 cm^2/s, and is sampled
 log-uniformly over that wider span. See the note below.
 
-Everything else in the simulator (bandgap narrowing, ``ni``, Auger and radiative lifetimes,
-the free-carrier blend of ``k``) is derived from ``p0`` rather than sampled independently.
+Everything else in the simulator (bandgap narrowing, ``ni``, Auger and radiative lifetimes)
+is derived from ``p0`` rather than sampled independently.
 """
 
 from __future__ import annotations

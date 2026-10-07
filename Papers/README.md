@@ -48,7 +48,9 @@ either). Two traps:
 - **Equations are not in `<w:t>`.** They are OMML (`<m:oMath>`) in the `math` namespace, so a
   dump that only walks `w:t` silently renders every equation as an empty line followed by its
   number. Convert `m:f`, `m:sSub`, `m:sSup`, `m:nary`, `m:d` and `m:rad` recursively to get
-  readable linear form.
+  readable linear form. The leaf text inside a math run is `<m:t>`, not `<w:t>` — a converter
+  that reuses the `w:t` leaf lookup inside `m:r` renders every equation as empty parens with
+  no error, which looks like success. Iterate `m:t` there instead.
 
 Comments live in `word/comments.xml` (author, date, body, keyed by id); their anchors in the
 body text are `<w:commentRangeStart/End>` markers, so interleave those into the document dump

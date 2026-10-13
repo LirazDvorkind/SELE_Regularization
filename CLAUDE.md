@@ -116,6 +116,12 @@ python -m src.test_set.plot_test_set    # overview figure of both parameter swee
 python -m src.evaluation.plot_method_comparison   # every method against every curve
 ```
 
+### Drift-diffusion p-n junction solver
+```bash
+python -m src.drift_diffusion.standalones.check_drift_diffusion   # physics/numerics checks
+python -m src.drift_diffusion.standalones.plot_band_diagram       # band diagrams, J-V
+```
+
 ### Install dependencies
 ```bash
 uv sync
@@ -189,6 +195,7 @@ and is driven by its own standalones. The three below are the curve-space method
 | `src/test_set/` | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures |
 | `src/evaluation/` | Runs the reconstruction methods against the test set and compares them |
 | `src/forward_model/` | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README) |
+| `src/drift_diffusion/` | Steady-state 1-D Poisson + continuity solver for a GaAs p-n junction under bias and arbitrary G(x), with band-diagram plots (see its README) |
 | `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`) |
 
 ### Data files

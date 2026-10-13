@@ -299,3 +299,6 @@ MATLAB SELE Simulation/*.csv
 
 # Derived MATLAB reference for the Python simulator port (regenerate with export_validation_curves.m)
 MATLAB SELE Simulation/validation_reference.mat
+
+# Cached score-model solves for src/evaluation/plot_method_comparison.py
+results/method_comparison/.score_cache/

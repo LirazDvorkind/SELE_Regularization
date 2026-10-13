@@ -1,63 +1,45 @@
-Median over the test-set curves (absolute value for signed errors). Relative errors are fractions: 0.10 = 10%.
+Relative RMSE = ||x - ref|| / ||ref||, in percent.
 
-metric                          Parametric model                 Score model  Tikhonov (L2), best kappa*
-mse                                     9.14e-07                    1.77e-05                    1.23e-06
-rmse_pct_points                           0.0956                       0.421                       0.111
-rel_l2_0-30um                              0.277                       0.833                       0.246
-rel_l2_0-1um                              0.0116                        0.39                       0.205
-rel_l2_1-3um                               0.086                       0.693                       0.111
-rel_l2_3-8um                               0.215                       0.741                       0.215
-rel_l2_8-30um                               0.33                       0.839                       0.324
-surface_rel_err                           0.0196                      0.0757                       0.529
-peak_rel_err                               0.158                       0.575                       0.238
-peak_depth_err_um                           1.14                        3.66                        1.44
+SELE, against the true SELE over 0-30 um:
+curve                      Parametric model                    Score model  Tikhonov (L2) non linear mesh
+srv_1e3                               8.23%                        116.74%                         35.72%
+srv_1e4                               5.08%                        116.41%                         35.53%
+srv_1e5                               3.53%                        114.38%                         26.71%
+srv_5e5                               9.11%                         52.10%                         15.74%
+srv_1e6                              15.23%                         57.08%                         16.59%
+srv_1e7                              32.93%                         68.89%                         23.60%
+tau_0p1ns                            23.23%                         35.47%                         24.92%
+tau_0p25ns                           25.50%                         54.98%                         16.66%
+tau_0p5ns                            27.22%                         68.90%                         22.28%
+tau_1ns                              27.73%                         76.26%                         30.28%
+tau_2ns                              28.34%                         80.90%                         36.26%
+tau_4ns                              29.86%                         83.29%                         39.94%
+tau_8ns                              29.60%                         84.42%                         41.95%
+tau_15ns                             29.56%                         84.95%                         42.96%
+tau_20ns                             29.69%                         85.10%                         43.25%
+tau_40ns                             29.67%                         85.33%                         43.72%
+tau_60ns                             30.36%                         85.41%                         43.86%
+mean                                 22.64%                         79.45%                         31.76%
 
-* hindsight kappa is chosen using the ground truth -- an upper bound on what Tikhonov could do, not a method usable on a real measurement.
+ELE, against the measured ELE (every method refit through one shared fine-mesh G):
+curve                      Parametric model                    Score model  Tikhonov (L2) non linear mesh
+srv_1e3                               1.10%                          0.11%                          0.00%
+srv_1e4                               0.27%                          0.11%                          0.00%
+srv_1e5                               0.76%                          0.06%                          0.01%
+srv_5e5                               1.33%                          1.63%                          0.16%
+srv_1e6                               2.60%                          1.82%                          0.31%
+srv_1e7                               2.67%                          3.85%                          2.08%
+tau_0p1ns                             2.27%                          1.72%                          2.10%
+tau_0p25ns                            1.95%                          3.19%                          2.09%
+tau_0p5ns                             3.06%                          3.94%                          2.08%
+tau_1ns                               3.64%                         23.56%                          2.07%
+tau_2ns                               3.44%                         25.33%                          2.07%
+tau_4ns                               3.19%                          4.85%                          2.08%
+tau_8ns                               2.88%                          4.94%                          2.06%
+tau_15ns                              2.78%                          4.97%                          2.06%
+tau_20ns                              2.76%                          4.98%                          2.06%
+tau_40ns                              2.70%                          5.00%                          2.06%
+tau_60ns                              2.71%                          5.01%                          2.06%
+mean                                  2.36%                          5.59%                          1.49%
 
-AI Summary:
-The parametric model is the best method on this test set, especially in the first 3 µm, which is the part of the profile the ELE measurement actually constrains.
-
-The test set is 17 ground-truth SELE curves: 6 surface-recombination-velocity curves and 11 lifetime curves. Every method gets the same measured ELE and is scored
-over 0–30 µm.
-
-Method by method:
-- Parametric model: about 1% error in the first µm, about 9% at 1–3 µm, and a surface value within about 2%. It gets the peak depth within about 1 µm and the peak
-    height within about 16%. Beyond about 8 µm the errors grow to around 30%, but no method is really measured there.
-- Tikhonov: its automatic κ choice (the L-curve corner) fails on every curve, and the profiles come out orders of magnitude off. With κ picked using the truth it
-    does about as well as the parametric model overall, but it is worse near the surface: 21% error in the first µm and 53% on the surface value. That truth-picked
-    result is only a best case, not something a real measurement allows.
-- Score model: worst on every metric, at roughly 40–80% error in every depth zone. It returns a nearly flat profile near the measured ELE level and misses the shape.
-    It still reproduces the ELE well, which shows how many different profiles fit the same measurement.
-
-Each number is the median over the 17 curves. For signed errors the absolute value is taken first. SELE is stored as a fraction (0.005 means 0.5%), and every
-  relative error is a fraction too (0.10 means 10%).
-
-  ┌───────────────────────┬─────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────┐
-  │          Row          │          What it measures           │                                          How to read it                                          │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │                       │ Mean of (reconstructed − true)²     │ Hard to read directly. Parametric 9e-7 vs Tikhonov 1.2e-6 vs score 1.8e-5, so the score model is │
-  │ mse                   │ over the 0–30 µm grid, in raw SELE  │  about 20× worse.                                                                                │
-  │                       │ units                               │                                                                                                  │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ rmse_pct_points       │ Square root of the MSE, in SELE     │ The typical error at a single depth. With SELE peaking around 0.3–0.9%, the parametric model is  │
-  │                       │ percentage points                   │ off by about 0.1 points and the score model by about 0.4.                                        │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │                       │ ‖reconstructed − true‖ / ‖true‖     │ The overall error as a fraction of the profile's size: 28%, 83% and 25%. It's dominated by the   │
-  │ rel_l2_0-30um         │ over 0–30 µm                        │ deep tail, which the measurement barely constrains, so it hides the differences near the         │
-  │                       │                                     │ surface.                                                                                         │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ rel_l2_0-1um …        │ The same relative error, but only   │ The most informative rows. Near the surface, where the measurement has real information, the     │
-  │ rel_l2_8-30um         │ within each depth zone              │ parametric model is far better (1% and 9% vs 21% and 11% for Tikhonov). From 3 µm down,          │
-  │                       │                                     │ parametric and Tikhonov are tied, both mostly guessing the tail.                                 │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ surface_rel_err       │ (reconstructed − true) / true at    │ Relevant because SRV is read from the surface value. Parametric 2%, score 8%, Tikhonov 53% (its  │
-  │                       │ the shallowest grid point           │ first mesh element is coarse).                                                                   │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ peak_rel_err          │ (reconstructed peak − true peak) /  │ How well each method gets the maximum SELE: 16%, 58% and 24%.                                    │
-  │                       │ true peak                           │                                                                                                  │
-  ├───────────────────────┼─────────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
-  │ peak_depth_err_um     │ Depth of the reconstructed peak     │ Peak position relates to the diffusion length: about 1.1, 3.7 and 1.4 µm off.                    │
-  │                       │ minus the true peak depth, in µm    │                                                                                                  │
-  └───────────────────────┴─────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-  The asterisk on Tikhonov means its κ was picked using the true SELE, so its column is a best case rather than something achievable on a real measurement.
+ELE floor -- the true SELE through that same G -- averages 1.24%, for scale.

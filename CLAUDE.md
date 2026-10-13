@@ -113,6 +113,7 @@ python -m src.regularization.score_model.standalones.tune_hyperparameters
 ```bash
 python -m src.test_set.build_test_set   # re-extract profiles from the paper figures
 python -m src.test_set.plot_test_set    # overview figure of both parameter sweeps
+python -m src.evaluation.plot_method_comparison   # every method against every curve
 ```
 
 ### Install dependencies
@@ -186,6 +187,7 @@ and is driven by its own standalones. The three below are the curve-space method
 | `src/regularization/score_model/standalones/tune_hyperparameters.py` | Grid search over hyperparameter space |
 | `src/regularization/score_model/standalones/model_training/` | Training scripts and Colab notebook |
 | `src/test_set/` | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures |
+| `src/evaluation/` | Runs the reconstruction methods against the test set and compares them |
 | `src/forward_model/` | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README) |
 | `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`) |
 
@@ -232,9 +234,9 @@ Built by `src/test_set/` from the paper's `.fig` files; read it through
   `src/optical_constants.py`, so the test set's `solver_mesh/G_500.csv` is bit-identical to
   what `calc_mesh_and_G` produces. Keep it that way — a benchmark whose G differs from the
   solver's measures discretization error, not reconstruction error.
-- **Nothing scores a solver against the set yet, and it holds no noise.** Both are deliberate,
-  not gaps to fill unprompted. `results/` predates the optics unification and is not
-  comparable to fresh output.
+- **It holds no noise.** That is deliberate, not a gap to fill unprompted, and it flatters
+  every method compared against it in `src/evaluation/`. `results/` predates the optics
+  unification and is not comparable to fresh output.
 
 ---
 

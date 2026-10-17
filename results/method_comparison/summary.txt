@@ -5,21 +5,21 @@ curve                      Parametric model                    Score model  Tikh
 srv_1e3                               8.23%                        116.74%                         35.72%
 srv_1e4                               5.08%                        116.41%                         35.53%
 srv_1e5                               3.53%                        114.38%                         26.71%
-srv_5e5                               9.11%                         52.10%                         15.74%
-srv_1e6                              15.23%                         57.08%                         16.59%
+srv_5e5                               9.11%                         52.06%                         15.74%
+srv_1e6                              15.23%                         57.11%                         16.59%
 srv_1e7                              32.93%                         68.89%                         23.60%
-tau_0p1ns                            23.23%                         35.47%                         24.92%
+tau_0p1ns                            23.23%                         35.46%                         24.92%
 tau_0p25ns                           25.50%                         54.98%                         16.66%
 tau_0p5ns                            27.22%                         68.90%                         22.28%
-tau_1ns                              27.73%                         76.26%                         30.28%
-tau_2ns                              28.34%                         80.90%                         36.26%
+tau_1ns                              27.71%                         76.20%                         30.28%
+tau_2ns                              28.35%                         80.89%                         36.26%
 tau_4ns                              29.86%                         83.29%                         39.94%
 tau_8ns                              29.60%                         84.42%                         41.95%
 tau_15ns                             29.56%                         84.95%                         42.96%
 tau_20ns                             29.69%                         85.10%                         43.25%
 tau_40ns                             29.67%                         85.33%                         43.72%
 tau_60ns                             30.36%                         85.41%                         43.86%
-mean                                 22.64%                         79.45%                         31.76%
+mean                                 22.64%                         79.44%                         31.76%
 
 ELE, against the measured ELE (every method refit through one shared fine-mesh G):
 curve                      Parametric model                    Score model  Tikhonov (L2) non linear mesh
@@ -32,14 +32,14 @@ srv_1e7                               2.67%                          3.85%      
 tau_0p1ns                             2.27%                          1.72%                          2.10%
 tau_0p25ns                            1.95%                          3.19%                          2.09%
 tau_0p5ns                             3.06%                          3.94%                          2.08%
-tau_1ns                               3.64%                         23.56%                          2.07%
-tau_2ns                               3.44%                         25.33%                          2.07%
+tau_1ns                               3.65%                         23.55%                          2.07%
+tau_2ns                               3.44%                         25.32%                          2.07%
 tau_4ns                               3.19%                          4.85%                          2.08%
-tau_8ns                               2.88%                          4.94%                          2.06%
+tau_8ns                               2.89%                          4.94%                          2.06%
 tau_15ns                              2.78%                          4.97%                          2.06%
 tau_20ns                              2.76%                          4.98%                          2.06%
 tau_40ns                              2.70%                          5.00%                          2.06%
-tau_60ns                              2.71%                          5.01%                          2.06%
+tau_60ns                              2.70%                          5.00%                          2.06%
 mean                                  2.36%                          5.59%                          1.49%
 
 ELE floor -- the true SELE through that same G -- averages 1.24%, for scale.

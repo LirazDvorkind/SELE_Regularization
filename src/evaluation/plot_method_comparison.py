@@ -154,8 +154,12 @@ def _panel_grid(curves):
 
 
 def _finish(figure, axes, xlabel, ylabel, title, filename):
-    for ax in axes[-1]:
-        ax.set_xlabel(xlabel)
+    # sharex hides tick labels on all but the last row; show them on every panel, and put the
+    # axis label on the lowest visible panel of each column since the last row is partly empty.
+    for ax in axes.flat:
+        ax.xaxis.set_tick_params(labelbottom=True)
+    for column in axes.T:
+        [ax for ax in column if ax.axison][-1].set_xlabel(xlabel)
     for ax in axes[:, 0]:
         ax.set_ylabel(ylabel)
     handles, labels = axes.flat[0].get_legend_handles_labels()

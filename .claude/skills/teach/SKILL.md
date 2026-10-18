@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Teach a concept the user did not understand — from a paper, a figure, a formula, or something said earlier in the conversation. Use when the user says "teach me", "explain", "help me build intuition", "what do you mean by", or asks to learn from a document.
+description: Teach a concept the user did not understand — from a paper, a figure, a formula, or something said earlier in the conversation — as a full structured lesson. Use when the user says "teach me", "help me build intuition", "what do you mean by", or asks to learn from a document. Not for a plain "explain why..." in an ongoing discussion; answer those in the short plain-language style from CLAUDE.md.
 ---
 
 # /teach

@@ -31,6 +31,23 @@ One short sentence that captures the gist of the change without glossing over an
 important in it. No bullet points. A multi-sentence body is for a genuinely large change
 that cannot be summarized honestly in one line -- prefer the minimum.
 
+### Physics discussions
+
+When discussing physics (mechanisms, models, why a result looks the way it does), answer in
+plain language first:
+
+- Short bold-labelled paragraphs, one idea each: what we see, where it comes from, why, what
+  is still open, what to check next.
+- Explain mechanisms in words (what a carrier or photon does), not equations. Add an
+  equation or code reference only when the point depends on it.
+- No tables of file paths or line numbers unless asked; say which source a claim comes from
+  in a few words.
+- State clearly what is confirmed vs. what is a hypothesis.
+- End with the single most useful next check, and ask before running anything numeric.
+
+Give the full technical breakdown (equations, code locations, derivations) only when asked to
+elaborate or go into detail. For a full lesson on one concept, use `/teach`.
+
 ---
 
 ## Project Overview

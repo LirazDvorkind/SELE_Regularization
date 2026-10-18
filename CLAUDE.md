@@ -31,6 +31,13 @@ One short sentence that captures the gist of the change without glossing over an
 important in it. No bullet points. A multi-sentence body is for a genuinely large change
 that cannot be summarized honestly in one line -- prefer the minimum.
 
+### Branches
+
+Creating, deleting, renaming, merging, rebasing, resetting, or pushing to a branch -- any
+change to a branch other than committing to the one already checked out -- needs the user's
+explicit permission first, every time. Permission for one branch operation does not cover
+the next. Worktrees count: don't create one, or the branch it needs, without asking.
+
 ### Physics discussions
 
 When discussing physics (mechanisms, models, why a result looks the way it does), answer in

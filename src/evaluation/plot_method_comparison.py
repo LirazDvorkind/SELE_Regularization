@@ -7,7 +7,7 @@ Writes ``all_methods_sele_overlay.png`` (SELE against the truth) and
 ``results/method_comparison/``. Every method is fed the curve's
 native-mesh ELE, and none is told anything about the truth:
 
-- parametric model: median of its reported misfit band;
+- parametric model: its best-fitting draw, a real simulator curve;
 - score model: the d500 preset on the 500-element solver mesh;
 - Tikhonov (L2): the non-uniform mesh, kappa range and confidence window from ``CONFIG``,
   kappa picked by the L-curve knee -- one setup for every curve.
@@ -135,9 +135,9 @@ def reconstruct_all(curves: list[GroundTruthCurve]) -> dict[str, tuple]:
     for curve in curves:
         z_cm = load_on_solver_mesh(curve.curve_id).z_centres_cm
         ensemble = sample_sele(parametric, curve.ele)
-        band = unc.misfit_band(ensemble, curve.ele, unc.REPORTED_LEVEL)
+        selection = unc.select(ensemble, curve.ele)
         results[curve.curve_id] = (z_cm, np.interp(z_cm, curve.z_cm, curve.sele), {
-            "parametric": np.interp(z_cm, ensemble.z_cm, band.median),
+            "parametric": np.interp(z_cm, ensemble.z_cm, selection.best_sele),
             "score": np.load(SCORE_CACHE / f"{curve.curve_id}.npy"),
             "tikhonov": np.interp(z_cm, tikhonov.z_cm, tikhonov.reconstruct(curve.ele)),
         })

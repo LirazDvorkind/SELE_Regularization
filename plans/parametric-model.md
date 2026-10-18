@@ -21,76 +21,76 @@ ELE (28 wavelengths)
   → network → a distribution over the 5 simulator parameters
   → draw 4000 parameter sets
   → run the physics on each → 4000 candidate SELE profiles
-  → score each against the measurement, keep the best-fitting fraction
-  → that set is the answer and its spread is the uncertainty
+  → score each against the measurement
+  → report the best-fitting draw; every draw within 1% in ELE is the set that explains the data
 ```
 
-Every curve in the band comes out of the simulator, so it is physically admissible by
+Every reported curve comes out of the simulator, so it is physically admissible by
 construction rather than by penalty. **The success criterion is the forward equation**: a
-profile that does not reproduce the measured ELE is not an answer, and neither is one whose
-band is so wide it says nothing.
+profile that does not reproduce the measured ELE is not an answer.
 
-## What the bands are
+## What is reported
 
-The band is the envelope of the draws that **best reproduce the measurement**, ranked by mean
-squared error in ELE space — not percentiles of every draw. Ranking by data fit is what makes
-it an uncertainty set rather than a picture of the network's own spread.
+**The curve is the best-fitting draw** — the one whose ELE is closest to the measurement in
+relative L2. It is a real simulator curve with its five parameters attached. A depth-wise
+median of many draws is not: it stitches different draws together at different depths and
+no parameter set produces it.
 
-They are **not measurement noise**. Training data is noise-free, so a noisier measurement does
-not widen them. They express that the forward map is many-to-one: different parameter sets
-produce ELE curves that cannot be told apart, and the band is what those look like in depth.
-Same class of statement as the confidence window in the paper's non-uniform-mesh method.
+**The draws that fit are everything within 1% in ELE** (`TOLERANCE` in `uncertainty.py`),
+drawn as light lines with their envelope shaded. They all explain the measurement, so where
+they fan out in depth the data no longer constrains the profile. If no draw is within the
+tolerance, the best draw is reported alone with a warning stating by how much it misses.
 
-The honest phrasing is **an upper bound on the ambiguity, not a tight estimate of it**. The
-set of parameters that genuinely fit spans about 0.007 near the surface; the reported band is
-wider than that, and the excess is the network's resolution rather than physics.
+The cut is an absolute misfit, not a fraction of draws. A fraction says nothing about fit: the
+earlier best-fitting-68% rule admitted draws missing the measurement by 13–23%, and its band
+held the truth largely because of them. Its median also scored better on SELE over 0–30 µm
+than any tighter selection, for the same reason — draws that do not explain the data happened
+to pull the curve toward the truth on this test set. That is not something to report as a
+result, so the rule was retired.
 
-## The level, and why 0.68
-
-Keeping the best-fitting fraction `L` of draws, coverage of the truth over 0–3 µm against the
-ground-truth test set:
-
-| level | median coverage | median band width |
-|---|---|---|
-| 0.10 | 40% | 0.074 |
-| 0.25 | 72% | 0.152 |
-| **0.68** | **100%** | **0.454** |
-| plain 95% percentile band | 100% | 0.793 |
-
-**0.68 is the tightest level that still holds the truth at every depth of the first 3 µm, on
-every curve**, and it is 1.7x tighter than the percentile band it replaces at identical
-coverage. Over the full 0–30 µm even 0.68 lets the truth out on the longest-lifetime curves
-(76–89%) — the deep tail no measurement constrains, not a badly chosen level.
-
-Tightening further does not work, and the reason is the physics rather than tuning: a better
-ELE fit is not reliably a closer profile. That is the degeneracy. `REPORTED_LEVEL` in
-`uncertainty.py` carries this value; `standalones/check_uncertainty.py` re-measures the table.
+The spread is **not measurement noise**. Training data is noise-free, so a noisier measurement
+does not widen it. It expresses that the forward map is many-to-one at the chosen tolerance.
 
 ## What it delivers
 
-Against all 17 ground-truth test curves:
+Against all 17 ground-truth test curves, at the default 4000 draws:
 
 | | |
 |---|---|
-| ELE reproduced to | **0.006–0.2%** (best draw, every curve) |
-| SELE accuracy, first micron | **0.7–3.4%** |
-| truth inside the band, 0–3 µm | **100% of depths, every curve** |
+| best draw reproduces the ELE to | **0.01–0.20%** |
+| draws within 1% | **134–260** per curve |
+| best-draw SELE error, 0–1 µm | **0.1–0.4%** on SRV up to 1e6; **1.7–2.3%** on the lifetime curves and SRV 1e7 |
+| best-draw SELE error, 1–3 µm | 0.3–4.0% on SRV up to 1e6; 5–12% on the lifetime curves and SRV 1e7 |
+| truth inside the envelope, 0–3 µm | 100% on SRV up to 5e5; 20–38% on the rest |
 
-Accuracy degrades with depth as the measurement's sensitivity falls — 0.5–9.7% at 1–3 µm,
-1.3–30% past 8 µm — and over the full 0–30 µm the band stops holding the truth on the
-longest-lifetime curves (76–89%). Trust about the first 3 µm; beyond that the profile is
-increasingly prior rather than measurement, and the band widens to say so.
-`standalones/score_test_set.py` prints the table.
+The 1–3 µm error is shared by every draw that fits, so it is a bias, not ambiguity:
+selecting differently does not remove it. It is model mismatch. The test-set truths are
+Tamir Yeshurun's COMSOL simulations, which include photon recycling and angle-resolved,
+multi-pass escape with back-surface reflection; the simulator here counts only light leaving
+the front on a single straight pass. Light from deep carriers is mostly trapped or reabsorbed,
+so the missing physics is what gives the truth its deeper, fuller tail, and nothing in the
+five-parameter family can produce it. The inferred parameters show the compensation: on the
+lifetime sweep the best draws put the doping at 0.5–2.4e18 cm^-3 and D at 7–22 cm^2/s against
+the simulation's 1e19 and ~39 — stretching the diffusion length to fake the transport that
+recycling provides. Treat the reported parameters as effective, not physical, until the
+simulator carries recycling.
+
+Separately, the test-set ELE on the dipped-surface curves was computed from SELE held constant
+over the figures' coarse near-surface steps, which puts a ~1.7% floor under every method's ELE
+fit on those curves. Loosening the tolerance does raise coverage (median 22% at 1%, 60%
+at 5% over 0–3 µm), but only by admitting draws that no longer fit, which is why coverage is
+not used to set it. `standalones/score_test_set.py` prints the per-zone errors and coverage;
+`standalones/check_uncertainty.py` shows how both move with the tolerance.
 
 ## Quoting a number
 
-For anything numerical, propagate to the quantity rather than reading it off the band. The
-band's edges are the extremes at each depth taken separately, so it loses the correlation
-between depths — it cannot express that a draw with a high peak also puts that peak deeper —
-and **peak depth cannot be read off a band at all**.
+For anything numerical, propagate to the quantity rather than reading it off the envelope. Its
+edges are the extremes at each depth taken separately, so it loses the correlation between
+depths — it cannot express that a draw with a high peak also puts that peak deeper — and
+**peak depth cannot be read off it at all**.
 
-`uncertainty.scalar_intervals` computes surface SELE, peak SELE, peak depth and mean SELE over
-0–3 µm directly from the kept draws. Quote those.
+`uncertainty.scalar_intervals` gives surface SELE, peak SELE, peak depth and mean SELE over
+0–3 µm for the best draw, with their range over the draws that fit. Quote those.
 
 ## Checks that work without ground truth
 
@@ -119,10 +119,9 @@ training data", not "far from the mean in some units". All 17 test curves and th
 
 - **Not a noise posterior.** If a stated measurement precision is wanted, add relative noise
   to the ELE inside the training loop, resampled each epoch. A retrain, not a redesign.
-- **The 68% is a fraction of draws, not a probability.** It means "the best-fitting 68% of
-  candidates", and the band is their full envelope, so each of them lies inside it at every
-  depth. What justifies trusting it is the measured coverage against known profiles, not the
-  number itself.
+- **The envelope is not an error bar on the truth.** Every draw in it fits the measurement, so
+  a truth outside it means an error all of them share — a bias of the simulator or of the
+  measurement — not ambiguity the data leaves open.
 - **Depth beyond a few micrometres is not measured.** Light is absorbed in the first few µm.
 - **A good ELE fit alone does not prove the profile.** What licenses that step is the
   test-set validation, not the residual.
@@ -139,14 +138,16 @@ The network's output is a single Gaussian over the five parameters. That head ca
 the true solution set, which is a thin curved sheet — a Gaussian fitted directly to the
 correct answer still draws ~99% non-fitting samples, and a mixture needs more than 120
 components to help materially. This is why the network is used as a **proposal** and the
-misfit ranking does the selecting, rather than the Gaussian being read as the answer.
+ELE misfit does the selecting, rather than the Gaussian being read as the answer.
 
 ## Open
 
 1. **Score the classical methods on the same test set.** Nothing has scored
    `NON_UNIFORM_MESH` or `TOTAL_VARIATION` against `Data/test_set/`, so there is no baseline
    to say whether this beats Tikhonov.
-2. **Noise-conditioned training**, if bands tied to a stated precision are wanted.
+2. **Noise-conditioned training**, if a spread tied to a stated precision is wanted.
+3. **Add photon recycling and back-surface escape to the simulator** and retrain, so the
+   family can reach the deep tail the COMSOL truths have. A physics change to agree on first.
 
 Tested and rejected: a mixture-of-Gaussians head (needs >120 components); conditioning on
 known doping (`p0` correlates −0.93 with brightness, but fixing it to ±10% moves the 0–1 µm
@@ -165,10 +166,10 @@ The NAG solver is out of scope — a different question with a different failure
 | `src/regularization/parametric_model/model_definition.py` | the network |
 | `.../features.py` | ELE → the 29 input channels; the transform travels in the checkpoint |
 | `.../inference.py` | ELE → parameter draws → SELE ensemble |
-| `.../uncertainty.py` | misfit ranking, bands, scalar intervals |
+| `.../uncertainty.py` | best draw, draws within tolerance, scalar intervals |
 | `.../in_distribution.py` | is this measurement one the network was trained for |
 | `.../plot_parametric_result.py` | the two-panel figure |
 | `.../standalones/parametric_model_training.ipynb` | the Colab notebook that trains it |
 | `.../standalones/run_inference.py` | reconstruct and plot; writes `results/parametric_model/` |
 | `.../standalones/score_test_set.py` | accuracy vs ground truth, by depth zone |
-| `.../standalones/check_uncertainty.py` | coverage vs band width, by level |
+| `.../standalones/check_uncertainty.py` | draws kept, coverage and envelope width, by tolerance |

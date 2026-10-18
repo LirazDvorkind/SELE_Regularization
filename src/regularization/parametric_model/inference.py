@@ -6,9 +6,10 @@ whatever is read off it stays physically admissible no matter how wide it gets.
 
 What this module reports are percentiles of that ensemble as drawn, with every sample counting
 equally. That is the network's own spread and it is *not* what the figures or the headline
-numbers use -- ``uncertainty.py`` ranks the draws by how well each reproduces the measurement
-and reports the envelope of the best-fitting fraction, which is the calibrated statement. The
-functions here remain the raw view, useful for seeing what the network alone believes.
+numbers use -- ``uncertainty.py`` scores the draws by how well each reproduces the measurement,
+reports the best-fitting one, and keeps every draw within a fixed ELE tolerance as the set
+that explains the data. The functions here remain the raw view, useful for seeing what the
+network alone believes.
 """
 
 from __future__ import annotations

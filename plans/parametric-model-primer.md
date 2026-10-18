@@ -1,7 +1,7 @@
 # Parametric SELE reconstruction — a primer
 
-The machinery, in plain terms: what the network emits, what the bands are, and how to say it
-out loud. `plans/parametric-model.md` is what the method delivers and what it may claim.
+The machinery, in plain terms: what the network emits, how the reported curve is picked, and
+how to say it out loud. `plans/parametric-model.md` is what the method delivers and what it may claim.
 
 ## Vocabulary
 
@@ -15,7 +15,7 @@ out loud. `plans/parametric-model.md` is what the method delivers and what it ma
 | **mu** | Mean vector, 5 numbers: where the network centres its guess. |
 | **Sigma** | Covariance, 5x5: how wide the guess is, and how the parameters trade off. |
 | **L** | Cholesky factor, lower-triangular, `L @ L.T = Sigma`. What the network actually emits. |
-| **misfit** | Mean squared error between a draw's predicted ELE and the measured ELE. |
+| **misfit** | Relative L2 distance between a draw's predicted ELE and the measured ELE. |
 
 ## What the network emits
 
@@ -64,45 +64,45 @@ distribution occupies, which pushes it narrower. The honest width wins.
 A squared error `||mu - theta||^2` would train only the mean — the covariance appears nowhere
 in it, so it would get no gradient and never learn.
 
-## From parameters to a band
+## From parameters to a reported curve
 
 1. Feed the measured ELE to the network. It answers with a *range* of parameter sets.
 2. Draw 4000 parameter sets from that range.
 3. Run the real physics on each → 4000 candidate SELE profiles.
 4. Push each back through G → 4000 predicted ELE curves → score each by misfit.
-5. Keep the best-fitting 68%. The band is the envelope of what survived.
+5. Report the best-fitting candidate. Every candidate within 1% of the measurement is drawn
+   behind it as a light line, with their envelope shaded.
 
-Step 4 is what makes it an uncertainty set: the ordering comes from the data, not from the
-network's own spread. And it needs no ground truth — we own the forward model, so any
-candidate can be scored against the measurement directly.
+Step 4 is what makes the selection about the data rather than about the network's own spread.
+It needs no ground truth — we own the forward model, so any candidate can be scored against
+the measurement directly. If no candidate is within 1%, the best one is shown alone with a
+warning saying by how much it misses.
 
 ### Saying it out loud
 
-> "At each depth, the range spanned by the profiles that best reproduce this measurement.
-> Not measurement noise — the measurement can't distinguish them, so all of them are valid
-> answers and the width is how much they disagree."
+> "The bold curve is the parameter set that best reproduces this measurement. The light lines
+> are every other one that reproduces it to within 1% — the measurement can't tell them
+> apart, so where they spread out, it doesn't pin the profile down."
 
-- **Narrow band** — the plausible answers agree here. Trust it.
-- **Wide band** — they disagree. The measurement doesn't pin this depth down.
+- **Lines bunched together** — the candidates that fit agree here. The data constrains it.
+- **Lines fanning out** — they disagree. The measurement doesn't pin this depth down.
 
 Tight near the surface and wide deep, because light is absorbed in the first few micrometres:
 the measurement genuinely knows about that region and genuinely does not know about the rest.
 
 ### Three things a reviewer will poke at
 
-**The 68% is a fraction of draws, not a probability.** It says "the best-fitting 68% of our
-candidates", not "68% chance the truth is in here". The band is their full envelope, so every
-kept candidate lies inside it at every depth — nothing is being cut off at the ends. What
-justifies trusting it is the measured coverage against known profiles, not the number itself.
+**The bold curve is one real candidate, not an average.** It comes with its five parameters.
+An average taken depth by depth would mix different candidates at different depths and
+correspond to no parameters at all.
 
-**The band edges are not real curves.** Draws are kept or dropped whole, but the edges are the
-smallest and largest kept value at *each depth*, so the top edge can come from one draw at
-1 µm and a different one at 10 µm. The plotted boundary is stitched, and the median line is
-likewise a per-depth median, not one of the simulated curves.
+**The envelope edges are not real curves.** The edges are the smallest and largest value of
+the kept candidates at *each depth*, so the top edge can come from one draw at 1 µm and a
+different one at 10 µm. The light lines are the real curves; the shading only outlines them.
 
-**It over-states the ambiguity.** The set of parameters that genuinely fit spans about 0.007
-near the surface, narrower than the reported band. It errs wide, which is the safe direction,
-but it is an upper bound rather than a sharp estimate.
+**The spread is not an error bar on the truth.** Every light line fits the measurement. If the
+truth lies outside all of them, they share the error — a bias of the simulator or of the
+measurement — and no amount of widening the selection makes that ambiguity.
 
 ## Reading the axes
 
@@ -118,10 +118,10 @@ part of the left panel is poorly determined — it barely moves the right panel.
 
 | number | how to say it |
 |---|---|
-| band width `0.45` | "the band spans 45% of the median SELE at that depth, roughly ±22%" |
+| envelope width `0.45` | "the fitting candidates span 45% of the best curve's SELE at that depth" |
 | ELE misfit `0.007%` | "reproduces the measured curve to 0.007% in relative L2" |
 | SELE error `2.5%` | "differs from the known truth by 2.5% over that depth zone" |
-| coverage `100%` | "the truth fell inside the band at every depth of the range quoted" |
+| coverage `100%` | "the truth fell inside the envelope at every depth of the range quoted" |
 
 The last two need ground truth and exist only for the test set. The first two are computable
 on any real measurement.

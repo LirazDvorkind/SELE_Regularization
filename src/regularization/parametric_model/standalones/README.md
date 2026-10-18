@@ -1,14 +1,14 @@
 # Parametric posterior model — training and inference
 
 A network that reads an ELE measurement and returns a Gaussian over the five simulator
-parameters, with the full covariance between them. SELE curves and uncertainty bands come
-from running the physics on samples from that Gaussian, not from a generative model.
+parameters, with the full covariance between them. SELE curves come from running the
+physics on samples from that Gaussian, not from a generative model.
 
 ## Files
 
 - `parametric_model_training.ipynb` — Colab notebook, the one you run
 - `train_parametric_model.py` — the same training run locally (CPU is fine)
-- `run_inference.py` — reconstruct SELE with bands from a measurement
+- `run_inference.py` — reconstruct SELE from a measurement: best draw plus the draws that fit
 
 ## Workflow
 
@@ -63,7 +63,8 @@ is fixed by rescaling.
 Expect instead to see them miss in *opposite* directions -- around 75 and 93. No rescaling
 fixes that, and it is the signature of an ellipsoid stretched over a solution set that is not
 one. It is a property of the output head rather than a bad run, and it is why the reported
-bands come from ranking draws by data fit rather than from the network's covariance directly.
+curve and spread come from scoring draws by data fit rather than from the network's
+covariance directly.
 
 ### 4. Bring the checkpoint back
 
@@ -83,17 +84,20 @@ Figures land in `results/parametric_model/`. Around two seconds per curve at the
    trained on. If this fails nothing below it means anything; see `in_distribution.py`.
 2. **the posterior mean parameters**, and the ELE residual of the draws against the
    measurement.
-3. **the misfit distribution and the bands**, from `uncertainty.py`.
-4. **scalar intervals** for surface SELE, peak SELE, peak depth and mean SELE over 0-3 um.
+3. **the best draw's parameters, the misfit distribution, and how many draws fit** within the
+   tolerance, from `uncertainty.py`. If none does, a warning says so and by how much the best
+   draw misses.
+4. **scalars** for surface SELE, peak SELE, peak depth and mean SELE over 0-3 um: the best
+   draw's value and the range over the draws that fit.
 
-Quote the scalars rather than reading them off a band. The band's edges are the extremes at
+Quote the scalars rather than reading them off the envelope. Its edges are the extremes at
 each depth taken separately, so it loses the correlation between depths -- it cannot express
 that a draw with a high peak also puts that peak deeper -- and peak depth cannot be read off
-a band at all.
+it at all.
 
 The residual is the number that matters. The whole method exists to produce a SELE profile
 satisfying `ELE = G @ SELE`, and a profile that does not reproduce the measurement is not an
-answer regardless of how the bands look.
+answer regardless of how the figure looks.
 
 Test-set curves are fed their native-mesh `ele.csv`, never `ele_500.csv`. The latter was
 built with the same 500-element operator the reconstruction uses, so using it would let the
@@ -117,22 +121,23 @@ test set's lifetime sweep needs. With the floor at 5, all 17 test curves fit to 
 A checkpoint carries its `param_spec`, so one trained against a different box is detectable
 rather than silently wrong.
 
-## What the bands mean, and what they do not
+## What the figure shows, and what it does not
 
-The reported band is the envelope of the draws that best reproduce the measurement, ranked by
-mean squared error in ELE space -- not percentiles of every draw. `uncertainty.py` holds the
-level and `standalones/check_uncertainty.py` is where its coverage was measured.
+The bold curve is the single draw that best reproduces the measurement -- a real simulator
+curve with a parameter set behind it, never a depth-wise median, which would stitch different
+draws together and correspond to no parameters. The light lines are every draw whose ELE is
+within `uncertainty.TOLERANCE` (relative L2) of the measurement, with their envelope shaded.
+`standalones/check_uncertainty.py` shows how that set changes with the tolerance.
 
-Training data is clean: no measurement noise anywhere. So the band is the ambiguity of the
-noiseless inverse problem -- how far the parameters can move while still producing an ELE
-curve indistinguishable from the one given. That is the same kind of statement the
-non-uniform-mesh confidence window makes, and it is the intended reading.
+Training data is clean: no measurement noise anywhere. So the spread of the light lines is
+the ambiguity of the noiseless inverse problem at that tolerance -- how far the parameters can
+move while still producing an ELE curve within it of the one given.
 
-It is not a measurement-noise posterior, and it is an upper bound on the ambiguity rather
-than a tight estimate: the parameters that genuinely fit span less than the band reports, and
-the excess is how finely the network can resolve ELE differences rather than physics.
+It is not an error bar on the truth. Every light line explains the measurement, so if the
+truth lies outside all of them the error is one they share: a bias of the simulator, or of
+the measurement itself, not ambiguity the data leaves open.
 
-If bands conditioned on a stated measurement precision are ever wanted, the change is small
+If a spread conditioned on a stated measurement precision is ever wanted, the change is small
 and local: add relative noise to `ele` inside the training loop, resampled each epoch, and
 the reported spread becomes "uncertainty given a measurement good to X percent". It would
 require a retrain, not a redesign.

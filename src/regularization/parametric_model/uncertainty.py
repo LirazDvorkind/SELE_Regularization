@@ -1,29 +1,33 @@
-"""Uncertainty on an unknown SELE, ranked by how well each draw explains the measurement.
+"""Which draws answer the measurement, and which one to report.
 
 ``inference.py`` reports percentiles of the posterior as drawn: every sample counts the same,
-whether it reproduces the measurement or not. That is the network's own spread, and taken at
-the 68% level it does not hold the truth -- on the lifetime curves of the test set only
-12-15% of depths fall inside it.
+whether it reproduces the measurement or not. That is the network's own spread, not an answer.
 
-Here the ordering is the data. Every draw is pushed back through the forward model, scored by
-its mean squared error against the measured ELE, and the band is the envelope of the
-best-fitting fraction. The gain is calibration rather than width: at the same nominal level
-the two bands are nearly the same size, but the misfit band's coverage was measured, and the
-level that holds the truth everywhere (0.68) is about 1.7x tighter than the percentile band
-that also holds it everywhere (95%).
+Here the data decides. Every draw is pushed back through the forward model and scored by its
+relative L2 misfit against the measured ELE. Two things come out:
 
-It does not reach the ambiguity the physics allows -- the parameters that genuinely fit span
-roughly 0.007 near the surface where this reports a few tenths. That gap is not closed by
-cutting harder: below 0.68 the truth starts falling out, because a better ELE fit is not
-reliably a closer profile. What remains is an honest upper bound, not a tight estimate.
+- **the reported curve** is the single best-fitting draw. It is a real simulator curve with a
+  parameter set behind it, which a depth-wise median of many draws is not -- that stitches
+  different draws together at different depths and corresponds to no parameters at all;
+- **the close-enough set** is every draw within an absolute ``TOLERANCE`` of the measurement.
+  They all explain the data, so where they spread apart in depth the measurement has stopped
+  constraining the profile. Their envelope is drawn alongside them.
 
-Nothing here needs the truth, so it all applies to a real measurement. What it cannot do is
-prove the truth is inside; ``standalones/check_uncertainty.py`` measures that against the
-ground-truth test set, which is what licenses believing it elsewhere.
+The cut is an absolute misfit rather than a fraction of draws. A fraction says nothing about
+fit: the previous best-fitting-68% rule admitted draws missing the measurement by 13-23%, and
+its band held the truth largely because of them. A tolerance means the same thing on every
+measurement. If no draw meets it, the best draw is reported alone with a warning: the
+posterior then holds nothing that explains the data, and an envelope of misfitting curves
+would only dress that up.
+
+Nothing here needs the truth, so it all applies to a real measurement. How often the
+close-enough envelope contains the truth is measured on the ground-truth test set by
+``standalones/check_uncertainty.py``.
 """
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, replace
 from typing import Dict, Sequence, Tuple
 
@@ -32,29 +36,34 @@ from numpy.typing import NDArray
 
 from src.regularization.parametric_model.inference import SeleEnsemble
 
-# 0.68 is the tightest level that still holds the truth at every depth of the first 3 um on
-# every curve of the ground-truth test set; at 0.25 coverage falls to a median of 72% and
-# keeps dropping. Over the full 0-30 um even 0.68 lets the truth out on the longest-lifetime
-# curves, which is the deep tail no measurement constrains rather than a bad level. Tighter
-# does not work because a better ELE fit is not reliably a closer profile -- that is the
-# degeneracy, not a tuning failure. 0.95 is kept alongside for comparison with the plain
-# percentile band it replaces. See standalones/check_uncertainty.py.
-DEFAULT_LEVELS: Tuple[float, ...] = (0.68, 0.95)
-REPORTED_LEVEL = 0.68
+# Relative L2 ELE misfit a draw must meet to count as explaining the measurement.
+TOLERANCE = 0.01
 
 
 @dataclass(frozen=True)
-class MisfitBand:
-    """Envelope of the best-fitting fraction of draws, with the cut that produced it."""
+class Selection:
+    """The best-fitting draw and the draws within ``tolerance`` of the measurement."""
 
-    level: float                      # fraction of draws kept
+    tolerance: float
     z_cm: NDArray[np.float64]
-    low: NDArray[np.float64]          # per-depth minimum over the kept draws
-    high: NDArray[np.float64]         # per-depth maximum
-    median: NDArray[np.float64]
-    n_kept: int
-    mse_cut: float                    # worst MSE admitted
-    relative_cut: float               # the same cut as a relative L2, for reading
+    best_sele: NDArray[np.float64]
+    best_ele: NDArray[np.float64]
+    best_params: NDArray[np.float64]  # physical units
+    best_misfit: float                # relative L2
+    kept: SeleEnsemble                # the close-enough draws, best first; just the best if none
+    met: bool                         # whether any draw met the tolerance
+
+    @property
+    def n_kept(self) -> int:
+        return self.kept.sele.shape[0]
+
+    @property
+    def low(self) -> NDArray[np.float64]:
+        return self.kept.sele.min(axis=0)
+
+    @property
+    def high(self) -> NDArray[np.float64]:
+        return self.kept.sele.max(axis=0)
 
 
 def ele_mse(ensemble: SeleEnsemble, measured_ele: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -64,7 +73,7 @@ def ele_mse(ensemble: SeleEnsemble, measured_ele: NDArray[np.float64]) -> NDArra
 
 
 def ele_relative(ensemble: SeleEnsemble, measured_ele: NDArray[np.float64]) -> NDArray[np.float64]:
-    """The same misfit as a relative L2 norm. Same ordering as ``ele_mse``, readable units."""
+    """Relative L2 misfit of every draw against the measurement, shape ``(n_samples,)``."""
     measured = np.asarray(measured_ele, dtype=np.float64).ravel()
     return np.linalg.norm(ensemble.ele - measured, axis=1) / np.linalg.norm(measured)
 
@@ -74,114 +83,102 @@ def misfit_quantiles(
         measured_ele: NDArray[np.float64],
         quantiles: Sequence[float] = (0, 5, 25, 50, 75, 95, 100),
 ) -> Dict[float, Tuple[float, float]]:
-    """Distribution of the misfit itself, as ``{quantile: (mse, relative)}``.
-
-    Read before choosing a level. If even the best draw misfits badly the posterior does not
-    contain an answer and no choice of cut rescues it -- the band would be an envelope of
-    wrong curves.
-    """
+    """Distribution of the misfit itself, as ``{quantile: (mse, relative)}``."""
     mse = ele_mse(ensemble, measured_ele)
     relative = ele_relative(ensemble, measured_ele)
     return {q: (float(np.percentile(mse, q)), float(np.percentile(relative, q)))
             for q in quantiles}
 
 
-def select_by_misfit(
+def select(
         ensemble: SeleEnsemble,
         measured_ele: NDArray[np.float64],
-        level: float,
-) -> SeleEnsemble:
-    """The ``level`` fraction of draws with the smallest ELE misfit, as an ensemble."""
-    if not 0.0 < level <= 1.0:
-        raise ValueError(f"level must be in (0, 1], got {level}")
+        tolerance: float = TOLERANCE,
+) -> Selection:
+    """The best draw, and every draw whose relative ELE misfit is within ``tolerance``."""
+    if tolerance <= 0.0:
+        raise ValueError(f"tolerance must be positive, got {tolerance}")
 
-    mse = ele_mse(ensemble, measured_ele)
-    keep = max(1, int(round(level * mse.size)))
-    order = np.argsort(mse)[:keep]
+    misfit = ele_relative(ensemble, measured_ele)
+    order = np.argsort(misfit)
+    keep = order[misfit[order] <= tolerance]
+    met = keep.size > 0
+    if not met:
+        warnings.warn(
+            f"no draw reproduces the measured ELE within {tolerance:.1%}; the best misses by "
+            f"{misfit[order[0]]:.2%}. Reporting that draw alone, with no close-enough set.",
+            stacklevel=2)
+        keep = order[:1]
 
-    return replace(ensemble, sele=ensemble.sele[order], ele=ensemble.ele[order],
-                   params=ensemble.params[order])
-
-
-def misfit_band(
-        ensemble: SeleEnsemble,
-        measured_ele: NDArray[np.float64],
-        level: float,
-) -> MisfitBand:
-    """Envelope of the draws that fit the measurement best.
-
-    The band is the per-depth minimum and maximum over the kept set rather than percentiles
-    of it: the set has already been cut by how well it explains the data, so every member is
-    admissible and the honest report is the full extent of what survived.
-    """
-    kept = select_by_misfit(ensemble, measured_ele, level)
-    return MisfitBand(
-        level=level,
+    best = order[0]
+    return Selection(
+        tolerance=tolerance,
         z_cm=ensemble.z_cm,
-        low=kept.sele.min(axis=0),
-        high=kept.sele.max(axis=0),
-        median=np.median(kept.sele, axis=0),
-        n_kept=kept.sele.shape[0],
-        mse_cut=float(ele_mse(kept, measured_ele).max()),
-        relative_cut=float(ele_relative(kept, measured_ele).max()),
+        best_sele=ensemble.sele[best],
+        best_ele=ensemble.ele[best],
+        best_params=ensemble.params[best],
+        best_misfit=float(misfit[best]),
+        kept=replace(ensemble, sele=ensemble.sele[keep], ele=ensemble.ele[keep],
+                     params=ensemble.params[keep]),
+        met=met,
     )
 
 
-def scalar_intervals(
-        ensemble: SeleEnsemble,
-        measured_ele: NDArray[np.float64],
-        level: float = REPORTED_LEVEL,
-) -> Dict[str, Tuple[float, float, float]]:
-    """``{name: (low, median, high)}`` for the quantities actually worth quoting.
+def scalar_intervals(selection: Selection) -> Dict[str, Tuple[float, float, float]]:
+    """``{name: (low, best, high)}``: the best draw's value and its range over the kept set.
 
-    Propagating to the scalar beats reading it off a band. A band's edges are the extremes
-    at each depth separately, so it loses the correlation between depths -- it cannot express
-    that a draw with a high peak also tends to put that peak deeper -- and peak depth cannot
-    be read off a band at all.
+    Propagating to the scalar beats reading it off the envelope. The envelope's edges are the
+    extremes at each depth separately, so it loses the correlation between depths -- it cannot
+    express that a draw with a high peak also tends to put that peak deeper -- and peak depth
+    cannot be read off it at all.
     """
-    kept = select_by_misfit(ensemble, measured_ele, level)
-    z_um = kept.z_cm / 1e-4
+    z_um = selection.z_cm / 1e-4
 
-    quantities = {
-        "surface SELE": kept.sele[:, 0],
-        "peak SELE": kept.sele.max(axis=1),
-        "peak depth [um]": z_um[kept.sele.argmax(axis=1)],
-        "mean SELE 0-3um": kept.sele[:, z_um < 3.0].mean(axis=1),
-    }
-    return {name: (float(v.min()), float(np.median(v)), float(v.max()))
-            for name, v in quantities.items()}
+    def quantities(sele):
+        sele = np.atleast_2d(sele)
+        return {
+            "surface SELE": sele[:, 0],
+            "peak SELE": sele.max(axis=1),
+            "peak depth [um]": z_um[sele.argmax(axis=1)],
+            "mean SELE 0-3um": sele[:, z_um < 3.0].mean(axis=1),
+        }
+
+    best = quantities(selection.best_sele)
+    return {name: (float(values.min()), float(best[name][0]), float(values.max()))
+            for name, values in quantities(selection.kept.sele).items()}
 
 
-def report(
-        ensemble: SeleEnsemble,
-        measured_ele: NDArray[np.float64],
-        levels: Sequence[float] = DEFAULT_LEVELS,
-) -> str:
+def report(selection: Selection, ensemble: SeleEnsemble,
+           measured_ele: NDArray[np.float64]) -> str:
     lines = ["  ELE misfit across the draws (MSE, and the same as relative L2):"]
     for q, (mse, rel) in misfit_quantiles(ensemble, measured_ele).items():
         lines.append(f"    {q:3.0f}th   {mse:.3e}   {rel * 100:7.3f}%")
 
-    z_um = ensemble.z_cm / 1e-4
-    lines.append("  band width relative to the median, by depth zone:")
-    header = "    level   kept   worst fit" + "".join(
-        f"{f'{lo:g}-{hi:g}um':>11}" for lo, hi in ((0.0, 1.0), (1.0, 3.0), (3.0, 8.0)))
-    lines.append(header)
+    if not selection.met:
+        lines.append(f"  WARNING: no draw within {selection.tolerance:.1%}; the best misses "
+                     f"by {selection.best_misfit:.2%} and is reported alone.")
+    else:
+        lines.append(f"  {selection.n_kept} of {ensemble.sele.shape[0]} draws within "
+                     f"{selection.tolerance:.1%}; best draw {selection.best_misfit:.3%}")
 
-    for level in levels:
-        band = misfit_band(ensemble, measured_ele, level)
-        relative = np.divide(band.high - band.low, np.abs(band.median),
-                             out=np.full_like(band.median, np.nan), where=band.median != 0)
-        row = "".join(f"{np.nanmedian(relative[(z_um >= lo) & (z_um < hi)]):10.3f} "
-                      for lo, hi in ((0.0, 1.0), (1.0, 3.0), (3.0, 8.0)))
-        lines.append(f"    {level:5.2f} {band.n_kept:6d} {band.relative_cut * 100:9.3f}%  {row}")
+    z_um = selection.z_cm / 1e-4
+    relative = np.divide(selection.high - selection.low, np.abs(selection.best_sele),
+                         out=np.full_like(selection.best_sele, np.nan),
+                         where=selection.best_sele != 0)
+    lines.append("  envelope width relative to the best draw, by depth zone:")
+    lines.append("    " + "".join(
+        f"{f'{lo:g}-{hi:g}um':>11}" for lo, hi in ((0.0, 1.0), (1.0, 3.0), (3.0, 8.0))))
+    lines.append("    " + "".join(
+        f"{np.nanmedian(relative[(z_um >= lo) & (z_um < hi)]):10.3f} "
+        for lo, hi in ((0.0, 1.0), (1.0, 3.0), (3.0, 8.0))))
 
-    lines.append(f"  quantities worth quoting (best-fitting {REPORTED_LEVEL:.0%} of draws):")
-    for name, (low, median, high) in scalar_intervals(ensemble, measured_ele).items():
-        lines.append(f"    {name:<18} {median:11.4g}   [{low:.4g}, {high:.4g}]")
+    lines.append("  quantities worth quoting (best draw, [range over the close-enough set]):")
+    for name, (low, best, high) in scalar_intervals(selection).items():
+        lines.append(f"    {name:<18} {best:11.4g}   [{low:.4g}, {high:.4g}]")
     return "\n".join(lines)
 
 
 __all__ = [
-    "MisfitBand", "DEFAULT_LEVELS", "ele_mse", "ele_relative", "misfit_quantiles",
-    "select_by_misfit", "misfit_band", "scalar_intervals", "report",
+    "TOLERANCE", "Selection", "ele_mse", "ele_relative", "misfit_quantiles", "select",
+    "scalar_intervals", "report",
 ]

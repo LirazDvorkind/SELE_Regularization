@@ -1,4 +1,4 @@
-"""Reconstruct SELE with uncertainty bands from an ELE measurement.
+"""Reconstruct SELE from an ELE measurement: the best-fitting draw and the draws close to it.
 
     # every ground-truth test-set curve
     python -m src.regularization.parametric_model.standalones.run_inference --test-set
@@ -47,10 +47,12 @@ def _report(model, stem, ele, wavelengths, truth_z=None, truth_sele=None,
     print(f"  posterior mean: {model.spec.describe(mean_parameters(model, ensemble))}")
     print("  ELE residual against the measurement:")
     print(residual_report(model, ensemble, ele))
-    print(unc.report(ensemble, ele))
+    selection = unc.select(ensemble, ele)
+    print(f"  best draw: {model.spec.describe(selection.best_params)}")
+    print(unc.report(selection, ensemble, ele))
 
     save_figures(ensemble, wavelengths, ele, output_dir, stem,
-                 ground_truth_z_cm=truth_z, ground_truth_sele=truth_sele)
+                 ground_truth_z_cm=truth_z, ground_truth_sele=truth_sele, selection=selection)
     return ensemble
 
 

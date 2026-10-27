@@ -44,16 +44,58 @@ When discussing physics (mechanisms, models, why a result looks the way it does)
 plain language first:
 
 - Short bold-labelled paragraphs, one idea each: what we see, where it comes from, why, what
-  is still open, what to check next.
+  is still open, what to check next (if relevant to discussion, you may deviate from the example format).
 - Explain mechanisms in words (what a carrier or photon does), not equations. Add an
   equation or code reference only when the point depends on it.
 - No tables of file paths or line numbers unless asked; say which source a claim comes from
   in a few words.
 - State clearly what is confirmed vs. what is a hypothesis.
-- End with the single most useful next check, and ask before running anything numeric.
+- If relevant, end with the single most useful next check, and ask before running anything numeric.
 
 Give the full technical breakdown (equations, code locations, derivations) only when asked to
 elaborate or go into detail. For a full lesson on one concept, use `/teach`.
+
+These instructions are relevant when you're just talking to the user. When the user needs rigor,
+you should follow the Research Integrity section's rules for calculations.
+
+### Research integrity (supervisor's AI guidelines)
+
+The user owns every equation, assumption, result, figure and conclusion. The AI speeds up the
+work; it does not stand in for the user's judgment. Act so that the user can explain, check
+and defend everything you produce.
+
+**Models and assumptions.** Propose equations, models, approximations and boundary conditions;
+never adopt one silently. When you introduce or change one, name it, state its assumptions
+and where it comes from, and ask before building on it.
+
+**Implementing calculations.** When code implements an equation, say which equation it is
+and how its terms map to the code, including units, sign conventions and boundary
+conditions. Don't call a calculation done until it has been checked against a known result:
+the paper and SI (`Papers/`), the MATLAB simulator (`MATLAB SELE Simulation/`), the ground-truth test
+set (`Data/test_set/`), or the group's earlier results. If no such result exists, check limiting
+cases, analytic solutions, conservation laws or mesh convergence. Report which checks ran
+and which did not.
+
+**Method documentation.** Existing methods are documented loosely in `Papers/` and `plans/`.
+A new method gets a Markdown file in `docs/` describing its equations, assumptions and
+boundary conditions, written so it can later be converted to LaTeX for the thesis (but keep langauge simple).
+When a method's equations or assumptions change, update its `docs/` file to match.
+
+**Claims and citations.** Cite only sources you have actually read in this session or that the user
+gave you. Never cite from memory, and say "unverified" when you are unsure. Separate what the
+code or data shows from what is a hypothesis. A claim's only support should never be that the
+AI said it.
+
+**Research prose** (paper, thesis, reports, slides; not code docs, READMEs or plans). Write at
+most one paragraph per request. Before drafting, get the key message, the supporting evidence
+and the references from the user. Ask for them if they are missing rather than filling them in
+yourself.
+
+**Figures and analysis.** Any figure meant for a report, talk or paper must be produced by a
+committed script in the repo, never by a scratchpad script or a one-off command. Look at
+every figure you generate before reporting it, and check axis labels, units and scales
+against the data. Present results; leave the interpretation and conclusions to the user,
+or mark yours clearly as a suggestion.
 
 ---
 
@@ -83,7 +125,7 @@ The paper distinguishes `alpha`, which includes free-carrier absorption (the Dru
 from `alpha_b`, which excludes it. FCA attenuates the beam but is an intra-band transition
 that frees no carrier, so attenuation follows `alpha` while generation and emission follow
 `alpha_b` -- optical generation carries the prefactor `alpha_b / alpha` (SI eq. S4.1). This is
-what makes G a *generation* matrix rather than an absorption matrix; a row of G sums to
+what makes G a _generation_ matrix rather than an absorption matrix; a row of G sums to
 `alpha_b/alpha`, not to 1.
 
 `src/optical_constants.py` is the single source of optics for the project — it reads the
@@ -99,41 +141,34 @@ Expected shape for a p-type GaAs wafer (paper Figure 2b):
 - **Rises to peak** (~0.3-0.45 %) at ~0.5-1 µm; peak position correlates with minority carrier diffusion length
 - **Decays toward 0** deeper (self-absorption); the profile approaches ~0 at the back of the 350 µm wafer
 
-| Physical Parameter | Effect on SELE |
-|--------------------|----------------|
-| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE. |
-| SRH lifetime (tau_SRH) | Controls bulk SELE magnitude. Longer lifetime = higher bulk SELE. |
-| Diffusion length | Peak position ~ diffusion length when surface recomb dominates. |
-| Photon recycling | Increases quasi-Fermi level separation deep in material; keeps SELE nonzero far from surface. |
+| Physical Parameter                   | Effect on SELE                                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Surface recombination velocity (SRV) | Controls dip at z=0. Higher SRV = lower surface SELE.                                         |
+| SRH lifetime (tau_SRH)               | Controls bulk SELE magnitude. Longer lifetime = higher bulk SELE.                             |
+| Diffusion length                     | Peak position ~ diffusion length when surface recomb dominates.                               |
+| Photon recycling                     | Increases quasi-Fermi level separation deep in material; keeps SELE nonzero far from surface. |
 
 ---
 
 ## Commands
 
 ### Run the main pipeline
+
 ```bash
 python -m src.main
 ```
 
-### Run standalone scripts (from repo root)
-```bash
-# Run as scripts:
-python src/regularization/score_model/standalones/hyperparameter_playground.py
-python src/regularization/score_model/standalones/tune_hyperparameters.py
-python src/regularization/score_model/standalones/model_training/sele-score-model-training-script.py
-python src/regularization/score_model/standalones/model_training/test-score-models.py
+### Score-model standalones
 
-# Or as modules:
-python -m src.regularization.score_model.standalones.hyperparameter_playground
-python -m src.regularization.score_model.standalones.tune_hyperparameters
+```bash
+python -m src.regularization.score_model.standalones.hyperparameter_playground   # one config, one curve
+python -m src.regularization.score_model.standalones.tune_hyperparameters        # grid search
 ```
 
-- **hyperparameter_playground.py**: Quick test of one config on a random synthetic curve. Shows MSE_ELE (data fit) and MSE_SELE (ground truth error). Good for interactive debugging.
-- **tune_hyperparameters.py**: Automated grid search with multiprocessing over the hyperparameter space.
-- **model_training/sele-score-model-training-script.py**: Trains a score checkpoint from a synthetic SELE dataset.
-- **model_training/test-score-models.py**: Visualizes score gradients from trained checkpoints.
+Training and checkpoint-inspection scripts: see `src/regularization/score_model/README.md`.
 
 ### Rebuild the ground-truth test set
+
 ```bash
 python -m src.test_set.build_test_set   # re-extract profiles from the paper figures
 python -m src.test_set.plot_test_set    # overview figure of both parameter sweeps
@@ -141,12 +176,14 @@ python -m src.evaluation.plot_method_comparison   # every method against every c
 ```
 
 ### Drift-diffusion p-n junction solver
+
 ```bash
 python -m src.drift_diffusion.standalones.check_drift_diffusion   # physics/numerics checks
 python -m src.drift_diffusion.standalones.plot_band_diagram       # band diagrams, J-V
 ```
 
 ### Install dependencies
+
 ```bash
 uv sync
 ```
@@ -158,6 +195,7 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 ## Architecture
 
 ### Entry point & flow
+
 `src/main.py` → `src/pipeline.py:run_regularization()` — orchestrates data loading, G-matrix computation, solving, and result export.
 
 ### Regularization modes (set via `CONFIG.regularization_method`)
@@ -166,74 +204,57 @@ Key packages: `numpy`, `scipy`, `matplotlib`, `torch`, `cvxpy`, `mplcursors`, `s
 enum or the pipeline: it infers the simulator's parameters rather than regularising a curve,
 and is driven by its own standalones. The three below are the curve-space methods.
 
-| Mode | Solver | Key file |
-|------|--------|---------|
+| Mode               | Solver                                | Key file                  |
+| ------------------ | ------------------------------------- | ------------------------- |
 | `NON_UNIFORM_MESH` | Classical Tikhonov with adaptive mesh | `tikhonov_non_uniform.py` |
-| `TOTAL_VARIATION` | Two-parameter Tikhonov (CVXPY) | `total_variation.py` |
-| `MODEL_SCORE_GRAD` | Nesterov gradient + score prior | `score_model_grad.py` |
+| `TOTAL_VARIATION`  | Two-parameter Tikhonov (CVXPY)        | `total_variation.py`      |
+| `MODEL_SCORE_GRAD` | Nesterov gradient + score prior       | `score_model_grad.py`     |
 
 **NON_UNIFORM_MESH**: `min ||G@S - B||² + κ²||L@S||²`, L = second-derivative operator. Sweeps κ, finds L-curve knee, averages solutions in confidence window. Non-uniform mesh: fine linear spacing near surface, logarithmic deeper. This is the original paper's method.
 
 **TOTAL_VARIATION**: Two-parameter Tikhonov solved with CVXPY. Allows sharper features than standard Tikhonov.
 
-**MODEL_SCORE_GRAD**: Replaces L with a learned prior from a score-based diffusion model. Score network learns `grad(log p(S))` from synthetic SELE training data. See Score Model section below.
+**MODEL_SCORE_GRAD**: Replaces L with a learned prior from a score-based diffusion model. Score network learns `grad(log p(S))` from synthetic SELE training data. Architecture, solver, normalization and checkpoint format:
+`src/regularization/score_model/README.md`.
 
 ### Pipeline flow
 
-**NON_UNIFORM_MESH / TOTAL_VARIATION**:
-1. Load ELE data and optical parameters (k, λ, z)
-2. Build G matrix on chosen mesh (shape: L wavelengths × M-1 elements)
-3. Whiten by median row norm (stabilizes ill-conditioned system)
-4. Sweep κ → solve `min ||GS - B||² + κ²||LS||²` for each
-5. Knee detection: normalized Euclidean distance to origin in log-log (residual vs seminorm)
-6. Confidence window around κ_knee → extract S_mean, S_std
-7. Save CSV results + generate plots
-
-**MODEL_SCORE_GRAD** (`pipeline.py`, MODEL_SCORE_GRAD branch of `run_regularization()`):
-1. Load ELE data (`ELE_sim.csv`), optical params (k, wavelengths, z)
-2. Load score model checkpoint → get `target_length` (32 or 500)
-3. Build G matrix on linear mesh with `target_length` elements
-4. Normalize: multiply G, B by `photon_flux * e_charge` (unit factor)
-5. Call `solve_gradient_descent(G, B, hyperparams, S_gt)` (optionally warm-started from a TV solve instead of random init; see `warm_start_with_tv` in `ModelScoreGradConfig`)
-6. Upsample SELE from M points to `output_mesh_resolution` via `expand_sele()`
-7. Reconstruct: `eta_fit = G_longer @ S_rec / unit_factor`
-8. Save CSVs + generate plots
+For the Tikhonov modes, `run_regularization()` builds G, whitens it by its median row norm
+(the system is badly conditioned), sweeps κ, picks the L-curve knee (normalized distance to
+the origin in log-log residual vs. seminorm), and reports the mean and std of the solutions in
+a confidence window around it. The score-model branch is described in its README.
 
 ### Key modules
 
-| File | Role |
-|------|------|
-| `src/main.py` | Entry point |
-| `src/pipeline.py` | Orchestrates all regularization methods |
-| `src/types/config.py` | Global CONFIG, ModelScoreGradConfig, presets |
-| `src/__init__.py` | CONFIG import (avoid circular imports) |
-| `src/mesh.py` | Builds G matrix (Beer-Lambert), linear and non-uniform meshes |
-| `src/optical_constants.py` | The project's optics: n and k with/without the Drude term |
-| `src/matlab_fig.py` | Reads MATLAB `.fig` files without MATLAB |
-| `src/operators.py` | L0/L1/L2 regularization matrices |
-| `src/regularization/score_model/score_model_grad.py` | NAG solver with score prior |
-| `src/regularization/score_model/model_definition.py` | ScoreNetwork PyTorch model |
-| `src/regularization/score_model/standalones/hyperparameter_playground.py` | Test single hyperparameter config on one curve |
-| `src/regularization/score_model/standalones/tune_hyperparameters.py` | Grid search over hyperparameter space |
-| `src/regularization/score_model/standalones/model_training/` | Training scripts and Colab notebook |
-| `src/test_set/` | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures |
-| `src/evaluation/` | Runs the reconstruction methods against the test set and compares them |
-| `src/forward_model/` | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README) |
-| `src/drift_diffusion/` | Steady-state 1-D Poisson + continuity solver for a GaAs p-n junction under bias and arbitrary G(x), with band-diagram plots (see its README) |
-| `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`) |
+| File                                   | Role                                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.py`                          | Entry point                                                                                                                                  |
+| `src/pipeline.py`                      | Orchestrates all regularization methods                                                                                                      |
+| `src/types/config.py`                  | Global CONFIG, ModelScoreGradConfig, presets                                                                                                 |
+| `src/__init__.py`                      | CONFIG import (avoid circular imports)                                                                                                       |
+| `src/mesh.py`                          | Builds G matrix (Beer-Lambert), linear and non-uniform meshes                                                                                |
+| `src/optical_constants.py`             | The project's optics: n and k with/without the Drude term                                                                                    |
+| `src/matlab_fig.py`                    | Reads MATLAB `.fig` files without MATLAB                                                                                                     |
+| `src/operators.py`                     | L0/L1/L2 regularization matrices                                                                                                             |
+| `src/regularization/score_model/`      | Score-prior NAG solver, ScoreNetwork, standalones and training (see its README)                                                              |
+| `src/test_set/`                        | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures                                                    |
+| `src/evaluation/`                      | Runs the reconstruction methods against the test set and compares them                                                                       |
+| `src/forward_model/`                   | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README)                                        |
+| `src/drift_diffusion/`                 | Steady-state 1-D Poisson + continuity solver for a GaAs p-n junction under bias and arbitrary G(x), with band-diagram plots (see its README) |
+| `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`)      |
 
 ### Data files
 
-| Category | Location | Contents |
-|----------|----------|----------|
-| Measurement | `Data/ELE_sim.csv` | Simulated ELE measurement (the "observation") |
-| Ground truth | `Data/SELE_ground_truth.csv` | Ground truth SELE for comparison |
-| Ground-truth test set | `Data/test_set/` | Multiple ground-truth SELE profiles, each with its G and ELE, for scoring a method across shapes rather than at one operating point (see its README) |
-| Paper figures | `Data/Tamir_paper_SELE_figs/` | Source `.fig` files the test set and its optical constants come from (see its README) |
-| Optical inputs | `Data/z.csv`, `wavelength_nm.csv` | z-mesh and the measurement wavelengths. k(λ) does **not** live here — it comes from the paper figures via `src/optical_constants.py` |
-| Precomputed G matrices | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length) |
-| Score model checkpoints | `Data/score_model/models/` | `.pt` files, one per trained score net (see checkpoint format below) |
-| Score model training datasets | `Data/score_model/datasets/` | Synthetic SELE curve sets used to train checkpoints |
+| Category                      | Location                              | Contents                                                                                                                                             |
+| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Measurement                   | `Data/ELE_sim.csv`                    | Simulated ELE measurement (the "observation")                                                                                                        |
+| Ground truth                  | `Data/SELE_ground_truth.csv`          | Ground truth SELE for comparison                                                                                                                     |
+| Ground-truth test set         | `Data/test_set/`                      | Multiple ground-truth SELE profiles, each with its G and ELE, for scoring a method across shapes rather than at one operating point (see its README) |
+| Paper figures                 | `Data/Tamir_paper_SELE_figs/`         | Source `.fig` files the test set and its optical constants come from (see its README)                                                                |
+| Optical inputs                | `Data/z.csv`, `wavelength_nm.csv`     | z-mesh and the measurement wavelengths. k(λ) does **not** live here — it comes from the paper figures via `src/optical_constants.py`                 |
+| Precomputed G matrices        | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length)                                                                                                  |
+| Score model checkpoints       | `Data/score_model/models/`            | `.pt` files, one per trained score net                                                                                                               |
+| Score model training datasets | `Data/score_model/datasets/`          | Synthetic SELE curve sets used to train checkpoints                                                                                                  |
 
 `Data/score_model/models/` and `Data/score_model/datasets/` are gitignored and tracked via DVC
 (`.dvc` files) rather than committed directly — pull them with DVC, not git, if missing.
@@ -256,7 +277,7 @@ Built by `src/test_set/` from the paper's `.fig` files; read it through
   onto the wrong depths.
 - **Truncating at `W` is free for the forward model but not for SELE-domain metrics.**
   Incident light is fully absorbed within a few µm, so the deep tail contributes nothing to
-  the ELE — yet a large fraction of SELE *area* lives out there. An error metric integrated
+  the ELE — yet a large fraction of SELE _area_ lives out there. An error metric integrated
   over depth and one computed from the residual will disagree for that reason alone.
 - **A coarse solver mesh cannot represent the surface value.** Its first element centre sits
   deeper than the figures' first sample, so `sele[0]` there is interpolated, not SELE(z=0) —
@@ -268,70 +289,6 @@ Built by `src/test_set/` from the paper's `.fig` files; read it through
 - **It holds no noise.** That is deliberate, not a gap to fill unprompted, and it flatters
   every method compared against it in `src/evaluation/`. `results/` predates the optics
   unification and is not comparable to fresh output.
-
----
-
-## Score Model -- Deep Dive
-
-### Architecture
-
-**ScoreNetwork** (`src/regularization/score_model/model_definition.py`):
-- Input: `[S_normalized, t]` where t is diffusion time parameter
-- **d32**: Simple 6-layer MLP, Softplus activations, no residual connections
-- **d500**: ResNet with skip connections, LayerNorm, sinusoidal time embedding
-- Output: score vector (same dimension as S), representing `grad(log p(S|t))`
-
-**Checkpoint format** (`.pt` files):
-```python
-{
-    'config': {'target_length': 32/500, 'hidden_dims': ..., 'use_residual': bool, ...},
-    'model_state_dict': {...},
-    'data_min': float,
-    'data_max': float,
-}
-```
-
-### Solver Algorithm
-
-`solve_gradient_descent()` in `score_model_grad.py` runs Nesterov Accelerated Gradient
-descent in normalized space (`S_norm ∈ [-1, 1]^M`). At each step it evaluates gradients at
-the NAG lookahead point, combining a data-fidelity gradient (`2*G_norm.T @ (G_norm@S_phys -
-B_norm)`, chain-ruled into normalized space) with an adaptively-weighted score-network
-prediction (see Adaptive Weighting below) into one update, applied via momentum. The
-diffusion time fed to the score network and the LR/REG_WEIGHT magnitudes are annealed over
-the run (schedules are implementation details — see the function for the current form).
-Optimization can start from random noise or from an optional warm start (e.g. a TV
-solution). Stopping is early-exit on data-residual convergence or divergence, capped by
-`MAX_STEPS`. Read the function directly for exact step order and constants — it changes
-as the solver is tuned.
-
-### Normalization
-
-The solver works in normalized space where S_norm ∈ [-1, 1]:
-- `norm_scale = 2.0 / (d_max - d_min)` (from checkpoint training data range)
-- `S_physical = (S_norm + 1) / norm_scale + d_min`
-- G and B are also normalized by `1/mean(|G|)` for numerical stability
-
-### Adaptive Weighting
-
-The score network outputs O(1) vectors (normalized data), while the data gradient magnitude depends on G's scale (can be 1e-10 to 1e+5). The adaptive factor ensures REG_WEIGHT controls the *ratio* between data fidelity and prior trust, regardless of absolute magnitudes.
-
-### Hyperparameters
-
-Every field of `ModelScoreGradConfig` (REG_WEIGHT, MOMENTUM, LR_MAX/MIN, MAX_STEPS, T0,
-output_mesh_resolution, early-stopping and warm-start controls, ...) is documented inline
-with its meaning and tuning direction in `src/types/config.py`. Current tuned values live in
-`SCORE_MODEL_PRESETS["d32"]` and `SCORE_MODEL_PRESETS["d500"]` in that same file — read them
-there rather than here, since they change as the models are retrained/tuned.
-
-### Training Data Generation
-
-Training SELE curves are generated in MATLAB (`MATLAB SELE Simulation/create_training_set.m`)
-rather than in Python, and loaded from a `.mat` file by the training script in
-`src/regularization/score_model/standalones/model_training/` (downsampled to the checkpoint's
-`target_length`). The model learns the distribution of plausible SELE shapes from this dataset
-to serve as a prior during reconstruction. Exact dataset size/path are tuned per training run —
-check the training script's config for current values.
 
 ---
 
@@ -347,6 +304,7 @@ Don't rely on hue alone to distinguish series if avoidable — vary marker/line 
 ## Reference Papers
 
 In `Papers/` directory:
+
 - **Main paper**: "Mapping Losses through Empirical Extraction of the Spatial External Luminescence Efficiency" (Yeshurun, Fiegenbaum-Raz, Segev, ACS Appl. Energy Mater. 2024)
 - **Supporting Information**: Derivations for PL calibration, optical constants, regularization method (L-curve), photon recycling model, finite element simulation details
 - **PhD thesis** (Yeshurun, TAU): the full treatment, including PN junctions and MOS capacitors

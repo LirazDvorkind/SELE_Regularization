@@ -10,6 +10,7 @@ where specifics live in code over restating specifics that will drift.
 Don't overdo comments. Write them only where the WHY is genuinely non-obvious (a physics
 convention, a workaround, a non-obvious ordering requirement) -- never to restate WHAT a
 self-explanatory line already says. This applies to MATLAB and Python code alike.
+Address the user as "sir".
 
 ### Maintaining this file
 

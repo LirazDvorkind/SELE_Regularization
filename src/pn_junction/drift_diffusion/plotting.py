@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from src.drift_diffusion.solver import DeviceState
+from src.pn_junction.drift_diffusion.solver import DeviceState
 
 # Okabe-Ito
 BLUE, VERMILION, SKY, ORANGE, GREEN, PURPLE, GREY = (

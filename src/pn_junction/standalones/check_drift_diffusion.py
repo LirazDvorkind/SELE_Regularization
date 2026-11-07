@@ -4,9 +4,9 @@ from dataclasses import replace
 
 import numpy as np
 
-from src.drift_diffusion import generation, solver
-from src.drift_diffusion.device import PNJunction
-from src.drift_diffusion.material import Q
+from src.pn_junction.drift_diffusion import generation, sele, solver
+from src.pn_junction.drift_diffusion.device import PNJunction
+from src.pn_junction.drift_diffusion.material import Q
 
 DEVICE = PNJunction()
 LIGHT = generation.beer_lambert(wavelength_nm=532.0, photon_flux_cm2_s=1e17)
@@ -100,6 +100,73 @@ def collection():
           abs(balance - 1) < 1e-6)
 
 
+def _surface_losses(state):
+    """Minority-carrier loss rates at a finite-SRV front and back, cm^-2 s^-1."""
+    d, m = state.device, state.device.material
+    u, a, b = (np.array([v[0], v[-1]]) / m.thermal_voltage for v in (state.psi, state.phi_n, state.phi_p))
+    front = 0.0 if d.front_srv_cm_s is None else d.front_srv_cm_s * m.ni * (np.exp(b[0] - u[0]) - np.exp(a[0] - u[0]))
+    back = 0.0 if d.back_srv_cm_s is None else d.back_srv_cm_s * m.ni * (np.exp(u[1] - a[1]) - np.exp(u[1] - b[1]))
+    return front, back
+
+
+def surfaces():
+    passivated = replace(DEVICE, front_srv_cm_s=1e4, back_srv_cm_s=1e2)
+    state = solver.solve(passivated, 0.7, LIGHT)
+    disc = solver.discretise(passivated, state.x_cm)
+    rng = np.random.default_rng(1)
+    z = solver._unknowns(state) + 0.1 * rng.standard_normal(3 * state.x_cm.size)
+    v = rng.standard_normal(z.size)
+    _, J = solver.residual_and_jacobian(disc, passivated, z, state.generation, 0.7)
+    eps = 1e-6
+    fd = (solver.residual_and_jacobian(disc, passivated, z + eps * v, state.generation, 0.7)[0]
+          - solver.residual_and_jacobian(disc, passivated, z - eps * v, state.generation, 0.7)[0]) / (2 * eps)
+    err = np.max(np.abs(fd - J @ v) / (np.abs(J).max(axis=1).toarray().ravel() * np.abs(v).max()))
+    check("Jacobian with finite-SRV surfaces", f"{err:.2e} (row-relative)", err < 1e-6)
+
+    # Without bulk recombination, every generated pair is collected unless one of its
+    # carriers is lost at a surface. A finite-SRV end counts its own half-cell of generation.
+    lossless = replace(passivated, material=replace(passivated.material, tau_n=1.0, tau_p=1.0, b_rad=0.0))
+    lit = solver.solve(lossless, 0.0, LIGHT)
+    generated = np.sum(disc.volume * lit.generation)
+    front, back = _surface_losses(lit)
+    balance = (-lit.current_density / Q + front + back) / generated
+    check("global balance with finite-SRV surfaces", f"{balance:.9f}", abs(balance - 1) < 1e-6)
+
+    ohmic = -solver.solve(DEVICE, 0.0, LIGHT).current_density
+    fast = -solver.solve(replace(DEVICE, front_srv_cm_s=1e10, back_srv_cm_s=1e10), 0.0, LIGHT).current_density
+    slow = -solver.solve(replace(DEVICE, front_srv_cm_s=1e2, back_srv_cm_s=1e2), 0.0, LIGHT).current_density
+    check("very fast surfaces recover the ohmic contact", f"Jsc {fast * 1e3:.4f} vs {ohmic * 1e3:.4f} mA/cm^2",
+          abs(fast / ohmic - 1) < 1e-3)
+    check("passivating the surfaces raises Jsc", f"{slow * 1e3:.3f} > {ohmic * 1e3:.3f} mA/cm^2", slow > ohmic)
+
+
+def sele_response():
+    """The adjoint SELE/SCE must equal perturbing the generation at one depth and re-solving."""
+    device = replace(DEVICE, front_srv_cm_s=1e4, back_srv_cm_s=1e2)
+    state = solver.solve(device, 0.0, LIGHT)
+    disc = solver.discretise(device, state.x_cm)
+    s_adj, c_adj = sele.compute_sele(state), sele.compute_sce(state)
+    x = state.x_cm
+    for depth in (0.0, 0.2e-4, device.junction_cm + 0.05e-4, 1.5e-4):
+        i = int(np.argmin(np.abs(x - depth)))
+        dg = 1e-4 * state.generation.max()
+        out = []
+        for sign in (1.0, -1.0):
+            g = state.generation.copy()
+            g[i] += sign * dg
+            s = solver.solve(device, 0.0, lambda _, g=g: g, initial=state)
+            out.append(np.array([sele.photoluminescence(s), -s.current_density / Q]))
+        s_fd, c_fd = (out[0] - out[1]) / (2 * dg * disc.volume[i])
+        err = max(abs(s_fd - s_adj[i]) / max(abs(s_adj).max(), 1e-30), abs(c_fd - c_adj[i]))
+        check(f"adjoint vs perturbation at {x[i] * 1e4:.2f} um",
+              f"SELE {s_adj[i]:.4e}/{s_fd:.4e}, SCE {c_adj[i]:.5f}/{c_fd:.5f}", err < 1e-5)
+    xj = device.junction_cm
+    inside = (x > xj) & (x < xj + 0.05e-4)
+    check("depletion region: collected, not emitted",
+          f"SCE >= {c_adj[inside].min():.5f}, SELE <= {s_adj[inside].max():.1e}",
+          c_adj[inside].min() > 0.99 and s_adj[inside].max() < 1e-3 * s_adj.max())
+
+
 def mesh_convergence():
     coarse = [solver.solve(DEVICE, 0.0, LIGHT).current_density, solver.solve(DEVICE, 1.0).current_density]
     fine_mesh = DEVICE.build_mesh(refine=2.0)
@@ -116,6 +183,8 @@ def main():
     continuity()
     dark_ideality()
     collection()
+    surfaces()
+    sele_response()
     mesh_convergence()
     print("all checks passed")
 

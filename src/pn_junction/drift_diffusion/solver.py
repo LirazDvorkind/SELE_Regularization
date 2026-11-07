@@ -20,9 +20,9 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 from numpy.typing import NDArray
 
-from src.drift_diffusion.device import PNJunction
-from src.drift_diffusion.generation import GenerationProfile
-from src.drift_diffusion.material import Q
+from src.pn_junction.drift_diffusion.device import PNJunction
+from src.pn_junction.drift_diffusion.generation import GenerationProfile
+from src.pn_junction.drift_diffusion.material import Q
 
 MAX_NEWTON_STEP = 2.0       # in units of Vt; larger updates are scaled down
 NEWTON_TOLERANCE = 1e-10    # in units of Vt
@@ -264,11 +264,41 @@ def residual_and_jacobian(disc: Discretisation, device: PNJunction,
 
     u_c, phi_c = _contact_values(disc, device, applied_voltage)
     ends = np.array([0, N - 1])
-    F[iu[ends]] = u[ends] - u_c
-    F[ia[ends]] = a[ends] - phi_c
-    F[ib[ends]] = b[ends] - phi_c
-    for idx in (iu[ends], ia[ends], ib[ends]):
-        add(idx, idx, np.ones(2))
+    pinned = [iu[ends], ia[[0]], ib[[N - 1]]]
+    values = [u[ends] - u_c, a[[0]] - phi_c[[0]], b[[N - 1]] - phi_c[[1]]]
+    ni = m.ni
+
+    # A finite-SRV end loses minority carriers at S * (n p - ni^2) / n_majority, written in
+    # the potentials so it vanishes exactly at equilibrium.
+    if device.front_srv_cm_s is None:
+        pinned.append(ib[[0]])
+        values.append(b[[0]] - phi_c[[0]])
+    else:
+        s, k, v0 = device.front_srv_cm_s, 0, disc.volume[0]
+        r_s = s * ni * (np.exp(b[k] - u[k]) - np.exp(a[k] - u[k]))
+        F[ib[k]] = f.fp[0] + r_s + v0 * (f.r_srh[k] + f.r_rad[k] - generation[k])
+        add(ib[[k]], iu[[k]], [f.fp_ul[0] - r_s + v0 * f.r_u[k]])
+        add(ib[[k]], ia[[k]], [-s * ni * np.exp(a[k] - u[k]) + v0 * f.r_a[k]])
+        add(ib[[k]], ib[[k]], [f.fp_bl[0] + s * f.p[k] + v0 * f.r_b[k]])
+        add(ib[[k]], iu[[k + 1]], [f.fp_ur[0]])
+        add(ib[[k]], ib[[k + 1]], [f.fp_br[0]])
+
+    if device.back_srv_cm_s is None:
+        pinned.append(ia[[N - 1]])
+        values.append(a[[N - 1]] - phi_c[[1]])
+    else:
+        s, k, e, v1 = device.back_srv_cm_s, N - 1, N - 2, disc.volume[N - 1]
+        r_s = s * ni * (np.exp(u[k] - a[k]) - np.exp(u[k] - b[k]))
+        F[ia[k]] = -r_s - f.fn[e] - v1 * (f.r_srh[k] + f.r_rad[k] - generation[k])
+        add(ia[[k]], iu[[k]], [-r_s - f.fn_ur[e] - v1 * f.r_u[k]])
+        add(ia[[k]], ia[[k]], [s * f.n[k] - f.fn_ar[e] - v1 * f.r_a[k]])
+        add(ia[[k]], ib[[k]], [-s * ni * np.exp(u[k] - b[k]) - v1 * f.r_b[k]])
+        add(ia[[k]], iu[[k - 1]], [-f.fn_ul[e]])
+        add(ia[[k]], ia[[k - 1]], [-f.fn_al[e]])
+
+    for idx, val in zip(pinned, values):
+        F[idx] = val
+        add(idx, idx, np.ones(idx.size))
 
     J = sp.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
                       shape=(3 * N, 3 * N))

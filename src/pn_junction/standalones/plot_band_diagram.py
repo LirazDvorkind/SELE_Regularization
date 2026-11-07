@@ -1,6 +1,6 @@
 """Band diagrams of the default GaAs junction: equilibrium, forward bias, and under light.
 
-Edit the device, wavelength and flux below; figures go to ``results/drift_diffusion/``.
+Edit the device, wavelength and flux below; figures go to ``results/pn_junction/``.
 """
 
 from pathlib import Path
@@ -8,13 +8,13 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.drift_diffusion import generation, plotting, solver
-from src.drift_diffusion.device import PNJunction
+from src.pn_junction.drift_diffusion import generation, plotting, solver
+from src.pn_junction.drift_diffusion.device import PNJunction
 
 DEVICE = PNJunction()
 LIGHT = generation.beer_lambert(wavelength_nm=532.0, photon_flux_cm2_s=1e17)
 FORWARD_BIAS = 0.8
-OUT_DIR = Path(__file__).resolve().parents[3] / "results" / "drift_diffusion"
+OUT_DIR = Path(__file__).resolve().parents[3] / "results" / "pn_junction"
 
 
 def main():

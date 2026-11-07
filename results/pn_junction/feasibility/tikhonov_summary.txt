@@ -1,0 +1,25 @@
+blind beyond (blur width > 2 x depth): 0.5% -> 0.83 um, 1% -> 0.83 um, 2% -> 0.59 um, 5% -> 0.35 um
+
+junction 0.12 um: depletion 0.111-0.246 um, relative ELE change from filling the dip: 50.6% rms
+  noise 0.5%: blur width at dip 0.15 um; recovered dip depth 1.30 [1.14, 1.39], dip-free control 0.17 [0.07, 0.26]
+  noise 1%: blur width at dip 0.15 um; recovered dip depth 1.32 [1.05, 1.46], dip-free control 0.19 [0.02, 0.31]
+  noise 2%: blur width at dip 0.23 um; recovered dip depth 1.29 [1.16, 1.72], dip-free control 0.09 [-0.14, 0.29]
+  noise 5%: blur width at dip 0.25 um; recovered dip depth 1.08 [0.57, 1.81], dip-free control 0.05 [-0.39, 0.92]
+
+junction 0.3 um: depletion 0.291-0.426 um, relative ELE change from filling the dip: 14.1% rms
+  noise 0.5%: blur width at dip 0.38 um; recovered dip depth 0.91 [0.73, 1.01], dip-free control 0.08 [-0.05, 0.21]
+  noise 1%: blur width at dip 0.38 um; recovered dip depth 0.83 [0.63, 0.99], dip-free control 0.08 [-0.09, 0.24]
+  noise 2%: blur width at dip 0.38 um; recovered dip depth 0.83 [0.70, 1.10], dip-free control 0.06 [-0.07, 0.23]
+  noise 5%: blur width at dip 0.74 um; recovered dip depth 0.81 [0.52, 2.04], dip-free control 0.02 [-0.44, 0.40]
+
+junction 0.5 um: depletion 0.491-0.626 um, relative ELE change from filling the dip: 3.7% rms
+  noise 0.5%: blur width at dip 0.51 um; recovered dip depth 0.54 [0.35, 0.74], dip-free control 0.00 [-0.11, 0.15]
+  noise 1%: blur width at dip 0.51 um; recovered dip depth 0.48 [0.21, 0.58], dip-free control 0.04 [-0.13, 0.24]
+  noise 2%: blur width at dip 0.95 um; recovered dip depth 0.38 [0.07, 0.89], dip-free control -0.04 [-0.32, 0.27]
+  noise 5%: blur width at dip 3.53 um; recovered dip depth 0.32 [-0.15, 0.82], dip-free control -0.29 [-0.61, 0.13]
+
+junction 0.8 um: depletion 0.791-0.926 um, relative ELE change from filling the dip: 0.3% rms
+  noise 0.5%: blur width at dip 1.88 um; recovered dip depth -0.02 [-0.17, 0.27], dip-free control -0.28 [-0.44, 0.14]
+  noise 1%: blur width at dip 1.88 um; recovered dip depth 0.04 [-0.33, 0.25], dip-free control -0.21 [-0.60, 0.00]
+  noise 2%: blur width at dip 6.42 um; recovered dip depth -0.13 [-0.66, 0.29], dip-free control -0.24 [-0.59, 0.04]
+  noise 5%: blur width at dip 37.46 um; recovered dip depth -0.41 [-0.99, 0.13], dip-free control -0.44 [-1.06, 0.28]

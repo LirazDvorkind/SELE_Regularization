@@ -1,0 +1,38 @@
+blind beyond: 1% noise -> 0.83 um, 5% noise -> 0.35 um
+dip at junction: 1 - SELE/dip-free reference at the depletion centre (1 = to zero)
+interior dip: deepest fall-then-rise anywhere in the seen zone (0 = none)
+covered: share of seen depths where the truth is inside the 5-95% band
+chi2/L: mean misfit of the drawn profiles, ~1 means they fit to the noise
+
+junction  0.12                 noise 1% draw 0: interior dip 0.98 [0.93, 1.00]; dip at junction 0.92 [0.82, 0.98] (Tikhonov 1.27); covered 0.80; chi2/L 0.70; step 3.8e-05%; tail 1; Rhat 1.217
+junction  0.12                 noise 1% draw 1: interior dip 0.97 [0.91, 1.00]; dip at junction 0.88 [0.75, 0.97] (Tikhonov 1.41); covered 0.78; chi2/L 0.85; step 6.8e-05%; tail 1; Rhat 1.064
+junction  0.12                 noise 5% draw 0: interior dip 0.73 [0.22, 0.98]; dip at junction 0.81 [0.58, 0.96] (Tikhonov 0.74); covered 0.54; chi2/L 1.30; step 8.6e-05%; tail 1; Rhat 1.013
+junction  0.12                 noise 5% draw 1: interior dip 0.73 [0.20, 0.98]; dip at junction 0.83 [0.66, 0.96] (Tikhonov 1.26); covered 0.57; chi2/L 1.09; step 6.8e-05%; tail 1; Rhat 1.030
+filled    0.12                 noise 1% draw 0: interior dip 0.94 [0.76, 1.00]; dip at junction 0.30 [-0.16, 0.74]; covered 1.00; chi2/L 0.90; step 7.7e-04%; tail 4; Rhat 1.012
+junction  0.3                  noise 1% draw 0: interior dip 0.54 [0.07, 0.96]; dip at junction 0.87 [0.75, 0.97] (Tikhonov 0.91); covered 0.59; chi2/L 1.03; step 5.0e-05%; tail 1; Rhat 1.172
+junction  0.3                  noise 1% draw 1: interior dip 0.52 [0.08, 0.96]; dip at junction 0.84 [0.68, 0.95] (Tikhonov 0.68); covered 0.51; chi2/L 0.94; step 6.4e-05%; tail 1; Rhat 1.077
+junction  0.3                  noise 5% draw 0: interior dip 0.14 [0.02, 0.73]; dip at junction 0.79 [0.51, 0.95] (Tikhonov 0.39); covered 0.71; chi2/L 1.32; step 1.1e-04%; tail 1; Rhat 1.046
+junction  0.3                  noise 5% draw 1: interior dip 0.14 [0.02, 0.66]; dip at junction 0.61 [0.17, 0.89] (Tikhonov 1.31); covered 0.69; chi2/L 1.58; step 1.8e-04%; tail 1; Rhat 1.036
+filled    0.3                  noise 1% draw 0: interior dip 0.50 [0.09, 0.96]; dip at junction 0.56 [-0.81, 0.87]; covered 0.82; chi2/L 1.32; step 1.0e-04%; tail 1; Rhat 1.037
+junction  0.5                  noise 1% draw 0: interior dip 0.58 [0.14, 0.96]; dip at junction 0.76 [0.47, 0.94] (Tikhonov 0.45); covered 0.57; chi2/L 1.39; step 3.2e-04%; tail 1; Rhat 1.091
+junction  0.5                  noise 1% draw 1: interior dip 0.56 [0.14, 0.96]; dip at junction 0.75 [0.45, 0.94] (Tikhonov 0.44); covered 0.53; chi2/L 0.71; step 3.2e-04%; tail 1; Rhat 1.050
+junction  0.5                  noise 5% draw 0: interior dip 0.22 [0.01, 0.79]; dip at junction 0.15 [-0.57, 0.77] (Tikhonov 0.00); covered 0.71; chi2/L 1.26; step 2.6e-03%; tail 2; Rhat 1.117
+junction  0.5                  noise 5% draw 1: interior dip 0.16 [0.02, 0.69]; dip at junction 0.26 [-0.40, 0.76] (Tikhonov 1.37); covered 0.63; chi2/L 0.75; step 8.9e-04%; tail 1; Rhat 1.023
+filled    0.5                  noise 1% draw 0: interior dip 0.66 [0.13, 0.98]; dip at junction 0.48 [-0.07, 0.86]; covered 0.86; chi2/L 1.24; step 8.3e-04%; tail 1; Rhat 1.074
+junction  0.8                  noise 1% draw 0: interior dip 0.55 [0.16, 0.94]; dip at junction 0.05 [-0.91, 0.73] (Tikhonov -0.31); covered 0.94; chi2/L 1.28; step 1.4e-02%; tail 8; Rhat 1.073
+junction  0.8                  noise 1% draw 1: interior dip 0.63 [0.22, 0.96]; dip at junction -0.12 [-1.24, 0.66] (Tikhonov 0.45); covered 0.87; chi2/L 1.01; step 1.7e-02%; tail 8; Rhat 1.068
+junction  0.8                  noise 5% draw 0: interior dip 0.26 [0.01, 0.85]; dip at junction -1.15 [-2.26, 0.27] (Tikhonov -0.10); covered 1.00; chi2/L 1.62; step 1.4e-02%; tail 4; Rhat 1.153
+junction  0.8                  noise 5% draw 1: interior dip 0.24 [0.01, 0.79]; dip at junction -1.64 [-2.78, -0.08] (Tikhonov -0.75); covered 1.00; chi2/L 0.93; step 1.3e-02%; tail 4; Rhat 1.454
+filled    0.8                  noise 1% draw 0: interior dip 0.64 [0.30, 0.96]; dip at junction -0.09 [-1.08, 0.66]; covered 1.00; chi2/L 0.92; step 1.7e-02%; tail 16; Rhat 1.004
+wafer     None                 noise 1% draw 0: interior dip 0.17 [0.08, 0.39]; covered 1.00; chi2/L 0.66; step 1.1e-02%; tail 16; Rhat 1.004
+wafer     None                 noise 5% draw 0: interior dip 0.15 [0.05, 0.39]; covered 1.00; chi2/L 0.84; step 1.3e-02%; tail 16; Rhat 1.002
+G error   k × 0.97             noise 1% draw 0: interior dip 0.47 [0.07, 0.95]; dip at junction 0.86 [0.73, 0.96]; covered 0.47; chi2/L 2.82; step 4.5e-05%; tail 1; Rhat 1.077
+G error   k × 1.03             noise 1% draw 0: interior dip 0.70 [0.17, 0.98]; dip at junction 0.87 [0.71, 0.97]; covered 0.70; chi2/L 2.77; step 8.0e-05%; tail 1; Rhat 1.065
+G error   k tilted −5% → +5%   noise 1% draw 0: interior dip 0.65 [0.17, 0.97]; dip at junction 0.94 [0.84, 0.99]; covered 0.67; chi2/L 4.02; step 3.6e-05%; tail 1; Rhat 2.551
+G error   k tilted +5% → −5%   noise 1% draw 0: interior dip 0.60 [0.15, 0.96]; dip at junction 0.79 [0.58, 0.94]; covered 0.61; chi2/L 3.89; step 1.0e-04%; tail 1; Rhat 1.059
+settings  step scale × 2       noise 1% draw 0: interior dip 0.72 [0.31, 0.97]; dip at junction 0.87 [0.71, 0.97]; covered 0.73; chi2/L 1.01; step 1.0e-04%; tail 1; Rhat 1.050
+settings  step scale × ½       noise 1% draw 0: interior dip 0.34 [0.09, 0.87]; dip at junction 0.87 [0.75, 0.96]; covered 0.52; chi2/L 1.03; step 2.5e-05%; tail 1; Rhat 1.215
+settings  tail weight × 2      noise 1% draw 0: interior dip 0.84 [0.42, 0.99]; dip at junction 0.86 [0.70, 0.96]; covered 0.69; chi2/L 1.05; step 3.6e-04%; tail 2; Rhat 1.087
+settings  tail weight × ½      noise 1% draw 0: interior dip 0.54 [0.10, 0.96]; dip at junction 0.89 [0.73, 0.98]; covered 0.77; chi2/L 1.00; step 6.3e-06%; tail 0.5; Rhat 1.149; Q nudged 1x
+
+settings learned on junction 0.3 um, 1%: step scale 5.03e-05% per slice, tail weight 1

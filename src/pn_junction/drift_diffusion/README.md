@@ -54,13 +54,13 @@ at the edge where that floor is lowest, inside the depletion region.
 ## Run
 
 ```bash
-python -m src.drift_diffusion.standalones.check_drift_diffusion   # physics + numerics checks
-python -m src.drift_diffusion.standalones.plot_band_diagram       # figures -> results/drift_diffusion/
+python -m src.pn_junction.standalones.check_drift_diffusion   # physics + numerics checks
+python -m src.pn_junction.standalones.plot_band_diagram       # figures -> results/pn_junction/
 ```
 
 ```python
-from src.drift_diffusion import generation, solver, plotting
-from src.drift_diffusion.device import PNJunction
+from src.pn_junction.drift_diffusion import generation, solver, plotting
+from src.pn_junction.drift_diffusion.device import PNJunction
 
 device = PNJunction(length_cm=3e-4, junction_cm=0.5e-4, donor_cm3=1e18, acceptor_cm3=1e17)
 state = solver.solve(device, applied_voltage=0.5,

@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from src.drift_diffusion.material import GaAsMaterial
+from src.pn_junction.drift_diffusion.material import GaAsMaterial
 
 
 @dataclass(frozen=True)
 class PNJunction:
     """Abrupt GaAs homojunction: n-type on ``0 <= x < xj``, p-type on ``xj <= x <= L``.
 
-    Light enters at x = 0, so the n side is the emitter. Both ends are ideal ohmic contacts.
+    Light enters at x = 0, so the n side is the emitter. Both ends are ohmic for the majority
+    carrier. The minority carrier at each end (holes at the front, electrons at the back) is
+    either also pinned to equilibrium -- an ideal ohmic contact, infinite recombination
+    velocity, when the SRV is ``None`` -- or lost at a finite surface recombination velocity,
+    which stands in for a passivating window or back-surface-field layer.
     """
 
     length_cm: float = 3.0e-4
@@ -22,10 +27,15 @@ class PNJunction:
     donor_cm3: float = 1e18
     acceptor_cm3: float = 1e17
     material: GaAsMaterial = field(default_factory=GaAsMaterial)
+    front_srv_cm_s: Optional[float] = None
+    back_srv_cm_s: Optional[float] = None
 
     def __post_init__(self):
         if not 0.0 < self.junction_cm < self.length_cm:
             raise ValueError("the junction must lie strictly inside the device")
+        for srv in (self.front_srv_cm_s, self.back_srv_cm_s):
+            if srv is not None and srv < 0.0:
+                raise ValueError("surface recombination velocities must be non-negative")
 
     def donors(self, x_cm: ArrayLike) -> NDArray[np.float64]:
         return np.where(np.asarray(x_cm) < self.junction_cm, self.donor_cm3, 0.0)

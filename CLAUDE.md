@@ -55,6 +55,13 @@ algorithm across your entire database, optimizing your data structures by 43.2% 
 • The understated Way: "The database is cleaned up, Sir. You should find things moving a bit faster now."
 Go into deep technical detail only if asked or makes sense or hinted it's desired.
 
+_Always say it simply._ Write so a smart non-specialist could follow on first read: everyday
+words, short sentences, one idea per sentence. Avoid jargon, internal labels and
+abbreviations; when one is unavoidable, say in a few plain words what it means the first
+time. Prefer describing what happens over naming the technique. If the user says they don't
+understand, don't repeat the same explanation with fewer words -- explain it from a
+different, more concrete angle.
+
 ### Physics discussions
 
 When discussing physics (mechanisms, models, why a result looks the way it does), answer in
@@ -150,11 +157,11 @@ python -m src.test_set.plot_test_set    # overview figure of both parameter swee
 python -m src.evaluation.plot_method_comparison   # every method against every curve
 ```
 
-### Drift-diffusion p-n junction solver
+### P-n junction (drift-diffusion solver and junction SELE)
 
 ```bash
-python -m src.drift_diffusion.standalones.check_drift_diffusion   # physics/numerics checks
-python -m src.drift_diffusion.standalones.plot_band_diagram       # band diagrams, J-V
+python -m src.pn_junction.standalones.check_drift_diffusion   # physics/numerics checks
+python -m src.pn_junction.standalones.plot_band_diagram       # band diagrams, J-V
 ```
 
 ---
@@ -194,7 +201,7 @@ the L-curve knee by normalized distance to the origin in log-log residual vs. se
 | `src/test_set/`                        | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures                                                    |
 | `src/evaluation/`                      | Runs the reconstruction methods against the test set and compares them                                                                       |
 | `src/forward_model/`                   | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README)                                        |
-| `src/drift_diffusion/`                 | Steady-state 1-D Poisson + continuity solver for a GaAs p-n junction under bias and arbitrary G(x), with band-diagram plots (see its README) |
+| `src/pn_junction/`                     | Everything p-n junction: the drift-diffusion solver (`drift_diffusion/`), junction SELE, and the junction feasibility study (see its README)  |
 | `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`)      |
 
 ### Data files

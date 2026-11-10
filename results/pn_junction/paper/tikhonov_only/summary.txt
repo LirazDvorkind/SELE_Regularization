@@ -1,0 +1,25 @@
+blind beyond: 0.5% -> 0.83 um, 1% -> 0.83 um, 2% -> 0.59 um, 5% -> 0.35 um
+
+junction 0.12 um: ELE change if dip removed 50.6% rms; at 1% noise, most negative SELE -0.009% vs truth peak 0.019%
+  noise 0.5%: dip 1.33 [1.21, 1.47]; wafer false dip 0.00 [-0.00, 0.00]
+  noise 1%: dip 1.32 [1.12, 1.55]; wafer false dip 0.00 [-0.01, 0.01]
+  noise 2%: dip 1.28 [0.91, 1.58]; wafer false dip 0.00 [-0.01, 0.02]
+  noise 5%: dip 1.08 [0.57, 1.69]; wafer false dip 0.01 [-0.03, 0.03]
+
+junction 0.3 um: ELE change if dip removed 14.1% rms; at 1% noise, most negative SELE -0.017% vs truth peak 0.049%
+  noise 0.5%: dip 0.87 [0.77, 0.93]; wafer false dip 0.00 [-0.01, 0.01]
+  noise 1%: dip 0.85 [0.67, 1.09]; wafer false dip -0.00 [-0.02, 0.01]
+  noise 2%: dip 0.83 [0.49, 1.06]; wafer false dip 0.00 [-0.02, 0.02]
+  noise 5%: dip 0.67 [0.10, 1.64]; wafer false dip -0.00 [-0.06, 0.03]
+
+junction 0.5 um: ELE change if dip removed 3.7% rms; at 1% noise, most negative SELE -0.044% vs truth peak 0.127%
+  noise 0.5%: dip 0.57 [0.35, 0.74]; wafer false dip -0.00 [-0.01, 0.01]
+  noise 1%: dip 0.47 [0.27, 0.67]; wafer false dip -0.00 [-0.02, 0.01]
+  noise 2%: dip 0.32 [0.14, 0.58]; wafer false dip -0.01 [-0.02, 0.02]
+  noise 5%: dip 0.35 [-0.09, 0.86]; wafer false dip -0.00 [-0.06, 0.04]
+
+junction 0.8 um: ELE change if dip removed 0.3% rms; at 1% noise, most negative SELE -0.133% vs truth peak 0.271%
+  noise 0.5%: dip 0.05 [-0.11, 0.29]; wafer false dip -0.01 [-0.03, 0.00]
+  noise 1%: dip 0.12 [-0.22, 0.48]; wafer false dip 0.00 [-0.04, 0.04]
+  noise 2%: dip -0.17 [-0.46, 0.17]; wafer false dip -0.02 [-0.05, 0.04]
+  noise 5%: dip -0.23 [-0.69, 0.52]; wafer false dip -0.01 [-0.11, 0.22]

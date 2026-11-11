@@ -136,6 +136,7 @@ Training and checkpoint-inspection scripts live in `src/regularization/score_mod
 
 ```bash
 python -m src.test_set.build_test_set   # re-extract profiles from the paper figures
+python -m src.test_set.build_forward_model_set   # curves from the forward model itself
 python -m src.test_set.plot_test_set    # overview figure of both parameter sweeps
 python -m src.evaluation.plot_method_comparison   # every method against every curve
 ```
@@ -194,6 +195,7 @@ the L-curve knee by normalized distance to the origin in log-log residual vs. se
 | Measurement                   | `Data/ELE_sim.csv`                    | Simulated ELE measurement (the "observation")                                                                                                        |
 | Ground truth                  | `Data/SELE_ground_truth.csv`          | Ground truth SELE for comparison                                                                                                                     |
 | Ground-truth test set         | `Data/test_set/`                      | Multiple ground-truth SELE profiles, each with its G and ELE, for scoring a method across shapes rather than at one operating point (see its README) |
+| Forward-model test set        | `Data/test_set_forward_model/`        | SELE curves made by `src/forward_model/` itself, for scoring a method with model mismatch removed (see its README)                                   |
 | Paper figures                 | `Data/Tamir_paper_SELE_figs/`         | Source `.fig` files the test set and its optical constants come from (see its README)                                                                |
 | Optical inputs                | `Data/z.csv`, `wavelength_nm.csv`     | z-mesh and the measurement wavelengths. k(λ) does **not** live here — it comes from the paper figures via `src/optical_constants.py`                 |
 | Precomputed G matrices        | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length)                                                                                                  |

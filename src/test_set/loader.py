@@ -169,3 +169,50 @@ def resample_to_mesh(curve: GroundTruthCurve, z_edges: NDArray[np.float64]) -> N
     """
     z_centres = 0.5 * (z_edges[:-1] + z_edges[1:])
     return np.interp(z_centres, curve.z_cm, curve.sele)
+
+
+_FORWARD_MODEL_SET_DIR = _DATA_DIR / "test_set_forward_model"
+
+
+@dataclass
+class ForwardModelCurve:
+    """A test curve made by the parametric method's own simulator, with the parameters behind it.
+
+    ``true_params`` exists for scoring parameter recovery afterwards. Inference must be given
+    ``ele`` alone; handing it anything else turns the test into a lookup.
+    """
+
+    curve_id: str
+    group: str
+    z_cm: NDArray[np.float64]
+    sele: NDArray[np.float64]
+    ele: NDArray[np.float64]
+    true_params: NDArray[np.float64]  # physical units, in PARAMETER_NAMES order
+
+
+def load_forward_model_set() -> List[ForwardModelCurve]:
+    """Every curve in ``Data/test_set_forward_model/``, built by ``build_forward_model_set``."""
+    from src.forward_model.parameters import PARAMETER_NAMES
+
+    index_path = _FORWARD_MODEL_SET_DIR / "index.csv"
+    if not index_path.exists():
+        raise FileNotFoundError(
+            f"{index_path} not found -- run `python -m src.test_set.build_forward_model_set`.")
+
+    lines = index_path.read_text(encoding="utf-8").strip().splitlines()
+    header = lines[0].split(",")
+    z_cm = load_csv(str(_FORWARD_MODEL_SET_DIR / "z_cm.csv")).ravel()
+
+    curves = []
+    for line in lines[1:]:
+        row = dict(zip(header, line.split(",")))
+        directory = _FORWARD_MODEL_SET_DIR / "curves" / row["curve_id"]
+        curves.append(ForwardModelCurve(
+            curve_id=row["curve_id"],
+            group=row["group"],
+            z_cm=z_cm,
+            sele=load_csv(str(directory / "sele.csv")).ravel(),
+            ele=load_csv(str(directory / "ele.csv")).ravel(),
+            true_params=np.array([float(row[name]) for name in PARAMETER_NAMES]),
+        ))
+    return curves

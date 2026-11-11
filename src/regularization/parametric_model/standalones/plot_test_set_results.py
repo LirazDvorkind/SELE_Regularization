@@ -6,13 +6,12 @@ Writes to ``results/parametric_model/test_set_comparison/``:
   * ``forward_model_curves.png`` -- every forward-model curve: truth, best draw, and the
     envelope of draws within ``uncertainty.TOLERANCE`` in ELE.
   * ``paper_curves.png`` -- the same for Tamir Yeshurun's paper-figure curves.
+  * ``paired_sweeps.png`` -- each paper sweep curve overlaid with its forward-model twin at
+    the same SRV or lifetime.
   * ``parameter_recovery.png`` -- forward-model set only, since only it has true parameters:
     best draw against truth, with the range over the draws that fit.
   * ``set_comparison.png`` -- per-zone SELE error and 0-3 um coverage, both sets side by side.
     The gap between them is the model mismatch the paper-figure curves carry.
-
-Depth is plotted on a log axis from the solver mesh's first element centre to its end, so the
-near-surface region the measurement constrains and the deep tail it does not are both visible.
 """
 
 from __future__ import annotations
@@ -46,6 +45,12 @@ _KEPT = "#56B4E9"
 _PAPER = "#E69F00"
 _FORWARD = "#009E73"
 _INK_MUTED = "#555555"
+# Paired-sweep figure: Okabe-Ito blue and reddish purple, each with a darker shade for the truth.
+_PAIR_STYLE = {
+    "paper": {"best": "#0072B2", "band": "#56B4E9", "truth": "#004A75", "name": "Yeshurun"},
+    "forward": {"best": "#CC79A7", "band": "#CC79A7", "truth": "#8A3D6E",
+                "name": "forward model"},
+}
 _GROUP_STYLE = {
     "sweep_srv": ("#0072B2", "o", "SRV sweep"),
     "sweep_tau": ("#E69F00", "s", "lifetime sweep"),
@@ -91,17 +96,16 @@ def _curve_grid(scored: List[Scored], title: str, path: Path) -> None:
                         color=_KEPT, alpha=0.35, linewidth=0)
         ax.plot(x, item.selection.best_sele * 100, color=_BEST, linewidth=2.0)
         ax.plot(x, item.truth * 100, color=_TRUTH, linewidth=1.6, linestyle="--")
-        ax.set_xscale("log")
-        ax.set_xlim(x[0], x[-1])
+        ax.set_xlim(0, x[-1])
         ax.set_ylim(bottom=0)
-        ax.set_title(f"{item.curve_id}\nerror 0-1um {item.zone_errors[0]:.1%}, "
-                     f"1-3um {item.zone_errors[1]:.1%}", fontsize=8.5)
+        ax.set_title(f"{item.curve_id}\nerror 0–1 µm {item.zone_errors[0]:.1%}, "
+                     f"1–3 µm {item.zone_errors[1]:.1%}", fontsize=8.5)
         ax.tick_params(labelsize=7)
         ax.grid(alpha=0.2)
     for ax in axes.flat[len(scored):]:
         ax.set_visible(False)
     for ax in axes[-1]:
-        ax.set_xlabel("depth z [um]", fontsize=8)
+        ax.set_xlabel("depth z [µm]", fontsize=8)
     for ax in axes[:, 0]:
         ax.set_ylabel("SELE [%]", fontsize=8)
 
@@ -115,6 +119,69 @@ def _curve_grid(scored: List[Scored], title: str, path: Path) -> None:
                bbox_to_anchor=(0.5, 1.0 - 0.15 / fig.get_figheight()))
     fig.suptitle(title, fontsize=11, y=1.0 + 0.1 / fig.get_figheight())
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.5 / fig.get_figheight()))
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _paired_sweeps(paper: List[Scored], forward: List[Scored], path: Path) -> None:
+    """Paper sweeps with their forward-model twins (same SRV or lifetime) overlaid.
+
+    The twins share only the swept value; the other parameters differ, so the curves are not
+    expected to coincide. What compares is how well each set's own truth is reconstructed.
+    """
+    twins = {item.curve_id.removeprefix("fm_"): item for item in forward
+             if item.group != "random"}
+    panels = [(p, twins.pop(p.curve_id, None)) for p in paper]
+    panels += [(None, f) for f in twins.values()]
+
+    rows = int(np.ceil(len(panels) / _COLUMNS))
+    fig, axes = plt.subplots(rows, _COLUMNS, figsize=(3.0 * _COLUMNS, 2.6 * rows + 0.8),
+                             squeeze=False)
+    for ax, pair in zip(axes.flat, panels):
+        lines = []
+        for key, item in zip(("paper", "forward"), pair):
+            if item is None:
+                continue
+            style = _PAIR_STYLE[key]
+            ax.fill_between(item.z_um, item.selection.low * 100, item.selection.high * 100,
+                            color=style["band"], alpha=0.3, linewidth=0)
+            ax.plot(item.z_um, item.selection.best_sele * 100, color=style["best"],
+                    linewidth=2.0)
+            ax.plot(item.z_um, item.truth * 100, color=style["truth"], linewidth=1.5,
+                    linestyle="--")
+            lines.append(f"{style['name']} {item.zone_errors[0]:.1%} / "
+                         f"{item.zone_errors[1]:.1%}")
+        name = (pair[0] or pair[1]).curve_id.removeprefix("fm_")
+        ax.set_title(name + "\n" + "\n".join(lines), fontsize=8)
+        ax.set_xlim(0, (pair[0] or pair[1]).z_um[-1])
+        ax.set_ylim(bottom=0)
+        ax.tick_params(labelsize=7)
+        ax.grid(alpha=0.2)
+    for ax in axes.flat[len(panels):]:
+        ax.set_visible(False)
+    for ax in axes[-1]:
+        ax.set_xlabel("depth z [µm]", fontsize=8)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("SELE [%]", fontsize=8)
+
+    handles = []
+    for key in ("paper", "forward"):
+        style = _PAIR_STYLE[key]
+        handles += [
+            plt.Line2D([], [], color=style["truth"], linewidth=1.5, linestyle="--",
+                       label=f"{style['name']} truth"),
+            plt.Line2D([], [], color=style["best"], linewidth=2.0,
+                       label=f"{style['name']} best draw"),
+            plt.Rectangle((0, 0), 1, 1, color=style["band"], alpha=0.3,
+                          label=f"{style['name']} draws within {unc.TOLERANCE:.0%} in ELE"),
+        ]
+    # Legends fill column-major, so two columns put each set in its own column.
+    fig.legend(handles=handles, loc="upper center", ncol=2, frameon=False, fontsize=9,
+               bbox_to_anchor=(0.5, 1.0 - 0.15 / fig.get_figheight()))
+    fig.suptitle("Yeshurun sweeps and forward-model sweeps at the same SRV / lifetime "
+                 "(titles: SELE error 0–1 µm / 1–3 µm)",
+                 fontsize=11, y=1.0 + 0.1 / fig.get_figheight())
+    fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_figheight()))
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
@@ -180,7 +247,7 @@ def _set_comparison(paper: List[Scored], forward: List[Scored], path: Path) -> N
 
     ax_err.set_yscale("log")
     ax_err.set_xticks(range(len(_ZONES)))
-    ax_err.set_xticklabels([f"{lo:g}-{hi:g} um" for lo, hi in _ZONES])
+    ax_err.set_xticklabels([f"{lo:g}–{hi:g} µm" for lo, hi in _ZONES])
     ax_err.set_ylabel("best-draw SELE error [%]")
     ax_err.set_title("SELE error by depth zone (bar: median)", fontsize=10)
     ax_err.grid(alpha=0.2, axis="y")
@@ -191,7 +258,7 @@ def _set_comparison(paper: List[Scored], forward: List[Scored], path: Path) -> N
     ax_cov.set_xlim(-0.5, 1.5)
     ax_cov.set_ylim(-5, 105)
     ax_cov.set_ylabel("depths with truth inside envelope [%]")
-    ax_cov.set_title("coverage, 0-3 um", fontsize=10)
+    ax_cov.set_title("coverage, 0–3 µm", fontsize=10)
     ax_cov.grid(alpha=0.2, axis="y")
 
     fig.suptitle("Parametric reconstruction: paper-figure truths vs forward-model truths",
@@ -221,6 +288,7 @@ def main() -> None:
                 _OUTPUT_DIR / "forward_model_curves.png")
     _curve_grid(paper, "Paper-figure test set (Yeshurun): parametric reconstruction",
                 _OUTPUT_DIR / "paper_curves.png")
+    _paired_sweeps(paper, forward, _OUTPUT_DIR / "paired_sweeps.png")
     _parameter_recovery(forward, model.spec.names, model.spec.units,
                         _OUTPUT_DIR / "parameter_recovery.png")
     _set_comparison(paper, forward, _OUTPUT_DIR / "set_comparison.png")

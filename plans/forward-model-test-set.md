@@ -74,13 +74,19 @@ mismatch"; regenerate them with the scorer. In short:
 `python -m src.regularization.parametric_model.standalones.plot_test_set_results` writes them
 to `results/parametric_model/test_set_comparison/`. All use the default 4000 draws.
 
-- **`forward_model_curves.png`**: one panel per forward-model curve, log depth axis. Truth
+- **`forward_model_curves.png`**: one panel per forward-model curve, linear 0–30 µm depth axis. Truth
   (dashed), best draw (bold), shaded envelope of draws within 1% in ELE; the 0–1 and 1–3 µm
   errors are in each title. Truth and best draw coincide to a few µm. The visible misses are
   the three long-diffusion-length curves, deep only.
 - **`paper_curves.png`**: the same layout for the 17 Yeshurun curves, for panel-by-panel
   comparison. On the lifetime sweep the best draw undershoots the truth's peak and the truth
   sits outside the envelope: the missing recycling physics.
+- **`paired_sweeps.png`**: each Yeshurun sweep curve (blue) overlaid with its forward-model
+  twin at the same SRV or lifetime (pink): truth dashed, best draw solid, band shaded, both
+  sets' 0–1 / 1–3 µm errors in the title. The twins share only the swept value, so the curves
+  themselves are not expected to coincide; what compares is how closely each set's
+  reconstruction follows its own truth. Paper lifetimes 0.1–4 ns have no twin (below the
+  parameter box); `tau_150ns` has no paper counterpart.
 - **`set_comparison.png`**: left, best-draw SELE error per depth zone for both sets (log
   scale, median bars). The forward-model set is about an order of magnitude lower in every
   zone. Right, 0–3 µm coverage: 100% on 21 of 24 forward-model curves, against 4 of 17 paper

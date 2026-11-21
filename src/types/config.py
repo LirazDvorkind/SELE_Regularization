@@ -200,7 +200,7 @@ class Config:
     # Physically motivated for most devices; disable if back-surface emission is expected.
     force_SELE_last_zero: bool
 
-    is_save_plots: bool   # Write PNGs to results/
+    is_save_plots: bool   # Write PNGs to results/pipeline/
 
     # If set, run against Data/test_set/ curve <curve_id> (see Data/test_set/index.csv, e.g.
     # "srv_1e5", "tau_8ns") instead of the default eta_ext/z_gt/sele_gt in data_paths.

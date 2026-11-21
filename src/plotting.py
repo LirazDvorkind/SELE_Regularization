@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # needed for 3D projectio
 
 
 def _ensure_results_dir():
-    os.makedirs('results', exist_ok=True)
+    os.makedirs('results/pipeline', exist_ok=True)
 
 
 def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_vals,
@@ -66,7 +66,7 @@ def plot_lcurve(seminorms: Sequence[float], residuals: Sequence[float], kappa_va
 
     if save:
         _ensure_results_dir()
-        fig.savefig('results/lcurve.png', dpi=300)
+        fig.savefig('results/pipeline/lcurve.png', dpi=300)
 
     plt.show(block=False)
 
@@ -103,7 +103,7 @@ def plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, *, gt_label: str = "defau
     fig.tight_layout()
     if save:
         _ensure_results_dir()
-        fig.savefig('results/sele_profile.png', dpi=300)
+        fig.savefig('results/pipeline/sele_profile.png', dpi=300)
     plt.show(block=False)
 
 
@@ -117,7 +117,7 @@ def plot_eta(lambda_vals, eta_meas, eta_fit, *, save: bool = False):
     plt.title("Reconstructed ELE")
     if save:
         _ensure_results_dir()
-        fig.savefig('results/eta_fit.png', dpi=300)
+        fig.savefig('results/pipeline/eta_fit.png', dpi=300)
     plt.show(block=False)
 
 
@@ -140,7 +140,7 @@ def plot_interpolation_check(
     plt.legend()
     if save:
         _ensure_results_dir()
-        fig.savefig('results/interpolated_G.png', dpi=300)
+        fig.savefig('results/pipeline/interpolated_G.png', dpi=300)
     plt.show(block=True)
 
 
@@ -171,7 +171,7 @@ def plot_mesh_elements_position_and_size(z: np.ndarray, z_turn: float, *, save: 
     ax2.set_title("Linear zoomed-in view")
     if save:
         _ensure_results_dir()
-        fig.savefig('results/mesh.png', dpi=300)
+        fig.savefig('results/pipeline/mesh.png', dpi=300)
     plt.show(block=False)
 
 
@@ -214,7 +214,7 @@ def plot_lsurface_3d(
 
     if save:
         _ensure_results_dir()
-        fig.savefig("results/l_surface_3d.png", dpi=300)
+        fig.savefig("results/pipeline/l_surface_3d.png", dpi=300)
     plt.show(block=False)
 
 
@@ -259,5 +259,5 @@ def plot_heatmap_residual(residuals, kappa1_vals, kappa2_vals, i_star, j_star, *
     ax.set_title("Residual heatmap with chosen point")
     if save:
         _ensure_results_dir()
-        fig.savefig("results/residual_heatmap.png", dpi=300)
+        fig.savefig("results/pipeline/residual_heatmap.png", dpi=300)
     plt.show(block=False)

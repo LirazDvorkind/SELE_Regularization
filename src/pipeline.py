@@ -104,10 +104,10 @@ def run_regularization():
 
         # 8. Persist results
         z_centres = 0.5 * (z[:-1] + z[1:])  # length M-1
-        save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-        save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
-        save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
-        generate_run_report("results", kappa_knee)
+        save_csv("results/pipeline/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+        save_csv("results/pipeline/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+        save_csv("results/pipeline/raw/eta_fit.csv", eta_fit, header="eta_fit")
+        generate_run_report("results/pipeline/run_report.txt", kappa_knee)
 
         # 9. Plotting
         plot_lcurve(seminorms, residuals, kappa_vals, knee_idx, mask, save=is_save_plots)
@@ -150,10 +150,10 @@ def run_regularization():
 
         # 7. Save & report
         z_centres = 0.5 * (z[:-1] + z[1:])
-        save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-        save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
-        save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
-        generate_run_report("results", kappa_knee=kappa_knee)
+        save_csv("results/pipeline/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+        save_csv("results/pipeline/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+        save_csv("results/pipeline/raw/eta_fit.csv", eta_fit, header="eta_fit")
+        generate_run_report("results/pipeline/run_report.txt", kappa_knee=kappa_knee)
 
         # 8. Plots
         plot_lcurve(tv_norms, residuals, kappa_vals, knee_idx, mask,
@@ -207,9 +207,9 @@ def run_regularization():
                 unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
-            save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-            save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
-            save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+            save_csv("results/pipeline/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+            save_csv("results/pipeline/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+            save_csv("results/pipeline/raw/eta_fit.csv", eta_fit, header="eta_fit")
         else:
             # Optional TV warm-start: solve TV on the same G/B and feed the result
             # in as the NAG initial point instead of random noise.
@@ -255,11 +255,11 @@ def run_regularization():
                 unit_factor if CONFIG.regularization_method != regularization_method.MODEL_SCORE_GRAD else 1)
 
             # 5. Save & report
-            save_csv("results/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
-            save_csv("results/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
-            save_csv("results/raw/eta_fit.csv", eta_fit, header="eta_fit")
+            save_csv("results/pipeline/raw/S_mean.csv", np.column_stack([z_centres, S_mean]), header="z_cm,S_mean")
+            save_csv("results/pipeline/raw/S_std.csv", np.column_stack([z_centres, S_std]), header="z_cm,S_std")
+            save_csv("results/pipeline/raw/eta_fit.csv", eta_fit, header="eta_fit")
 
-        generate_run_report("results")
+        generate_run_report("results/pipeline/run_report.txt")
 
         # 6. Plots
         plot_sele(z_centres, S_mean, S_std, sele_gt, z_gt, gt_label=gt_label, save=is_save_plots)

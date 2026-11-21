@@ -503,7 +503,7 @@ def solve_gradient_descent(
                 eta_fit_before = G_norm @ S_phys_before
                 eta_fit_after = G_norm @ S_phys_after
 
-                save_debug_path = f"results/debug/step_{i:05d}.png" if hyperparams.IS_SHOW_DEBUG_PLOT else None
+                save_debug_path = f"results/pipeline/debug/step_{i:05d}.png" if hyperparams.IS_SHOW_DEBUG_PLOT else None
                 _plot_step_debug(
                     step=i,
                     S_norm_before=S_norm_before,
@@ -616,8 +616,8 @@ def solve_gradient_descent(
         plt.tight_layout()
         if hyperparams.IS_SHOW_MSE_PLOT:
             from pathlib import Path
-            Path("results/debug").mkdir(parents=True, exist_ok=True)
-            plt.savefig("results/debug/convergence_diagnostics.png", dpi=100, bbox_inches='tight')
+            Path("results/pipeline/debug").mkdir(parents=True, exist_ok=True)
+            plt.savefig("results/pipeline/debug/convergence_diagnostics.png", dpi=100, bbox_inches='tight')
         plt.show(block=False)
 
     # 6. Final Un-normalization

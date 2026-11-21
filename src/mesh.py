@@ -56,9 +56,9 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
             exp_base=CONFIG.non_uniform_mesh_config.exp_base
         )
         # Persist the newly created values, including mesh element sizes
-        save_csv("results/raw/non_uniform_mesh_method/z_new.csv", z_new)
-        save_csv("results/raw/non_uniform_mesh_method/dz_new.csv", np.diff(z_new))
-        save_csv("results/raw/non_uniform_mesh_method/G_new.csv", G_new)
+        save_csv("results/pipeline/raw/non_uniform_mesh_method/z_new.csv", z_new)
+        save_csv("results/pipeline/raw/non_uniform_mesh_method/dz_new.csv", np.diff(z_new))
+        save_csv("results/pipeline/raw/non_uniform_mesh_method/G_new.csv", G_new)
         # Use the recomputed quantities from here onward
         G, z = G_new, z_new
         return G, z
@@ -67,8 +67,8 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
                            CONFIG.total_variation_config.W, CONFIG.total_variation_config.mesh_resolution,
                            k_bulk=G_values.k_bulk)
         # Persist the newly created values, including mesh element sizes
-        save_csv("results/raw/scoring_model_method/z.csv", z)
-        save_csv("results/raw/scoring_model_method/G.csv", G)
+        save_csv("results/pipeline/raw/scoring_model_method/z.csv", z)
+        save_csv("results/pipeline/raw/scoring_model_method/G.csv", G)
         return G, z
     elif regularization_method is RegularizationMethod.MODEL_SCORE_GRAD:
         if mesh_resolution is None:
@@ -77,8 +77,8 @@ def calc_mesh_and_G(regularization_method: RegularizationMethod, G_values: GInpu
                            CONFIG.model_score_grad_config.W, mesh_resolution,
                            k_bulk=G_values.k_bulk)
         # Persist the newly created values, including mesh element sizes
-        save_csv("results/raw/scoring_model_method/z.csv", z)
-        save_csv("results/raw/scoring_model_method/G.csv", G)
+        save_csv("results/pipeline/raw/scoring_model_method/z.csv", z)
+        save_csv("results/pipeline/raw/scoring_model_method/G.csv", G)
         return G, z
     else:
         raise NotImplementedError(

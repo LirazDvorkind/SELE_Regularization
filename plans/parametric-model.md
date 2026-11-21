@@ -3,9 +3,7 @@
 Recovers a SELE depth profile, with uncertainty, from an ELE measurement — by inferring the
 five parameters of the physical simulator rather than regularising a 500-point curve.
 
-How-to lives in `src/forward_model/README.md` and
-`src/regularization/parametric_model/standalones/README.md`;
-`plans/parametric-model-primer.md` explains the machinery in plain terms. This is what the
+This is what the
 method is, what it delivers, and what it cannot claim.
 
 ---
@@ -84,7 +82,9 @@ not used to set it. `standalones/score_test_set.py` prints the per-zone errors a
 
 ### Without model mismatch
 
-Motivation, decisions and figures: `plans/forward-model-test-set.md`.
+`src/test_set/build_forward_model_set.py` builds it; the true parameters are stored for scoring
+only, and inference never reads them. Figures:
+`python -m src.regularization.parametric_model.standalones.plot_test_set_results`.
 `Data/test_set_forward_model/` holds 24 curves made by the simulator itself: SRV and lifetime
 sweeps through the centre of the box, and 12 draws from a held-out seed. Fed only their
 closed-form ELE, at 4000 draws:

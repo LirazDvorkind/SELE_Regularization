@@ -17,6 +17,17 @@ Keep CLAUDE.md a generic rulebook. When adding or editing a rule here, don't ill
 with an example drawn from the task you were just doing -- write the rule so it stands on
 its own for any future task. Task-specific detail belongs in the PR/commit, not here.
 
+### Docs stand alone
+
+Every README covers its own folder and nothing else. It never links to another README, a
+plan, or this file, and never depends on one to make sense: when it needs a fact owned
+elsewhere, it says it in a line of its own words or names the code that holds it. Naming code
+paths is fine; naming other docs is not. A little repetition is the price of independence --
+pay it rather than create a chain of "see X". Project-wide physics and conventions live in
+this file only, and folder-specific detail lives only in that folder's README, so this file
+names folders but does not restate them. Plans in `plans/` are working notes: docs never
+point to them.
+
 ### Writing files from the shell
 
 Don't write multi-line file content through a Bash heredoc (`cat > file <<'EOF'`). On this
@@ -84,6 +95,11 @@ Discretized: `eta_ext = (1/phi_abs) * G @ S`, where G is (L wavelengths × M dep
 Because `phi_abs = phi_0 * A` already normalizes by the absorbed fraction, front-surface
 reflectance cancels out of the discretized system and must not be applied to G a second time.
 
+Incident light is absorbed within a few µm, so the data say nothing about deeper SELE: the
+deep tail contributes nothing to the ELE, yet holds much of the SELE's area. An error metric
+integrated over depth and one computed from the ELE residual will disagree for that reason
+alone.
+
 ### Two Absorption Coefficients
 
 The paper distinguishes `alpha`, which includes free-carrier absorption (the Drude term),
@@ -95,8 +111,10 @@ what makes G a _generation_ matrix rather than an absorption matrix; a row of G 
 
 `src/optical_constants.py` is the single source of optics for the project — it reads the
 paper's own ellipsometry constants from `Data/Tamir_paper_SELE_figs/`, and every G, in the
-solver and in the test set alike, is built from it. Pass `k_bulk` alongside `k` when building
-G; omitting it silently models absorption instead of generation.
+solver, the simulator and the test sets alike, is built from it. Pass `k_bulk` alongside `k`
+when building G; omitting it silently models absorption instead of generation. Keep every G
+builder on this one source: a benchmark whose G differs from the solver's measures
+discretization error, not reconstruction error.
 
 ### Physical Intuition for the SELE Profile
 
@@ -113,40 +131,22 @@ Expected shape for a p-type GaAs wafer (paper Figure 2b):
 | Diffusion length                     | Peak position ~ diffusion length when surface recomb dominates.                               |
 | Photon recycling                     | Increases quasi-Fermi level separation deep in material; keeps SELE nonzero far from surface. |
 
+### Units
+
+Depth in cm and SELE as a fraction, everywhere in code and data. Paper figures plot µm and
+percent; convert on the way in.
+
 ---
 
 ## Commands
 
-### Run the main pipeline
-
 ```bash
-python -m src.main
+python -m src.main                                 # the main pipeline, mode set in src/types/config.py
+python -m src.evaluation.plot_method_comparison    # every method against every test curve
+python -m src.evaluation.feasibility_demo          # interactive: what the ELE data can and cannot pin down
 ```
 
-### Score-model standalones (from repo root)
-
-```bash
-python -m src.regularization.score_model.standalones.hyperparameter_playground   # one config, one curve
-python -m src.regularization.score_model.standalones.tune_hyperparameters        # grid search
-```
-
-Training and checkpoint-inspection scripts live in `src/regularization/score_model/standalones/model_training/`.
-
-### Rebuild the ground-truth test set
-
-```bash
-python -m src.test_set.build_test_set   # re-extract profiles from the paper figures
-python -m src.test_set.build_forward_model_set   # curves from the forward model itself
-python -m src.test_set.plot_test_set    # overview figure of both parameter sweeps
-python -m src.evaluation.plot_method_comparison   # every method against every curve
-```
-
-### P-n junction (drift-diffusion solver and junction SELE)
-
-```bash
-python -m src.pn_junction.standalones.check_drift_diffusion   # physics/numerics checks
-python -m src.pn_junction.standalones.plot_band_diagram       # band diagrams, J-V
-```
+Every other runnable script is listed in the README of the folder it lives in.
 
 ---
 
@@ -154,7 +154,7 @@ python -m src.pn_junction.standalones.plot_band_diagram       # band diagrams, J
 
 ### Entry point & flow
 
-`src/main.py` → `src/pipeline.py:run_regularization()` — orchestrates data loading, G-matrix computation, solving, and result export.
+`src/main.py` → `src/pipeline.py:run_regularization()` — orchestrates data loading, G-matrix computation, solving, and result export to `results/pipeline/`.
 
 ### Regularization modes (set via `CONFIG.regularization_method`)
 
@@ -172,69 +172,32 @@ and is driven by its own standalones. The three below are the curve-space method
 
 **TOTAL_VARIATION**: Two-parameter Tikhonov solved with CVXPY. Allows sharper features than standard Tikhonov.
 
-**MODEL_SCORE_GRAD**: Replaces L with a learned prior from a score-based diffusion model. Score network learns `grad(log p(S))` from synthetic SELE training data; solver, normalization and training details are in `src/regularization/score_model/CLAUDE.md`.
+**MODEL_SCORE_GRAD**: Replaces L with a learned prior from a score-based diffusion model. Score network learns `grad(log p(S))` from synthetic SELE training data.
 
 The Tikhonov modes whiten G by its median row norm (the system is badly conditioned) and pick
 the L-curve knee by normalized distance to the origin in log-log residual vs. seminorm.
 
-### Key modules
+### Where things live
 
-| Path                                   | Role                                                                                                                                         |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/__init__.py`                      | CONFIG import (avoid circular imports)                                                                                                       |
-| `src/test_set/`                        | Builds and loads the ground-truth SELE test set extracted from the paper's MATLAB figures                                                    |
-| `src/evaluation/`                      | Runs the reconstruction methods against the test set and compares them                                                                       |
-| `src/forward_model/`                   | Python port of the MATLAB SELE simulator, and the parameter space it is defined over (see its README)                                        |
-| `src/pn_junction/`                     | Everything p-n junction: the drift-diffusion solver (`drift_diffusion/`), junction SELE, and the junction feasibility study (see its README)  |
-| `src/regularization/parametric_model/` | Infers the simulator's five parameters from an ELE measurement and reconstructs SELE with uncertainty (see `plans/parametric-model.md`)      |
+| Path                                   | Role                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `src/__init__.py`                      | CONFIG import (avoid circular imports)                                                       |
+| `src/optical_constants.py`             | The one source of optics                                                                     |
+| `src/regularization/`                  | The three pipeline solvers, plus `score_model/` and `parametric_model/`                      |
+| `src/forward_model/`                   | Python port of the MATLAB SELE simulator and its five-parameter space                        |
+| `src/test_set/`                        | Builds and loads both ground-truth test sets                                                 |
+| `src/evaluation/`                      | Compares the methods against the test set; the feasibility demo                              |
+| `src/pn_junction/`                     | Drift-diffusion solver, junction SELE, and a synthetic junction measurement                  |
+| `Data/test_set/`                       | SELE profiles from the paper's figures, each with its G and ELE                              |
+| `Data/test_set_forward_model/`         | SELE profiles made by `src/forward_model/` itself, so no model mismatch                      |
+| `Data/Tamir_paper_SELE_figs/`          | The paper's `.fig` files: test-set profiles and the optical constants                        |
+| `Data/score_model/`, `Data/parametric_model/` | Checkpoints and training sets, tracked by DVC, not git — pull them with DVC          |
+| `MATLAB SELE Simulation/`              | The original MATLAB simulator                                                                |
+| `Papers/`                              | The paper, its SI, the thesis, and the follow-up manuscript                                  |
+| `results/`                             | Generated output, one folder per script                                                      |
 
-### Data files
-
-| Category                      | Location                              | Contents                                                                                                                                             |
-| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Measurement                   | `Data/ELE_sim.csv`                    | Simulated ELE measurement (the "observation")                                                                                                        |
-| Ground truth                  | `Data/SELE_ground_truth.csv`          | Ground truth SELE for comparison                                                                                                                     |
-| Ground-truth test set         | `Data/test_set/`                      | Multiple ground-truth SELE profiles, each with its G and ELE, for scoring a method across shapes rather than at one operating point (see its README) |
-| Forward-model test set        | `Data/test_set_forward_model/`        | SELE curves made by `src/forward_model/` itself, for scoring a method with model mismatch removed (see its README)                                   |
-| Paper figures                 | `Data/Tamir_paper_SELE_figs/`         | Source `.fig` files the test set and its optical constants come from (see its README)                                                                |
-| Optical inputs                | `Data/z.csv`, `wavelength_nm.csv`     | z-mesh and the measurement wavelengths. k(λ) does **not** live here — it comes from the paper figures via `src/optical_constants.py`                 |
-| Precomputed G matrices        | `Data/score_model/G_score_model*.csv` | One per score-model mesh resolution (target_length)                                                                                                  |
-| Score model checkpoints       | `Data/score_model/models/`            | `.pt` files, one per trained score net                                                                                                               |
-| Score model training datasets | `Data/score_model/datasets/`          | Synthetic SELE curve sets used to train checkpoints                                                                                                  |
-
-`Data/score_model/models/` and `Data/score_model/datasets/` are gitignored and tracked via DVC
-(`.dvc` files) rather than committed directly — pull them with DVC, not git, if missing.
-
-### Ground-truth test set
-
-Built by `src/test_set/` from the paper's `.fig` files; read it through
-`src/test_set/loader.py`, never by parsing `index.csv` positionally. Durable points:
-
-- **Every curve is stored on two meshes.** Its own (from the source figure, spanning the full
-  wafer) and the linear solver mesh. Each has its own G and ELE, and the two ELEs differ by
-  the discretization gap between them — which of the two is "the observation" is a real
-  choice, not an implementation detail. `Data/test_set/README.md` quantifies it.
-- **A G is data only when storing it beats recomputing it.** It is a pure function of the
-  optical constants and the mesh, so an operator too large to be worth committing is left out
-  of the set and rebuilt on load. Go through `loader.load_native_G` rather than reaching for
-  a file, and never commit a large derived matrix when its inputs are already in the repo.
-- **Resample across meshes by depth, never by index.** The profiles span the full 350 µm
-  wafer while the solver mesh spans `W`; index-based resampling silently compresses a profile
-  onto the wrong depths.
-- **Truncating at `W` is free for the forward model but not for SELE-domain metrics.**
-  Incident light is fully absorbed within a few µm, so the deep tail contributes nothing to
-  the ELE — yet a large fraction of SELE _area_ lives out there. An error metric integrated
-  over depth and one computed from the residual will disagree for that reason alone.
-- **A coarse solver mesh cannot represent the surface value.** Its first element centre sits
-  deeper than the figures' first sample, so `sele[0]` there is interpolated, not SELE(z=0) —
-  relevant because SRV is read off exactly that point.
-- **The set and the solver share one forward model.** Both build G from
-  `src/optical_constants.py`, so the test set's `solver_mesh/G_500.csv` is bit-identical to
-  what `calc_mesh_and_G` produces. Keep it that way — a benchmark whose G differs from the
-  solver's measures discretization error, not reconstruction error.
-- **It holds no noise.** That is deliberate, not a gap to fill unprompted, and it flatters
-  every method compared against it in `src/evaluation/`. `results/` predates the optics
-  unification and is not comparable to fresh output.
+Most folders carry a README for their own detail. Read the test sets through
+`src/test_set/loader.py`, never by parsing their `index.csv` positionally.
 
 ---
 
@@ -249,14 +212,6 @@ Don't rely on hue alone to distinguish series if avoidable — vary marker/line 
 
 ## Reference Papers
 
-In `Papers/` directory:
-
-- **Main paper**: "Mapping Losses through Empirical Extraction of the Spatial External Luminescence Efficiency" (Yeshurun, Fiegenbaum-Raz, Segev, ACS Appl. Energy Mater. 2024)
-- **Supporting Information**: Derivations for PL calibration, optical constants, regularization method (L-curve), photon recycling model, finite element simulation details
-- **PhD thesis** (Yeshurun, TAU): the full treatment, including PN junctions and MOS capacitors
-
-Key equations: (2) forward model, (4) ELE from SELE, (5) simulated SELE via perturbation, (8) Tikhonov minimization, (11) photovoltage buildup from SELE.
-
-Before reading any of them, read `Papers/README.md`: the built-in PDF reader does not work in
-this environment, and the README gives the working extraction commands, each document's
+The built-in PDF reader does not work in this environment. Before reading anything in
+`Papers/`, read `Papers/README.md`: it gives the working extraction commands, each document's
 structure, and the printed-to-PDF page offset for the thesis.

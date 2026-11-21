@@ -22,8 +22,8 @@ About 8 seconds. Writes two files to `Data/parametric_model/datasets/`. Only
 `parametric_100k_train.npz` (29 MB) is needed for training; the `_sele.npz` companion is a
 small sample of curves kept locally for sanity plots.
 
-It is fast because the ELE integral is done in closed form rather than on a depth mesh --
-see `src/forward_model/README.md`. That also means the measurement is computed at the
+It is fast because `src/forward_model/analytic_ele.py` does the ELE integral in closed form
+rather than on a depth mesh. That also means the measurement is computed at the
 equivalent of a million mesh elements, so the training data carries no discretisation error
 of its own.
 
@@ -110,15 +110,7 @@ reconstruction. The test-set pairs were built from one forward model and are sel
 
 ## The parameter box
 
-`D` is sampled log-uniformly from 5 cm^2/s, below the floor of 50 that
-`create_training_set.m` uses. `D` and `tau` reach the curve shape only through
-`Ln = sqrt(D tau_eff)`, but `tau` also sets brightness on its own, so a floor on `D` caps how
-bright a curve the family can produce at a given shape. At 50 that cap sits below what the
-test set's lifetime sweep needs. With the floor at 5, all 17 test curves fit to under 0.7%.
-
-`probe_parameter_bounds.py` re-derives this one bound at a time.
-
-A checkpoint carries its `param_spec`, so one trained against a different box is detectable
+The box is defined in `src/forward_model/parameters.py`. A checkpoint carries its `param_spec`, so one trained against a different box is detectable
 rather than silently wrong.
 
 ## What the figure shows, and what it does not

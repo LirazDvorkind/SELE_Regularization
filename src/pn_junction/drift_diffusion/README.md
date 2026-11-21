@@ -8,8 +8,8 @@ and plots band diagrams.
 
 It exists because the closed-form SELE model in `src/forward_model/` assumes a field-free
 wafer. In a junction the built-in field is what decides whether a carrier is collected or
-luminesces (see `plans/pn-junction-sele-primer.md`), and that needs the coupled equations.
-SELE itself is not computed here yet.
+luminesces, and that needs the coupled equations. `sele.py` turns a solved device into its
+SELE and collected-current profiles.
 
 > Original prompt:
   ```

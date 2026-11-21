@@ -38,13 +38,12 @@ The filename is auto-built as `sele_simulated_<N>_curves_<x_res>_long.<ext>`. No
 training script expects the `.mat` named `..._100000_curves_...` under
 `Data/score_model/datasets/`.
 
-**b. Train (Colab).** See [`../model_training/README.md`](../model_training/README.md) →
-the up-to-date notebook lives in the Google Drive "Thesis" folder.
+**b. Train (Colab).** Use the notebook in `model_training/`; its up-to-date copy lives in
+the Google Drive "Thesis" folder.
 
 **c. Copy over + DVC.** Put the `.pt` in `Data/score_model/models/` and the example `.csv`
-in `Data/score_model/datasets/`, then track them with DVC — see the "Large Files (DVC)"
-section of the [root README](../../../../../README.md) (`dvc add Data/score_model/models`,
-`git add` the `.dvc`, `dvc push`).
+in `Data/score_model/datasets/`, then track them with DVC: `dvc add Data/score_model/models`
+(and `datasets`), `git add` the `.dvc` files, commit, `dvc push`.
 
 **d. Run the toolkit.** Set `MODEL_PATH` / `CURVES_PATH` in `main.py`, run it, read the
 recommendation and inspect the generated-curve plots.

@@ -7,11 +7,11 @@ earlier analysis scripts. Move the sliders; the numbers and shapes update live s
 see *why* each claim holds, not just read that it does. Start on view 0 for a plain-language
 introduction to the terms used everywhere else (ELE, SELE, G, prior, posterior).
 
-Run as: python -m src.regularization.score_model.standalones.feasibility_demo
+Run as: python -m src.evaluation.feasibility_demo
 
 The "save figure" button (or --export) writes static, document-ready versions of the
 ambiguity figure (claim F) to results/feasibility/:
-    python -m src.regularization.score_model.standalones.feasibility_demo --export [--idx N] [--noise 1.0]
+    python -m src.evaluation.feasibility_demo --export [--idx N] [--noise 1.0]
 """
 import argparse
 import textwrap
@@ -25,7 +25,7 @@ from matplotlib.widgets import Button, RadioButtons, Slider
 
 from src.io import load_csv
 
-_DATA_DIR = Path(__file__).resolve().parents[4] / "Data"
+_DATA_DIR = Path(__file__).resolve().parents[2] / "Data"
 _SCORE_DIR = _DATA_DIR / "score_model"
 
 # Colorblind-safe categorical palette (Okabe-Ito), per this repo's plotting conventions.

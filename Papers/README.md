@@ -10,6 +10,7 @@ Reference material for the project. Read this file first when asked to consult a
 | `SELE Mapping Supporting Information.pdf` | Its SI: PL calibration, optical constants, regularization details, photon-recycling model, FEM setup. Pages are numbered S-1.. | 23 |
 | `Ph_D__Thesis___SELE___Tel_Aviv_University___Yeshurun.pdf` | The full thesis. Everything above plus InP wafers, PN junctions, MOS capacitors, operando oxide growth, and appendices on instruments and error analysis. | 131 |
 | `An analythic solution to the SELE of a GaAs wafer - for Zohara.docx` | Closed-form SELE derivation for the wafer case — the precursor that became section 3 of the manuscript below, plus two sections it dropped (`Relating Sp to S`, `Obtaining results by fitting to the ratio of two spectra`). 7 review comments. | — |
+| `An analythic solution to the SELE of a Perovskite layer.docx` | Gideon Segev's adaptation of the wafer derivation above to a thin uniform layer of finite thickness `L` with a second, back-surface SRV. Unfinished. 12 comments. | — |
 | `Zohara-Full_document_rev4-GS.docx` | **The follow-up manuscript**, under review. Fits the closed-form PL expression to excitation–emission PL maps to extract diffusion length, and defines an SRV ranking index. 64 review comments, mostly Gideon Segev. | — |
 
 ## How to read the PDFs
@@ -34,7 +35,8 @@ uv run --with pymupdf python -c "
 import pymupdf; [print(l, t, p) for l, t, p in pymupdf.open('Papers/<file>.pdf').get_toc()]"
 ```
 
-Write scripts longer than a few lines to a file first (see the CLAUDE.md rule on heredocs).
+Write scripts longer than a few lines to a file first: long shell heredocs fail to parse on
+this Windows setup.
 Put rendered PNGs and text dumps in the session scratchpad, not in this directory.
 
 ## How to read the `.docx` files
@@ -86,22 +88,15 @@ Main body, by PDF page:
 
 Figures that matter most for this repo: the wafer SELE and its parameter sweeps (PDF 60–66,
 the source of `Data/test_set/`); optical constants (PDF 40, the source of
-`src/optical_constants.py`); the PN-junction SELE and SCE (Fig 3.10–3.11, PDF 73–75, discussed
-in `plans/pn-junction-sele-primer.md`).
+`src/optical_constants.py`); the PN-junction SELE and SCE (Fig 3.10–3.11, PDF 73–75).
 
 ## Main paper and SI
 
 Neither has bookmarks. The main paper's key equations are numbered (2) forward model,
 (4) ELE from SELE, (5) simulated SELE by perturbation, (8) Tikhonov, (11) photovoltage from
 SELE. The SI is sectioned S1–S6; eq S4.1 is the `alpha_b/alpha` generation prefactor that
-turns an absorption matrix into a generation matrix.
-
-That prefactor is applied by every G builder in the project — `src/mesh.py` (which can omit
-it, and then models absorption instead), `src/test_set/build_test_set.py`, and
-`src/forward_model/analytic_ele.py`. All three take `k` and `k_bulk` from
-`src/optical_constants.py`, which is the single source of optics and reads the paper's own
-ellipsometry out of `Data/Tamir_paper_SELE_figs/`. Go there for the constants rather than to
-any one consumer of them.
+turns an absorption matrix into a generation matrix. In code, every G builder takes its
+constants from `src/optical_constants.py`.
 
 ## The follow-up manuscript and this repo's forward model
 
@@ -111,12 +106,27 @@ lambda_ex)` and leaves only the diffusion length and one transport parameter as 
 equations are nonetheless the *same* equations as `MATLAB SELE Simulation/calc_Sp2.m` and
 `src/forward_model/` — the first MATLAB commit implemented that model term for term.
 
-Before comparing the two, read `plans/forward-model-drift-from-zohara-equations.md`. It maps
-each manuscript equation to its code counterpart, states where the repo deliberately differs
-and what each side assumes, and lists issues in the manuscript that the existing review comments do not catch. Two things in it will save re-deriving:
+Two things will save re-deriving when comparing the two:
 
 - **The manuscript's `A₁` is the code's `A2`/`a2`.** The code's `A1` is the literal constant
   `2` — the manuscript's leading `2` in its Eq (11). Everyone maps this wrong once.
 - **The repo's `G` carries `alpha_b/alpha`; the manuscript's Eq (14) does not.** Once that is
   accounted for, the repo's closed-form ELE agrees with the manuscript's Eq (16) to
   discretisation error.
+
+## The thin-layer derivation
+
+`An analythic solution to the SELE of a Perovskite layer.docx` starts from the wafer
+derivation and replaces the semi-infinite sample with a layer of thickness `L`: the carrier
+equation gets a second boundary condition at `x = L` with its own SRV `S_L`, folded into a
+constant `A_L` alongside the front surface's `A_0`. Its title still says "GaAs wafer" and its
+equation numbers repeat; it is a working draft.
+
+Only part of it carries `A_L` through. The excess-carrier profile (its Eq 14, three
+versions, the separate `x < x0` / `x > x0` lines being the ones to trust — the combined line
+has a stray `B`) and the SELE for PL wavelengths the layer does not absorb (constant escape
+probability, finite `L`) are new. Everything from the single-pass escape probability (Eq 16)
+onward — the spectrum, the maximum position, the two-spectra ratio — is the wafer text
+unchanged: it integrates to infinity and keeps only `A_0`. Gideon's comments note that only one
+of the three PL-absorption regimes in the assumptions will apply for a given thickness, and
+that a large `L` sends `A_L` to infinity and recovers the wafer.

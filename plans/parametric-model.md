@@ -3,9 +3,7 @@
 Recovers a SELE depth profile, with uncertainty, from an ELE measurement — by inferring the
 five parameters of the physical simulator rather than regularising a 500-point curve.
 
-How-to lives in `src/forward_model/README.md` and
-`src/regularization/parametric_model/standalones/README.md`;
-`plans/parametric-model-primer.md` explains the machinery in plain terms. This is what the
+This is what the
 method is, what it delivers, and what it cannot claim.
 
 ---
@@ -81,6 +79,39 @@ fit on those curves. Loosening the tolerance does raise coverage (median 22% at 
 at 5% over 0–3 µm), but only by admitting draws that no longer fit, which is why coverage is
 not used to set it. `standalones/score_test_set.py` prints the per-zone errors and coverage;
 `standalones/check_uncertainty.py` shows how both move with the tolerance.
+
+### Without model mismatch
+
+`src/test_set/build_forward_model_set.py` builds it; the true parameters are stored for scoring
+only, and inference never reads them. Figures:
+`python -m src.regularization.parametric_model.standalones.plot_test_set_results`.
+`Data/test_set_forward_model/` holds 24 curves made by the simulator itself: SRV and lifetime
+sweeps through the centre of the box, and 12 draws from a held-out seed. Fed only their
+closed-form ELE, at 4000 draws:
+
+| | |
+|---|---|
+| best draw reproduces the ELE to | 0.008–0.056% |
+| best-draw SELE error, 0–1 µm | **≤ 0.2%** on every curve |
+| best-draw SELE error, 1–3 µm | 0.1–2.9% |
+| best-draw SELE error, 8–30 µm | 0.7–50% |
+| truth inside the envelope, 0–3 µm | 100% on 21 of 24; 46–72% on three |
+| parameters | off by up to 1.4 decades, `p0`, `D` and `S` moving together |
+
+So the 1–3 µm bias on the paper-figure set is mostly model mismatch: with it removed, the
+error there falls from 5–12% to under 3%. Reconstruction is exact where the data looks and
+not beyond it.
+
+At 40000 draws the ELE misfit falls about fivefold, 0–1 µm stays at ≤ 0.2%, and 0–3 µm
+coverage reaches 100% on 23 of 24 — but the deep error does not converge and the parameters
+do not approach the truth: the best draw moves to a different point on the solution set and
+fits the ELE just as well. That is the ridge, not a sampling shortfall: parameter sets an ELE
+fit cannot tell apart give SELE that differs by tens of percent past a few µm. The three curves
+whose envelope misses the truth at depth (`fm_rand_02`, `_06`, `_11`) are all low-doping and
+long-lifetime, with diffusion lengths beyond the 30 µm window and the SELE peak at 15–25 µm.
+The network's proposal does not reach their true lifetime, which only the unmeasured depths
+would reveal. So **the parameters are not identifiable from ELE**, even with no noise and a
+perfect model, and should never be quoted as recovered.
 
 ## Quoting a number
 
@@ -171,5 +202,7 @@ The NAG solver is out of scope — a different question with a different failure
 | `.../plot_parametric_result.py` | the two-panel figure |
 | `.../standalones/parametric_model_training.ipynb` | the Colab notebook that trains it |
 | `.../standalones/run_inference.py` | reconstruct and plot; writes `results/parametric_model/` |
-| `.../standalones/score_test_set.py` | accuracy vs ground truth, by depth zone |
+| `.../standalones/score_test_set.py` | accuracy vs ground truth, by depth zone; `--set forward_model` adds parameter recovery |
+| `src/test_set/build_forward_model_set.py` | builds the forward-model test set |
+| `.../standalones/plot_test_set_results.py` | consolidated figures for both test sets, and the two sets compared |
 | `.../standalones/check_uncertainty.py` | draws kept, coverage and envelope width, by tolerance |

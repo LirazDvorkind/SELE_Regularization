@@ -71,7 +71,7 @@ def plot_sele_selection(
         ax.plot(truth_z, np.asarray(ground_truth_sele) * _PERCENT, color=_TRUTH,
                 linewidth=1.6, linestyle="--", label="ground truth")
 
-    ax.set_xlabel("depth z [um]")
+    ax.set_xlabel("depth z [µm]")
     ax.set_ylabel("SELE [%]")
     ax.set_xlim(0, z_um.max())
     ax.set_title(title or "SELE reconstruction")

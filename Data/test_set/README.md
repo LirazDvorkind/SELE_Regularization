@@ -75,17 +75,11 @@ Simulation/optical_constnats_w_wo_Drude.mat`). That module is the project's sing
 optics, so **the test set and the solver share one forward model**: `solver_mesh/G_500.csv` is
 bit-identical to what `calc_mesh_and_G` builds. An earlier `Data/k.csv` held a single
 extinction spectrum that differed from these by up to ~7% and could not express the
-free-carrier split at all; it has been deleted.
+free-carrier split at all; it has been deleted. The generation prefactor `alpha_b / alpha`
+runs 0.976–0.998 over 400–670 nm.
 
-The paper carries two absorption coefficients (main text §2.2, SI §S2). `alpha`, from the
-model *with* the Drude oscillator, sets how fast the beam is attenuated. `alpha_b`, with the
-Drude term removed, sets how many of those absorption events free a carrier — free-carrier
-absorption is intra-band and generates nothing. Generation therefore carries the prefactor
-`alpha_b / alpha`, as in SI eq. S4.1; over 400–670 nm it runs 0.976–0.998.
-
-Reflectance does not enter: `phi_abs = phi_0 * A` normalizes it out of eq. 4, and since
-`exp(-alpha * 350 um)` underflows to zero across the whole measurement band there is no
-back-surface or multi-pass contribution to recover.
+Since `exp(-alpha * 350 um)` underflows to zero across the whole measurement band, there is
+no back-surface or multi-pass contribution to recover.
 
 ### Cross-check
 
@@ -117,7 +111,7 @@ rebuilds it as appropriate.
 Resample by depth, not by index — these meshes span 350 µm while the solver mesh spans
 `W` (~30 µm), so index-based resampling would compress the profile onto the wrong depths.
 
-Two caveats when scoring reconstructions on the solver mesh:
+Caveats when scoring reconstructions:
 
 - **Which ELE is the observation.** `ele_500.csv` is consistent with `G_500.csv` by
   construction, which makes residuals interpretable but is an inverse crime. `ele.csv` is
@@ -126,7 +120,10 @@ Two caveats when scoring reconstructions on the solver mesh:
   away.
 - **The surface value is not representable.** The first element centre of the 500-point mesh
   is at 0.03 µm, deeper than the figures' 0.005 µm surface sample, so `sele_500[0]` is an
-  interpolated value rather than SELE(z=0). Truncation at 30 µm, by contrast, is free: it
-  changes the ELE by exactly zero.
+  interpolated value rather than SELE(z=0), which matters because SRV is read off exactly
+  that point. Truncation at 30 µm, by contrast, is free for the ELE (it changes it by exactly
+  zero) but not for SELE-domain metrics, since much of the profile's area lies deeper.
+- **No noise.** The set is noiseless (SELE, ELE) pairs by design. That is deliberate, not a
+  gap to fill unprompted, and it flatters every method scored against it.
 
 `python -m src.test_set.plot_test_set` renders an overview of both sweeps for eyeballing.

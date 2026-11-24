@@ -35,8 +35,8 @@ A `.fig` is a MAT-file holding one `hgS_070000` handle-graphics struct; line dat
 - **`Optics results corrected PL.fig` is MAT v7.3 (HDF5)** and will not open with
   `read_fig`/`loadmat`; it needs `h5py`, which is deliberately *not* a project dependency. It
   was inspected once and holds no SELE and no optical constants, so nothing needs it. Its
-  reflectance is not required either — see the optics discussion in
-  `Data/test_set/README.md`.
+  reflectance is not required either: the forward model normalises by the absorbed flux, so
+  reflectance cancels out.
 - **`Optical constants GaAs.fig` is bit-identical** to
   `MATLAB SELE Simulation/optical_constnats_w_wo_Drude.mat` (same 601-point grid, zero
   difference on all four series). Either source is fine; no need to reconcile them.

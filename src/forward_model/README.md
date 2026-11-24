@@ -97,5 +97,4 @@ cannot do. Each answers one question and prints its own evidence.
 
 They exist because each backs a decision that is live in the code -- the `D` floor, the choice
 not to treat the network's Gaussian as the answer -- and a number nobody can regenerate is an
-assertion rather than evidence. `plans/parametric-model.md` records what they said
-and what followed from it.
+assertion rather than evidence.

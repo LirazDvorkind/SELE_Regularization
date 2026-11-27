@@ -9,6 +9,12 @@ physics on samples from that Gaussian, not from a generative model.
 - `parametric_model_training.ipynb` — Colab notebook, the one you run
 - `train_parametric_model.py` — the same training run locally (CPU is fine)
 - `run_inference.py` — reconstruct SELE from a measurement: best draw plus the draws that fit
+- `parameter_recovery_study.py` — how often each parameter is recovered, on 400 fresh
+  simulator curves. Each parameter is judged against the method's own spread σ (the draws
+  within 1% in ELE): *recovered* if the best draw is within 2σ of the truth and ±2σ spans
+  under half the parameter's box; *not determined* if within 2σ but ±2σ spans most of the box
+  (the ELE does not fix it, and the method says so); *wrong* if more than 2σ off. About 13
+  minutes; `--replot` redraws from the cached results.
 
 ## Workflow
 

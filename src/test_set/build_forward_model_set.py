@@ -75,17 +75,18 @@ def sweep_parameters() -> Tuple[List[str], NDArray[np.float64]]:
     return ids, np.array(rows)
 
 
-def random_parameters() -> Tuple[List[str], NDArray[np.float64]]:
-    rng = np.random.default_rng(_RANDOM_SEED)
+def random_parameters(seed: int = _RANDOM_SEED,
+                      n: int = _N_RANDOM) -> Tuple[List[str], NDArray[np.float64]]:
+    rng = np.random.default_rng(seed)
     kept: List[NDArray[np.float64]] = []
-    while len(kept) < _N_RANDOM:
+    while len(kept) < n:
         params = PARAMETER_SPEC.sample(1, rng)
         # The same rejection generate_dataset applies: calc_Sp2's 1/(1 - (alpha Ln)^2)
         # can land a draw on a singularity.
         ele = simulate_ele(params)
         if np.isfinite(ele).all() and (ele > 0).all():
             kept.append(params[0])
-    return [f"fm_rand_{i:02d}" for i in range(_N_RANDOM)], np.array(kept)
+    return [f"fm_rand_{i:02d}" for i in range(n)], np.array(kept)
 
 
 def nearest_training_distance(params: NDArray[np.float64]) -> Tuple[NDArray[np.float64], float]:

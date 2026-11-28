@@ -15,6 +15,8 @@ physics on samples from that Gaussian, not from a generative model.
   under half the parameter's box; *not determined* if within 2σ but ±2σ spans most of the box
   (the ELE does not fix it, and the method says so); *wrong* if more than 2σ off. About 13
   minutes; `--replot` redraws from the cached results.
+- `check_calibration.py` — how often the predicted Gaussian misses the true parameters, and
+  whether each miss is ambiguity the data leaves open or a real failure
 
 ## Workflow
 
@@ -113,6 +115,26 @@ Score against the test set, not against `--ele-sim`. `Data/ELE_sim.csv` disagree
 ground-truth profile pushed through the current G by up to 20%, because that file predates the
 unification of the optical constants. Part of any residual there is that gap rather than the
 reconstruction. The test-set pairs were built from one forward model and are self-consistent.
+
+## Parameter calibration
+
+```bash
+python -m src.regularization.parametric_model.standalones.check_calibration
+```
+
+Scores the network on the training run's own validation split, rebuilt from the checkpoint's
+seed, and then on `Data/test_set_forward_model/` curve by curve. Keep two quantities apart
+when reading it. The *width* of the predicted Gaussian, relative to the prior, is the
+ill-posedness: a parameter the ELE cannot pin down should get a wide spread. *Calibration*
+is the network: even a perfect posterior leaves the truth outside 2σ 4.55% of the time, so
+only the excess over that counts as failure. Misses are reported per parameter, jointly in
+5-D, and along the covariance's own axes. Each joint miss is then triaged by pushing draws
+back through the simulator. If some draw still reproduces the ELE, the network found a
+different member of the set of equivalent solutions. If none does, it found nothing that
+explains the data.
+
+It warns if the dataset's ELE no longer matches the current simulator. In that case the
+network learned older physics, and the triage and the forward-model rows mix the two.
 
 ## The parameter box
 

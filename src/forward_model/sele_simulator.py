@@ -52,6 +52,7 @@ class EmissionBand(NamedTuple):
     escape_cone: NDArray[np.float64]        # (E,), ``1 - cos(theta_c)``
     alpha_b: NDArray[np.float64]            # (E,), 1/cm, Drude term removed
     k: NDArray[np.float64]                  # (E,), extinction with the Drude term
+    k_bulk: NDArray[np.float64]             # (E,), extinction without it
 
 
 def fresnel_transmission(n_incident: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -95,6 +96,7 @@ def emission_band() -> EmissionBand:
         escape_cone=1.0 - np.cos(np.arcsin(1.0 / n)),
         alpha_b=4.0 * np.pi * k_bulk / wavelength_cm,
         k=k,
+        k_bulk=k_bulk,
     )
     weights = np.zeros_like(photon_energy_ev)
     weights[order] = _trapezoid_weights(photon_energy_ev[order])
@@ -165,10 +167,13 @@ def curve_terms(params: NDArray[np.float64]) -> CurveTerms:
     ni = intrinsic_concentration(p0)
     diffusion_length = np.sqrt(diffusivity * tau_eff)          # (B, 1)
 
-    # Attenuation follows the with-Drude k; emission follows band.alpha_b. k is the
-    # ellipsometry sample's, so alpha_scale carries any doping mismatch.
+    # Attenuation follows the with-Drude k, emission band.alpha_b. Free-carrier absorption
+    # scales with the hole density, and the ellipsometry Drude term was fitted at 1e19
+    # (SI Table S2.1), so it is scaled from there. interp1 is linear in its samples, so
+    # blending the two interpolated curves equals interpolating the blended one.
+    k_eff = band.k_bulk + (band.k - band.k_bulk) * (p0 / 1e19)  # (B, E)
     wavelength_cm = band.wavelength_nm * 1e-7
-    alpha = 4.0 * np.pi * band.k / wavelength_cm * alpha_scale  # (B, E)
+    alpha = 4.0 * np.pi * k_eff / wavelength_cm * alpha_scale   # (B, E)
 
     energy = band.photon_energy_ev
     emission_rate = (1.0 / (np.pi ** 2 * HBAR_EV_S ** 3 * C0_CM_PER_S ** 2 * ni ** 2)

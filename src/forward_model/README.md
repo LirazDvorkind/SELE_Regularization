@@ -11,9 +11,15 @@ sampled parameters have to become SELE curves inside the Python pipeline.
 
 `parameters.py` is the single definition of what varies, transcribed from the randomisation
 block of `create_training_set.m`. Everything else in the simulator — bandgap narrowing, the
-intrinsic concentration, the Auger and radiative lifetimes — is derived from the doping
-rather than sampled independently. The extinction coefficient is not: it is the ellipsometry
-sample's, and `alpha_scale` absorbs any doping mismatch.
+intrinsic concentration, the Auger and radiative lifetimes, the free-carrier part of the
+extinction coefficient — is derived from the doping rather than sampled independently.
+Free-carrier absorption is scaled linearly in doping from the ellipsometry sample's Drude
+term, which the paper's SI fitted at 1e19 cm^-3. `alpha_scale` is separate from doping: it
+covers how poorly the emission-band absorption is known near the band edge.
+
+Dropping that blend, as was briefly done, leaves the ELE reproducible by refitting
+`alpha_scale` alone but changes the SELE beyond a few micrometres, and forces `alpha_scale`
+to stand in for doping. Training data and test sets must come from the same version of it.
 
 Normalised space is `[-1, 1]` per parameter, taking a logarithm first -- every parameter is
 now sampled log-uniformly. The bounds are exact rather than estimated, so the transform

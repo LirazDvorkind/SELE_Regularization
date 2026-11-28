@@ -54,6 +54,14 @@ class TrainingConfig:
     n_parameters: int = field(default=5)
 
 
+def split_indices(n_curves: int, validation_fraction: float,
+                  seed: int) -> Tuple[np.ndarray, np.ndarray]:
+    """``(validation_idx, train_idx)``. ``check_calibration.py`` rebuilds the split with this."""
+    order = np.random.default_rng(seed).permutation(n_curves)
+    n_validation = int(round(validation_fraction * n_curves))
+    return order[:n_validation], order[n_validation:]
+
+
 def load_dataset(config: TrainingConfig):
     payload = np.load(config.data_path, allow_pickle=False)
     ele = payload["ele"]
@@ -66,10 +74,8 @@ def load_dataset(config: TrainingConfig):
         is_log=tuple(bool(v) for v in payload["param_is_log"]),
     )
 
-    rng = np.random.default_rng(config.seed)
-    order = rng.permutation(ele.shape[0])
-    n_validation = int(round(config.validation_fraction * ele.shape[0]))
-    validation_idx, train_idx = order[:n_validation], order[n_validation:]
+    validation_idx, train_idx = split_indices(ele.shape[0], config.validation_fraction,
+                                              config.seed)
 
     # Standardisation statistics come from the training split alone, so the validation
     # numbers stay an honest estimate of unseen data.

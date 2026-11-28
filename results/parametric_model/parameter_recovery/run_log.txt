@@ -1,34 +1,34 @@
-  20/400 curves (33s)
-  40/400 curves (65s)
-  60/400 curves (98s)
-  80/400 curves (131s)
-  100/400 curves (165s)
-  120/400 curves (198s)
-  140/400 curves (231s)
-  160/400 curves (264s)
-  180/400 curves (298s)
-  200/400 curves (332s)
-  220/400 curves (366s)
-  240/400 curves (400s)
-  260/400 curves (434s)
-  280/400 curves (469s)
-  300/400 curves (502s)
-  320/400 curves (535s)
-  340/400 curves (568s)
-  360/400 curves (600s)
-  380/400 curves (632s)
-  400/400 curves (664s)
+  20/400 curves (27s)
+  40/400 curves (59s)
+  60/400 curves (87s)
+  80/400 curves (115s)
+  100/400 curves (142s)
+  120/400 curves (165s)
+  140/400 curves (188s)
+  160/400 curves (213s)
+  180/400 curves (237s)
+  200/400 curves (260s)
+  220/400 curves (282s)
+  240/400 curves (303s)
+  260/400 curves (325s)
+  280/400 curves (347s)
+  300/400 curves (369s)
+  320/400 curves (391s)
+  340/400 curves (413s)
+  360/400 curves (434s)
+  380/400 curves (457s)
+  400/400 curves (479s)
 400 curves, seed 20261127, 4000 draws each
-best-draw ELE misfit 0.001% to 0.240% (median 0.024%)
+best-draw ELE misfit 0.001% to 0.149% (median 0.016%)
 0 curve(s) with fewer than 10 draws within 1%: no sigma, left out below
 
                   recovered   not determined          wrong   within 1 sigma   within 2 sigma
-          p0      49% +- 2%        26% +- 2%      25% +- 2%        46% +- 2%        75% +- 2%
-           D      28% +- 2%        48% +- 2%      24% +- 2%        43% +- 2%        76% +- 2%
-           S      76% +- 2%         1% +- 0%      23% +- 2%        47% +- 2%        77% +- 2%
-         tau       3% +- 1%        75% +- 2%      22% +- 2%        46% +- 2%        78% +- 2%
- alpha_scale      60% +- 2%        16% +- 2%      24% +- 2%        45% +- 2%        76% +- 2%
+          p0      50% +- 2%        34% +- 2%      17% +- 2%        53% +- 2%        83% +- 2%
+           D      30% +- 2%        52% +- 2%      18% +- 2%        51% +- 2%        82% +- 2%
+           S      82% +- 2%         1% +- 0%      17% +- 2%        51% +- 2%        83% +- 2%
+         tau       4% +- 1%        79% +- 2%      18% +- 2%        48% +- 2%        82% +- 2%
+ alpha_scale      46% +- 2%        32% +- 2%      22% +- 2%        50% +- 2%        78% +- 2%
      derived
-          Ln      71% +- 2%         0% +- 0%      29% +- 2%        43% +- 2%        71% +- 2%
-         S/D      87% +- 2%         0% +- 0%      12% +- 2%        66% +- 2%        88% +- 2%
-figures written to C:\Users\Liraz\Documents\Dev\Python\SELE_Regularization\results\parametric_model\parameter_recovery
+          Ln      83% +- 2%         0% +- 0%      17% +- 2%        55% +- 2%        83% +- 2%
+         S/D      91% +- 1%         0% +- 0%       8% +- 1%        70% +- 2%        92% +- 1%
+figures written to C:\Users\dvorkind\Dev\SELE_Regularization\results\parametric_model\parameter_recovery
